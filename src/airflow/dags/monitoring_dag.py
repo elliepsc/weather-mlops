@@ -1,10 +1,12 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.email import EmailOperator
 from airflow.utils.dates import days_ago
 import subprocess
 import os
 import json
+from tools import *
 
 # Variables globales
 DRIFT_SCRIPT_PATH = "/opt/airflow/dags/monitoring/drift_monitoring.py"
@@ -35,8 +37,14 @@ def check_drift_and_alert():
     drift_detected = any(feature_info.get("drift_detected", False) for feature_info in drift_summary.values())
     
     if drift_detected:
-        raise ValueError("Dérive détectée dans les données de production !")
-    # Si aucune dérive n'est détectée, la tâche se termine normalement.
+        message = "Dérive détectée dans les données de production !"
+        print(message)
+        return "send_email_alert"
+    else:
+        return "end_dag"# Si aucune dérive n'est détectée, la tâche se termine normalement.
+
+def email_alert():
+    print("An email will be sent")
 
 # Définition des paramètres du DAG
 default_args = {
@@ -56,30 +64,36 @@ with DAG(
     # Étape 1 : Détection de dérive
     drift_monitoring_task = PythonOperator(
         task_id="run_drift_monitoring",
-        python_callable=run_drift_monitoring,
+        #python_callable=run_drift_monitoring,
+        python_callable=start_existing_container,
+        op_kwargs={'container_name': 'meteo_group-monitoring-1'}
     )
 
     # Étape 2 : Comparaison des modèles
+    """
     model_comparison_task = PythonOperator(
         task_id="run_model_comparison",
         python_callable=run_model_comparison,
     )
-
+    """
     # Étape 3 : Vérification et déclenchement d'une alerte en cas de dérive
-    check_drift_task = PythonOperator(
+    check_drift_task = BranchPythonOperator(
         task_id="check_drift_and_alert",
         python_callable=check_drift_and_alert,
     )
 
     # Étape 4 : Envoi d'un email en cas de dérive détectée
-    email_alert_task = EmailOperator(
+    email_alert_task = PythonOperator(
         task_id="send_email_alert",
-        to="team@example.com",
-        subject="Alerte : Dérive détectée dans les données !",
-        html_content="Des dérives ont été détectées dans les données de production. Veuillez vérifier le rapport.",
+        python_callable=email_alert,
+        #to="team@example.com",
+        #subject="Alerte : Dérive détectée dans les données !",
+        #html_content="Des dérives ont été détectées dans les données de production. Veuillez vérifier le rapport.",
     )
+     #Dummy task
+    end_dag=DummyOperator(task_id="end_dag")
 
     # Orchestration des tâches :
     # D'abord, exécuter la détection, puis la vérification.
     # En cas d'erreur dans la vérification (dérive détectée), Airflow considèrera la tâche comme échouée et pourra déclencher l'alerte.
-    drift_monitoring_task >> check_drift_task >> [model_comparison_task, email_alert_task]
+    drift_monitoring_task >> check_drift_task >> [email_alert_task, end_dag]

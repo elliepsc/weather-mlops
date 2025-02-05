@@ -2,7 +2,7 @@ import logging
 import os
 
 # Définition du chemin du dossier logs principal
-LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../logs"))
+LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/app/logs"))
 os.makedirs(LOG_DIR, exist_ok=True)  # Création du dossier logs s'il n'existe pas
 
 # Chemin du fichier log spécifique à ingest

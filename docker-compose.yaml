@@ -235,6 +235,7 @@ services:
       - ./data:/app/data
       - ./config:/app/config
       - ./:/app/repo
+      - ./logs:/app/logs
       - ~/.gitconfig:/root/.gitconfig:ro
     networks:
       - app_network
@@ -268,6 +269,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./logs:/app/logs
     networks:
       - app_network
     depends_on:
@@ -284,6 +286,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./logs:/app/logs
     networks:
       - app_network
     depends_on:
@@ -300,11 +303,12 @@ services:
       - ./config:/app/config
       - ./mlflow:/app/model
       - ./mlflow/mlartifact:/app/mlartifacts
+      - ./logs:/app/logs
     depends_on:
       train_service:
         condition: service_completed_successfully
     ports:
-      - "8101:8000"
+      - "8000:8000"
     networks:
       - app_network
       
@@ -342,7 +346,7 @@ services:
 
   monitoring:
     build:
-      context: src/airflow/dags/monitoring
+      context: src/monitoring
       dockerfile: Dockerfile
     image: monitoring_service
     volumes:

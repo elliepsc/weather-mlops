@@ -8,3 +8,9 @@
 2025-02-05 11:50:58,622 - INFO - ingest - Logger configuré avec succès pour ingest !
 2025-02-05 11:50:58,623 - INFO - ingest - Début du traitement des données...
 2025-02-05 11:50:58,624 - ERROR - ingest - Erreur rencontrée : Erreur de test
+2025-02-05 12:44:33,648 - INFO - ingest - Logger configuré avec succès pour ingest !
+2025-02-05 12:44:33,648 - INFO - ingest - Début du traitement des données...
+2025-02-05 12:44:33,649 - ERROR - ingest - Erreur rencontrée : Erreur de test
+2025-02-05 12:57:45,165 - INFO - ingest - Logger configuré avec succès pour ingest !
+2025-02-05 12:57:45,166 - INFO - ingest - Début du traitement des données...
+2025-02-05 12:57:45,167 - ERROR - ingest - Erreur rencontrée : Erreur de test

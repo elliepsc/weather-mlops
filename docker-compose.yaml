@@ -236,6 +236,7 @@ services:
       - ./config:/app/config
       - ./:/app/repo
       - ~/.gitconfig:/root/.gitconfig:ro
+      - ./logs:/app/logs
     networks:
       - app_network
 
@@ -268,6 +269,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./logs:/app/logs
     networks:
       - app_network
     depends_on:
@@ -284,6 +286,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./logs:/app/logs
     networks:
       - app_network
     depends_on:
@@ -300,6 +303,7 @@ services:
       - ./config:/app/config
       - ./mlflow:/app/model
       - ./mlflow/mlartifact:/app/mlartifacts
+      - ./logs:/app/logs
     depends_on:
       train_service:
         condition: service_completed_successfully

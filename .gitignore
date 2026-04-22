@@ -1,14 +1,8 @@
 # ── Environnements virtuels ──────────────────────────────────────────────────
 venv/
-venv_secu/
 env/
-env_meteo/
 .venv/
 airflow_env/
-train_env/
-src/ingest/env_test/
-src/Gateway/venv_se/
-src/train/train_env/
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
@@ -32,14 +26,16 @@ data/raw/weatherAUS.csv
 data/processed/
 data/monitoring/
 data/production_logs/
+data/raw.dvc
+
 
 # ── Modèles ML (générés par le pipeline) ─────────────────────────────────────
+models/
 models/*.pkl
 models/metrics.json
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
-src/airflow/logs/
 *.log
 
 # ── MLflow (artefacts lourds) ─────────────────────────────────────────────────
@@ -53,8 +49,17 @@ mlflow.db
 
 # ── Secrets & config locaux ───────────────────────────────────────────────────
 .env
+.claude/
 *.secret
 *.key
+
+# ── Docker volumes ────────────────────────────────────────────────────────────
+grafana_data/
+
+# ── DVC (résidus) ─────────────────────────────────────────────────────────────
+.dvc/
+.dvcignore
+*.dvc
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 docker-compose.override.yml

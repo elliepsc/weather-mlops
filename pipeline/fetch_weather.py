@@ -60,17 +60,24 @@ def _extract_hour(hourly: dict, var: str, target_hour: int, dates: list[str]) ->
     return result
 
 
-def _call_api(url: str, params: dict, retries: int = 3) -> dict:
+def _call_api(url: str, params: dict, retries: int = 5) -> dict:
     for attempt in range(retries):
         try:
-            r = requests.get(url, params=params, timeout=30)
+            r = requests.get(url, params=params, timeout=60)
+            if r.status_code == 429:
+                wait = 60 * (attempt + 1)   # 60s, 120s, 180s…
+                logger.warning("Rate limited (429). Waiting %ds before retry %d/%d…",
+                               wait, attempt + 1, retries)
+                time.sleep(wait)
+                continue
             r.raise_for_status()
             return r.json()
         except Exception as exc:
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(5 * (attempt + 1))
             else:
                 raise RuntimeError(f"API call failed after {retries} attempts: {exc}") from exc
+    raise RuntimeError(f"Rate limited: all {retries} retries exhausted (429)")
 
 
 def fetch_city(city: str, start_date: str, end_date: str) -> pd.DataFrame:
@@ -173,13 +180,18 @@ def fetch_all_cities(start_date: str, end_date: str,
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-def backfill_2_years() -> pd.DataFrame:
-    """Fetch the full 2-year historical dataset for all cities."""
-    from datetime import date, timedelta
-    end   = (date.today() - timedelta(days=1)).isoformat()
-    start = (date.today() - timedelta(days=365 * 2)).isoformat()
-    logger.info("Starting 2-year backfill: %s → %s", start, end)
-    return fetch_all_cities(start, end, delay_seconds=1.0)
+def backfill_x_years(years: int = 5, start_date: str = "2021-01-01") -> pd.DataFrame:
+    """
+    Fetch historical data for all cities.
+    Uses start_date if provided, otherwise goes back `years` years from today.
+    Default: 2021-01-01 → yesterday.
+    delay_seconds=2.0 to stay within Open-Meteo free-tier rate limits.
+    """
+    end = (date.today() - timedelta(days=1)).isoformat()
+    if start_date is None:
+        start_date = (date.today() - timedelta(days=365 * years)).isoformat()
+    logger.info("Starting backfill: %s → %s (%d cities)", start_date, end, len(LOCATIONS))
+    return fetch_all_cities(start_date, end, delay_seconds=2.0)
 
 
 def fetch_today() -> pd.DataFrame:

@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.database import init_db, upsert_weather_raw, upsert_predictions, read_raw, read_all
-from pipeline.fetch_weather import backfill_2_years, fetch_today
+from pipeline.fetch_weather import backfill_x_years, fetch_today
 from pipeline.process_weather import add_features
 from pipeline.train_models import train_all
 from pipeline.predict import generate_predictions
@@ -47,8 +47,8 @@ def step_init_db():
 
 
 def step_ingest_backfill():
-    logger.info("Fetching 2-year historical data...")
-    df = backfill_2_years()
+    logger.info("Fetching historical data from 2021-01-01...")
+    df = backfill_x_years(start_date="2021-01-01")
     if df.empty:
         logger.warning("Backfill returned no data.")
         return

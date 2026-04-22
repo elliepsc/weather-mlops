@@ -1,41 +1,22 @@
-name: CD for Microservices
+name: CD — Deploy (disabled)
 
+# Disabled until deployment target is configured (Streamlit Cloud / VPS / etc.)
+# Re-enable by replacing `workflow_dispatch` with the appropriate trigger:
+#
+#   on:
+#     workflow_run:
+#       workflows: ["CI — Weather Pipeline"]
+#       types: [completed]
+#
 on:
-  workflow_run:
-    workflows: ["CI for Microservices"]
-    types:
-      - completed
-
+  workflow_dispatch:   # manual trigger only — does nothing automatically
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    # Uncomment and configure when a deployment target is ready
+    if: false
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-
-      - name: Ensure model exists
-        run: |
-          if [ ! -f config/model/xgboost_model.json ]; then
-            echo "ERROR: xgboost_model.json is missing!"
-            exit 1
-          fi
-
-      - name: Ensure metrics.json exists
-        run: |
-          if [ ! -f config/metrics/metrics.json ]; then
-            echo "WARNING: metrics.json is missing!"
-            touch config/metrics/metrics.json  # Crée un fichier vide temporaire
-          fi
-          # Ajout d'une vérification et création d'un fichier temporaire si metrics.json est manquant.     
-
-      - name: Deploy with Docker Compose
-        run: |
-          docker-compose down --remove-orphans
-          docker-compose up -d --build
-
-      - name: Check Docker Compose logs
-        run: |
-          docker-compose logs
+      - uses: actions/checkout@v4
+      - name: Placeholder
+        run: echo "Configure deployment target first (Streamlit Cloud, VPS, etc.)"

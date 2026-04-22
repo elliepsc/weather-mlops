@@ -1,0 +1,49 @@
+{
+  "title": "Weather API — Monitoring",
+  "uid": "weather_api",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests per second",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [{
+        "expr": "rate(http_requests_total{job=\"weather_api\"}[1m])",
+        "legendFormat": "{{method}} {{handler}}"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Response time (p95)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [{
+        "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"weather_api\"}[5m]))",
+        "legendFormat": "p95 {{handler}}"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Error rate (4xx + 5xx)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{
+        "expr": "rate(http_requests_total{job=\"weather_api\", status=~\"4..|5..\"}[1m])",
+        "legendFormat": "{{status}} {{handler}}"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Active requests",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{
+        "expr": "http_requests_in_progress{job=\"weather_api\"}",
+        "legendFormat": "In progress"
+      }]
+    }
+  ]
+}

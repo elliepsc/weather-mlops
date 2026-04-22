@@ -1,71 +1,161 @@
-import pytest
+"""Unit tests for pipeline/process_weather.py."""
+import numpy as np
 import pandas as pd
-import os
-from unittest.mock import patch
-from src.preprocess import remove_nan_target, preprocess_data, save_processed_data, load_config  # Mise à jour du chemin
+import pytest
 
-# Test data
+from pipeline.process_weather import (
+    wmo_to_weather_type,
+    compute_comfort_score,
+    add_features,
+    encode_categoricals,
+    get_feature_matrix,
+    ML_FEATURES,
+    CATEGORICAL_FEATURES,
+)
+
+
+# ─── wmo_to_weather_type ─────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("code,expected", [
+    (0,  "Sunny"),
+    (2,  "Sunny"),
+    (45, "Cloudy"),
+    (51, "Rainy"),
+    (80, "Rainy"),
+    (95, "Stormy"),
+    (99, "Stormy"),
+    (None, "Unknown"),
+])
+def test_wmo_to_weather_type(code, expected):
+    assert wmo_to_weather_type(code) == expected
+
+
+# ─── compute_comfort_score ───────────────────────────────────────────────────
+
+def test_comfort_score_ideal():
+    row = {"max_temp": 22, "humidity_3pm": 50, "wind_gust_speed": 10,
+           "rain_today": 0, "sunshine_hours": 8}
+    score = compute_comfort_score(row)
+    assert 90 < score <= 100
+
+
+def test_comfort_score_extreme_heat():
+    row = {"max_temp": 45, "humidity_3pm": 90, "wind_gust_speed": 60,
+           "rain_today": 1, "sunshine_hours": 0}
+    score = compute_comfort_score(row)
+    assert score < 50
+
+
+def test_comfort_score_clamped():
+    row = {"max_temp": -10, "humidity_3pm": 100, "wind_gust_speed": 100,
+           "rain_today": 1, "sunshine_hours": 0}
+    score = compute_comfort_score(row)
+    assert score == 0.0
+
+
+def test_comfort_score_missing_fields():
+    row = {}
+    score = compute_comfort_score(row)
+    assert 0.0 <= score <= 100.0
+
+
+# ─── add_features ────────────────────────────────────────────────────────────
+
 @pytest.fixture
-def sample_data():
-    data = {
-        "Date": ["2025-01-01", "2025-01-02", None],
-        "Location": ["Sydney", "Melbourne", None],
-        "Rainfall": [1.2, None, 0.8],
-        "RainTomorrow": ["Yes", "No", None],
-    }
-    return pd.DataFrame(data)
+def raw_df():
+    dates = pd.date_range("2023-01-01", periods=10, freq="D")
+    return pd.DataFrame({
+        "date":           dates.strftime("%Y-%m-%d"),
+        "city":           ["Sydney"] * 10,
+        "state":          ["NSW"] * 10,
+        "max_temp":       [25, 26, 28, 38, 39, 24, 20, 18, 15, 30],
+        "min_temp":       [18, 19, 20, 25, 26, 16, 12,  8,  1, 20],
+        "rainfall":       [ 0,  0,  5,  0,  0,  2,  0,  0,  0,  1],
+        "evaporation":    [ 5,  5,  4,  7,  8,  5,  4,  3,  3,  6],
+        "sunshine_hours": [ 8,  9,  6, 10, 10,  7,  5,  4,  4,  8],
+        "wind_gust_speed":[ 20, 25, 30, 40, 45, 20, 15, 12, 10, 25],
+        "wind_speed_9am": [ 10, 12, 15, 20, 22, 10,  8,  7,  6, 12],
+        "wind_speed_3pm": [ 15, 18, 20, 30, 32, 15, 10,  9,  8, 18],
+        "wind_gust_dir":  ["N"] * 10,
+        "wind_dir_9am":   ["NE"] * 10,
+        "wind_dir_3pm":   ["NW"] * 10,
+        "humidity_9am":   [60, 62, 70, 50, 48, 65, 70, 75, 80, 58],
+        "humidity_3pm":   [45, 48, 55, 30, 28, 50, 60, 65, 70, 42],
+        "pressure_9am":   [1015]*10,
+        "pressure_3pm":   [1012, 1010, 1008, 1010, 1012, 1013, 1015, 1016, 1017, 1011],
+        "cloud_9am":      [2, 2, 4, 1, 1, 3, 5, 6, 7, 2],
+        "cloud_3pm":      [3, 3, 5, 2, 2, 4, 6, 7, 8, 3],
+        "temp_9am":       [20, 21, 22, 30, 31, 19, 16, 13, 10, 23],
+        "temp_3pm":       [24, 25, 27, 36, 37, 22, 18, 16, 13, 28],
+        "rain_today":     [0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+        "weather_code":   [0, 0, 61, 0, 0, 80, 45, 45, 45, 95],
+    })
 
 
-def test_remove_nan_target(sample_data):
-    cleaned_data = remove_nan_target(sample_data, "RainTomorrow")
-    assert len(cleaned_data) == 2  # Only two rows remain after removing NaN in the target column
-    assert cleaned_data["RainTomorrow"].isnull().sum() == 0
+def test_add_features_returns_dataframe(raw_df):
+    result = add_features(raw_df)
+    assert isinstance(result, pd.DataFrame)
 
 
-def test_preprocess_data(sample_data):
-    processed_data = preprocess_data(sample_data, "RainTomorrow")
-    assert "Date" in processed_data.columns
-    assert processed_data["Date"].dtype == pd.Int64Dtype()  # Vérifier le type correct (Int64Dtype, pour gérer les NaN)
-    assert processed_data["Location"].dtype == "int64"  # Vérifier que Location est encodé en int64 # No NaNs remain
+def test_add_features_drops_last_row(raw_df):
+    result = add_features(raw_df)
+    assert len(result) == len(raw_df) - 1
 
 
-@patch("subprocess.run")  # Mise à jour du patch pour subprocess
-def test_save_processed_data(mock_subprocess, tmpdir):
-    # Simulate processed data
-    X_train = pd.DataFrame({"col1": [1, 2, 3]})
-    X_test = pd.DataFrame({"col1": [4, 5]})
-    y_train = pd.Series([1, 0, 1])
-    y_test = pd.Series([0, 1])
-
-    # Temp directory for saving files
-    config = {
-        "data": {"processed_dir": tmpdir.strpath}
-    }
-
-    save_processed_data(X_train, X_test, y_train, y_test, config)
-
-    # Check if files exist
-    assert os.path.exists(os.path.join(tmpdir, "X_train.csv"))
-    assert os.path.exists(os.path.join(tmpdir, "X_test.csv"))
-    assert os.path.exists(os.path.join(tmpdir, "y_train.csv"))
-    assert os.path.exists(os.path.join(tmpdir, "y_test.csv"))
-
-    # Ensure DVC was called
-    assert mock_subprocess.call_count == 4
+def test_add_features_target_columns(raw_df):
+    result = add_features(raw_df)
+    for col in ["rain_tomorrow", "max_temp_tomorrow", "weather_type_tomorrow",
+                "heatwave_risk", "frost_risk", "storm_label"]:
+        assert col in result.columns, f"Missing target column: {col}"
 
 
-def test_load_config(tmpdir):
-    yaml_path = tmpdir.join("config.yaml")
-    yaml_path.write(
-        """
-        data:
-          raw_data_path: "data/raw/weather.csv"
-          processed_dir: "data/processed/"
-        model:
-          target_column: "RainTomorrow"
-        """
-    )
-    config = load_config(str(yaml_path))
-    assert config["data"]["raw_data_path"] == "data/raw/weather.csv"
-    assert config["data"]["processed_dir"] == "data/processed/"
+def test_add_features_calendar_cols(raw_df):
+    result = add_features(raw_df)
+    assert "month" in result.columns
+    assert "day_of_year" in result.columns
+    assert "season" in result.columns
 
+
+def test_add_features_lag_cols(raw_df):
+    result = add_features(raw_df)
+    assert "max_temp_lag1" in result.columns
+    assert "rainfall_lag2" in result.columns
+
+
+def test_add_features_comfort_score_range(raw_df):
+    result = add_features(raw_df)
+    assert result["comfort_score"].between(0, 100).all()
+
+
+def test_add_features_frost_risk(raw_df):
+    result = add_features(raw_df)
+    # Row with min_temp=1 on day 8 → frost_risk on day 8's row (predicts day 9)
+    assert result["frost_risk"].sum() >= 1
+
+
+# ─── encode_categoricals ─────────────────────────────────────────────────────
+
+def test_encode_categoricals(raw_df):
+    df_enc, mappings = encode_categoricals(raw_df)
+    for col in CATEGORICAL_FEATURES:
+        if col in df_enc.columns:
+            assert df_enc[col].dtype in (np.int64, np.int32, int)
+    assert "city" in mappings
+
+
+# ─── get_feature_matrix ──────────────────────────────────────────────────────
+
+def test_get_feature_matrix_no_nans(raw_df):
+    df_feat = add_features(raw_df)
+    df_enc, _ = encode_categoricals(df_feat)
+    X = get_feature_matrix(df_enc)
+    assert not X.isnull().any().any(), "Feature matrix contains NaN values"
+
+
+def test_get_feature_matrix_columns(raw_df):
+    df_feat = add_features(raw_df)
+    df_enc, _ = encode_categoricals(df_feat)
+    X = get_feature_matrix(df_enc)
+    for col in ML_FEATURES:
+        if col in df_enc.columns:
+            assert col in X.columns

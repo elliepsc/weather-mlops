@@ -98,12 +98,12 @@ australia-weather-mlops/
 ```bash
 git clone https://github.com/elliepsc/meteo.git australia-weather-mlops
 cd australia-weather-mlops
-python -m venv venv
+python -m venv .venv
 
 # Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 # Linux / macOS
-source venv/bin/activate
+source .venv/bin/activate
 
 pip install -r requirements.txt
 ```

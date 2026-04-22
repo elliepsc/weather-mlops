@@ -1,2 +1,0 @@
-docker build -t preprocess-image -f src/preprocess/dockerfile .
-docker run -it preprocess-image

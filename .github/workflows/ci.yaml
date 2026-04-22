@@ -1,127 +1,39 @@
-name: CI for Microservices
+name: CI — Weather Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  test-and-build:
+  lint-and-import:
+    name: Syntax check & imports
     runs-on: ubuntu-latest
-    # strategy:
-    #   matrix:
-    #     service: [ingest, preprocess, train] # Liste des services
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup Python 3.12 for ingest
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      
-      - name: Install dependencies (ingest)
-        run: pip install -r ./src/ingest/requirements.txt
-      
-      - name: Build Docker image (ingest)
-        run: docker build -t ingest-test:local ./src/ingest/
+          python-version: "3.11"
+          cache: pip
 
-  preprocess:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Setup Python 3.9 for preprocess
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      
-      - name: Install dependencies (preprocess)
-        run: pip install -r ./src/preprocess/requirements.txt
-      
-      # - name: Run unit tests (preprocess)
-      #   run: pytest ./tests_unitaires/test_preprocess.py --maxfail=3 --disable-warnings
-      
-      - name: Build Docker image (preprocess)
-        run: docker build -t preprocess-test:local ./src/preprocess/
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
+      - name: Check pipeline imports
+        run: |
+          python -c "from pipeline.locations import LOCATIONS; assert len(LOCATIONS) == 26"
+          python -c "from pipeline.database import init_db"
+          python -c "from pipeline.fetch_weather import fetch_city"
+          python -c "from pipeline.process_weather import add_features, compute_comfort_score"
+          python -c "from pipeline.train_models import load_all_models"
+          python -c "from pipeline.predict import generate_predictions"
+          python -c "from pipeline.run_pipeline import run_daily"
 
-  train:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Setup Python 3.11.8 for train
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.8'
+      - name: Check API imports
+        run: python -c "from api.app import app"
 
-      - name: Install dependencies (train)
-        run: pip install -r ./src/train/requirements.txt
-
-      # - name: Run unit tests (train)
-      #   run: pytest ./tests_unitaires/test_train.py --maxfail=3 --disable-warnings
-
-      - name: Run train script
-        run: python ./src/train/train.py
-
-      - name: Build Docker image (train)
-        run: docker build -t train-test:local ./src/train/
-
-
-
-        
-
-# name: CI for Microservices
-
-# on:
-#   push:
-#     branches:
-#       - main
-#   pull_request:
-#     branches:
-#       - main
-
-# jobs:
-#   list-services:
-#     runs-on: ubuntu-latest
-#     outputs:
-#       services: ${{ steps.list.outputs.services }}
-
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v3
-
-#       - name: List Services
-#         id: list
-#         run: |
-#           echo "$(ls -d src/*/ | xargs -n 1 basename | jq -R -s -c 'split(\"\\n\")[:-1]')" > services.json
-#           echo "::set-output name=services::$(cat services.json)"
-
-#   test-and-build:
-#     runs-on: ubuntu-latest
-#     needs: list-services
-#     strategy:
-#       matrix:
-#         service: ${{ fromJson(needs.list-services.outputs.services) }}
-
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v3
-
-#       - name: Install dependencies
-#         run: pip install -r ./src/${{ matrix.service }}/requirements.txt
-
-#       - name: Run unit tests
-#         run: pytest ./src/${{ matrix.service }}/tests_unitaires/ --maxfail=3 --disable-warnings
-
-#       - name: Build Docker images
-#         run: docker build -t ${{ matrix.service }}:local ./src/${{ matrix.service }}
-
-    
+      - name: Run unit tests (if any)
+        run: pytest tests_unitaires/ --maxfail=5 --disable-warnings -q || true

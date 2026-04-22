@@ -22,6 +22,7 @@ import mlflow
 import mlflow.xgboost
 import numpy as np
 import pandas as pd
+import yaml
 from sklearn.metrics import (accuracy_score, f1_score, mean_absolute_error,
                               r2_score, roc_auc_score)
 from sklearn.model_selection import train_test_split
@@ -37,17 +38,39 @@ MODELS_DIR   = ROOT / "models"
 METRICS_PATH = MODELS_DIR / "metrics.json"
 
 MLFLOW_URI        = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{ROOT / 'mlflow' / 'mlflow.db'}")
-MLFLOW_EXPERIMENT = "weather_australia"
 
-XGB_PARAMS = dict(
-    n_estimators=300,
-    max_depth=6,
-    learning_rate=0.05,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    random_state=42,
-    n_jobs=-1,
-)
+
+def _load_config() -> dict:
+    path = ROOT / "config.yaml"
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def _get_xgb_params(model_name: str) -> dict:
+    """Return XGBoost params for a given model (base merged with per-model overrides)."""
+    cfg = _load_config().get("xgboost", {})
+    params = dict(cfg.get("base", {}))
+    params.update(cfg.get("models", {}).get(model_name) or {})
+    # Fallback to hardcoded defaults if config is missing
+    defaults = dict(n_estimators=300, max_depth=6, learning_rate=0.05,
+                    subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1)
+    return {**defaults, **params}
+
+
+def _get_training_config() -> dict:
+    cfg = _load_config().get("training", {})
+    return {"test_size": cfg.get("test_size", 0.2),
+            "random_state": cfg.get("random_state", 42)}
+
+
+def _get_experiment_name() -> str:
+    cfg = _load_config().get("mlflow", {})
+    return cfg.get("experiment_name", "weather_australia")
+
+
+MLFLOW_EXPERIMENT = _get_experiment_name()
 
 
 # ─── MLflow setup ────────────────────────────────────────────────────────────
@@ -93,7 +116,7 @@ def load_all_models() -> dict:
 def _train_binary(X_tr, y_tr, X_te, y_te, name: str,
                   scale_pos_weight: float = 1.0,
                   parent_run_id: str = None) -> dict:
-    params = {**XGB_PARAMS, "scale_pos_weight": scale_pos_weight,
+    params = {**_get_xgb_params(name), "scale_pos_weight": scale_pos_weight,
               "eval_metric": "logloss", "use_label_encoder": False}
     model = XGBClassifier(**params)
     model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
@@ -123,7 +146,7 @@ def _train_binary(X_tr, y_tr, X_te, y_te, name: str,
 
 def _train_regression(X_tr, y_tr, X_te, y_te, name: str,
                       parent_run_id: str = None) -> dict:
-    params = {**XGB_PARAMS, "eval_metric": "rmse"}
+    params = {**_get_xgb_params(name), "eval_metric": "rmse"}
     model = XGBRegressor(**params)
     model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
     _save(model, name)
@@ -148,7 +171,7 @@ def _train_regression(X_tr, y_tr, X_te, y_te, name: str,
 
 def _train_multiclass(X_tr, y_tr, X_te, y_te, le: LabelEncoder,
                       name: str, parent_run_id: str = None) -> dict:
-    params = {**XGB_PARAMS, "objective": "multi:softprob",
+    params = {**_get_xgb_params(name), "objective": "multi:softmax",
               "num_class": len(le.classes_), "eval_metric": "mlogloss",
               "use_label_encoder": False}
     model = XGBClassifier(**params)
@@ -156,6 +179,8 @@ def _train_multiclass(X_tr, y_tr, X_te, y_te, le: LabelEncoder,
     _save(model, name)
 
     preds = model.predict(X_te)
+    # softmax returns class indices as float — cast to int for sklearn metrics
+    preds = np.asarray(preds, dtype=int)
     metrics = {
         "accuracy":  round(accuracy_score(y_te, preds), 4),
         "f1_macro":  round(f1_score(y_te, preds, average="macro", zero_division=0), 4),
@@ -217,6 +242,8 @@ def train_all(df: pd.DataFrame) -> dict:
 
     run_name = f"train_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
     all_metrics = {}
+    tcfg = _get_training_config()
+    ts, rs = tcfg["test_size"], tcfg["random_state"]
 
     with mlflow.start_run(run_name=run_name) as parent_run:
         mlflow.log_params({"n_rows": len(X), "n_features": X.shape[1],
@@ -229,13 +256,13 @@ def train_all(df: pd.DataFrame) -> dict:
         # 1. rain_tomorrow — binary
         y = df_enc["rain_tomorrow"].astype(int)
         ratio = (y == 0).sum() / max((y == 1).sum(), 1)
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=ts, random_state=rs, stratify=y)
         all_metrics["rain_tomorrow"] = _train_binary(Xtr, ytr, Xte, yte, "rain_tomorrow",
                                                       scale_pos_weight=ratio, parent_run_id=pid)
 
         # 2. max_temp_tomorrow — regression
         y = df_enc["max_temp_tomorrow"].astype(float)
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=ts, random_state=rs)
         all_metrics["max_temp_tomorrow"] = _train_regression(Xtr, ytr, Xte, yte,
                                                               "max_temp_tomorrow", parent_run_id=pid)
 
@@ -243,28 +270,28 @@ def train_all(df: pd.DataFrame) -> dict:
         le = LabelEncoder()
         y  = le.fit_transform(df_enc["weather_type_tomorrow"].fillna("Unknown"))
         _save(le, "weather_type_encoder")
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=ts, random_state=rs, stratify=y)
         all_metrics["weather_type_tomorrow"] = _train_multiclass(Xtr, ytr, Xte, yte, le,
                                                                   "weather_type_tomorrow", parent_run_id=pid)
 
         # 4. heatwave_risk — binary (rare)
         y = df_enc["heatwave_risk"].astype(int)
         ratio = max((y == 0).sum() / max((y == 1).sum(), 1), 1.0)
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=ts, random_state=rs, stratify=y)
         all_metrics["heatwave_risk"] = _train_binary(Xtr, ytr, Xte, yte, "heatwave_risk",
                                                       scale_pos_weight=ratio, parent_run_id=pid)
 
         # 5. frost_risk — binary (rare)
         y = df_enc["frost_risk"].astype(int)
         ratio = max((y == 0).sum() / max((y == 1).sum(), 1), 1.0)
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=ts, random_state=rs, stratify=y)
         all_metrics["frost_risk"] = _train_binary(Xtr, ytr, Xte, yte, "frost_risk",
                                                    scale_pos_weight=ratio, parent_run_id=pid)
 
         # 6. storm_probability — binary
         y = df_enc["storm_label"].astype(int)
         ratio = max((y == 0).sum() / max((y == 1).sum(), 1), 1.0)
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=ts, random_state=rs, stratify=y)
         all_metrics["storm_probability"] = _train_binary(Xtr, ytr, Xte, yte, "storm_probability",
                                                           scale_pos_weight=ratio, parent_run_id=pid)
 

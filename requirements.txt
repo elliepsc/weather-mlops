@@ -1,0 +1,24 @@
+# Core data
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# ML
+xgboost>=2.0.0
+scikit-learn>=1.3.0
+
+# Experiment tracking
+mlflow>=2.10.0
+
+# API
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# HTTP client (Open-Meteo)
+requests>=2.31.0
+
+# Airflow (install separately — heavyweight, see docs)
+# pip install apache-airflow>=2.8.0
+
+# Dev / testing
+pytest>=7.4.0

@@ -1,263 +1,220 @@
-# Projet MLOps - API de prédiction du Méteo en Australie - #AUG24BMLE
-Ce projet implémente un système de prédiction du lendemain en Australie basé sur des données météorologiques. Le projet déploie une structure complète MLOps qui permet d’automatiser toute le cycle de vie d’un projet de Machine Learning. L’application est capable d’exécuter toutes les tâches propres d’une pipeline d’un modèle, en commençant par l’ingestion de données, le proprocessing, le réentrainement du modèle et la mise à jour de l’Endpoint de l’API exposant le modèle.
+# australia-weather-mlops
 
-## 1. Structure du projet
-<details>
-    <summary>root/</summary>
-    &emsp;.gitignore<br>
-    &emsp;docker-compose.yaml<br>
-    &emsp;dvc.lock<br>
-    &emsp;.dvcignore<br>
-    &emsp;dvc.yaml<br>
-    &emsp;LICENSE<br>
-    <details>
-    <summary>.dvc/</summary>
-        &emsp;.gitignore<br>
-        &emsp; config<br>
-    </details>
-    <details>
-    <summary>config/</summary>
-        &emsp; config.yaml
-    </details>
-    <details>
-    <summary>data/</summary>
-        <details>
-        <summary>&emsp;monitoring/</summary>
-            &emsp;&emsp;&emsp;visualizations/<br>
-        </details>
-        &emsp;&emsp; processed/<br>  
-        &emsp;&emsp; production_logs/<br>  
-        &emsp;&emsp; raw/<br>  
-    </details>
-    <details>
-    <summary>logs/</summary> 
-    &emsp;&emsp;airflow/
-    </details>
-    <details>
-    <summary>metrics/</summary>
-    </details>
-    <details>
-    <summary>mlflow/</summary>
-        &emsp;&emsp;mlartifacts/
-        <details>
-        <summary>&emsp;mlruns/</summary>
-            &emsp;&emsp;&emsp;0/
-            <details>
-            <summary>&emsp;&emsp;models/</summary>
-                &emsp;&emsp;&emsp;&emsp;model/
-            </details>
-        </details>
-    </details>
-    <details>
-    <summary>src</summary>
-        <details>
-        <summary>&emsp;airflow/</summary>
-            <details>
-            <summary>&emsp;&emsp;dags/</summary>
-                &emsp;&emsp;&emsp;&emsp; ingestion_dag.py  <br>
-                &emsp;&emsp;&emsp;&emsp; monitoring_dag.py  <br>
-                &emsp;&emsp;&emsp;&emsp; tools.py  <br>
-                &emsp;&emsp;&emsp;&emsp; train_dag.py  <br>
-                <details>
-                <summary>&emsp;&emsp;&emsp; monitoring/</summary>
-                    &emsp;&emsp;&emsp;&emsp;&emsp;drift_monitoring.py
-                </details>
-            </details>
-            &emsp;&emsp;&emsp;plugins/
-        </details> 
-        <details>
-        <summary>&emsp;api_model/</summary>
-            &emsp;&emsp;&emsp;.dockerignore<br>
-            &emsp;&emsp;&emsp;app_model.py<br>
-            &emsp;&emsp;&emsp;Dockerfile<br>
-            &emsp;&emsp;&emsp;input_classes.py<br>
-            &emsp;&emsp;&emsp;requirements.txt<br>
-        </details> 
-        <details>
-        <summary>&emsp;Gateway/</summary>
-            &emsp;&emsp;&emsp;api_securite.py<br> 
-            &emsp;&emsp;&emsp;Dockerfile<br>
-            &emsp;&emsp;&emsp;requirements.txt<br>
-        </details>
-        <details>
-        <summary>&emsp;ingest</summary> 
-            &emsp;&emsp;&emsp;.dockerignore<br>
-            &emsp;&emsp;&emsp; Dockerfile<br>
-            &emsp;&emsp;&emsp; ingest_data.py<br>
-            &emsp;&emsp;&emsp; requirements.txt<br>
-            &emsp;&emsp;&emsp; script_meteo.py<br>
-            &emsp;&emsp;&emsp; url_dict.py<br>
-        </details> 
-        <details>
-        <summary>&emsp;mlflow/</summary>
-            &emsp;&emsp;&emsp;Dockerfile<br>
-            &emsp;&emsp;&emsp; requirements.txt<br>
-        </details>
-        <details>
-        <summary>&emsp;monitoring/</summary>
-            &emsp;&emsp;&emsp; Dockerfile<br>
-            &emsp;&emsp;&emsp; drift_detection.py<br>
-            &emsp;&emsp;&emsp; model_comparison.py<br>
-            &emsp;&emsp;&emsp; requirements.txt<br>
-        </details>
-        <details>
-        <summary>&emsp;preprocessing/</summary>
-            &emsp;&emsp;&emsp; preprocess.py<br>
-            &emsp;&emsp;&emsp; Dockerfile<br>
-            &emsp;&emsp;&emsp; requirements.txt<br>
-        </details>
-        <details>
-        <summary>&emsp;streamlit_app </summary>
-            &emsp;&emsp;&emsp; app.py  <br>
-            &emsp;&emsp;&emsp; Dockerfile  <br>
-            &emsp;&emsp;&emsp; requirements.txt<br>
-        </details>
-        <details>
-        <summary>&emsp;train</summary>
-            &emsp;&emsp;&emsp; .dockerignore  <br>
-            &emsp;&emsp;&emsp; Dockerfile  <br>
-            &emsp;&emsp;&emsp; requirements.txt  <br>
-            &emsp;&emsp;&emsp; train.py<br>
-        </details>
-    </details>
-    <details>
-    <summary>tests_unitaires  </summary>
-    &emsp;&emsp; recap.md  <br>
-    &emsp;&emsp; test_preprocess.py  <br>
-    &emsp;&emsp; test_xgboost_model.py <br>
-    </details>
-</details>
+Projet MLOps complet pour prédire les conditions météorologiques du lendemain sur 26 villes australiennes. Les données sont collectées quotidiennement via l'API Open-Meteo, 6 modèles XGBoost génèrent 8 colonnes de prédiction, et les résultats sont exposés via une API REST consommable directement par Power BI.
 
-## 2. Explication du projet
-### Structure global
-![Structure](_readme/images/Image1.png)
+---
 
-Il y a différents microservices qui tournent au même temps pour faire fonctionner l'application:
-- #### Ingestion
-Ce microservices sert à récupérer les données journalières des différents endroits pour les enregistrer sur la base de données brute pour une prochaine entrainement. Dedans le conteneur, la gestion de version des données brutes est gérée via DVC.
-- #### Preprocessing
-Ce microservice récupère la dernière version des données brutes et preprocess les données pour les tourner directement vers de données exploitables dans l’entrainement.
-Dedans le conteneur, la gestion de version des données prétraités est géré via DVC.
-- #### Training 
-Une fois entrainés la gestion du stockage des expériences et modèles du serveur MLFlow est géré via DVC.
-- #### MLFlow
-Ce microservice crée un serveur pour stocker et tracker les différentes expériences et versions de modèles.
-- #### API_prediction
-Ce microservice charge en mémoire la dernière version du modelé et le mets à disposition à partir de l’Endpoint ‘predict’.
-- #### Orchestation
-Ce microservice s’en charge de l’ingestion et entrainement périodique à travers des microservices concernés.
-- #### Monitoring
-Ce microservice suit le comportement général du système. L’utilisation de chaque microservice et ses performances
-- #### API_Gateway
-Ce microservice fait du pont entre l’utilisateur et backend de l’application. Il s’en charge de contrôler les droits des différents utilisateurs.
-- #### Streamlit
-Ce microservice fait construit l’interface graphique pour communiquer avec le modèle et tous les microservices.
-
-## 3. Déploiement
-Pour faire tourner l'application vous devez suivre les commandes suivants
+## 1. Architecture
 
 ```
-git clone bmle-aug24/Meteo_group   # Copier le repo à partir de GitHub
-dvc pull                           # Télécharge la dernière version des données. 
+Open-Meteo API
+      │
+      ▼
+pipeline/fetch_weather.py      ← collecte quotidienne (26 villes)
+      │
+      ▼
+data/weather.db (SQLite)       ← stockage central
+      │
+      ├──► pipeline/train_models.py  ← entraînement hebdomadaire (6 modèles XGBoost)
+      │           │
+      │           └──► mlflow/mlflow.db  ← tracking expériences + métriques + artefacts
+      │
+      ├──► pipeline/predict.py       ← génération des 8 colonnes de prédiction
+      │
+      └──► api/app.py (FastAPI :8080)
+                │
+                ├── /api/weather          → Power BI Web connector
+                ├── /api/weather/latest   → dashboard temps réel
+                ├── /api/mlflow/runs      → suivi des entraînements
+                ├── /api/mlflow/metrics   → dernières métriques
+                └── /api/export/csv       → data/output/weather_final.csv
 ```
-Créez vos données d'enviromnement avant de lancer l'application
+
+**Orchestration :** Apache Airflow — 4 DAGs
+
+**MLflow :** tracking URI SQLite local `mlflow/mlflow.db` — UI via `mlflow ui` sur `:5000`
+
+---
+
+> **Note :** Le diagramme d'architecture (`_readme/images/Image1.png`) correspond à l'ancienne version du projet (scraping BOM, Docker microservices, MLflow, DVC). À remplacer avec la nouvelle architecture Open-Meteo → SQLite → FastAPI → Power BI.
+
+## 2. Prédictions produites
+
+| Colonne | Type | Description |
+|---|---|---|
+| `rain_tomorrow` | Binaire (0/1) | Pluie demain ? |
+| `rain_tomorrow_proba` | Probabilité 0–1 | Probabilité de pluie |
+| `max_temp_tomorrow` | Régression (°C) | Température max prévue |
+| `weather_type_tomorrow` | Multi-classe | Sunny / Cloudy / Rainy / Stormy |
+| `comfort_score` | Score 0–100 | Indice de confort (temp + humidité + vent + soleil) |
+| `heatwave_risk` | Probabilité 0–1 | Risque de canicule (≥3 jours consécutifs >35°C) |
+| `frost_risk` | Probabilité 0–1 | Risque de gel (min_temp ≤ 2°C) |
+| `storm_probability` | Probabilité 0–1 | Probabilité d'orage |
+
+---
+
+## 3. Structure du projet
+
 ```
-echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env              # Sur linux
-Set-Content -Path .env -Value "AIRFLOW_UID=50000`nAIRFLOW_GID=0"  # Sur Windows
-docker-compose up -d               # Déclenche tous les serveurs
+australia-weather-mlops/
+├── pipeline/
+│   ├── locations.py        # 26 villes australiennes + coordonnées GPS
+│   ├── fetch_weather.py    # Appels Open-Meteo API (historique + daily)
+│   ├── database.py         # SQLite — schema, upsert, vue v_weather_full
+│   ├── process_weather.py  # Feature engineering + construction des labels
+│   ├── train_models.py     # Entraînement des 6 modèles XGBoost
+│   ├── predict.py          # Génération des 8 colonnes de prédiction
+│   └── run_pipeline.py     # Orchestrateur CLI
+├── api/
+│   └── app.py              # FastAPI — endpoints Power BI
+├── src/
+│   └── airflow/dags/
+│       ├── ingestion_dag.py   # DAG quotidien (06h UTC)
+│       ├── train_dag.py       # DAG hebdomadaire (lundi 02h UTC)
+│       ├── monitoring_dag.py  # DAG monitoring quotidien (08h UTC)
+│       └── backfill_dag.py    # DAG manuel — backfill configurable
+├── data/
+│   ├── weather.db             # Base SQLite (source principale Power BI)
+│   ├── monitoring/            # drift_report.json, model_metrics.json
+│   └── output/
+│       └── weather_final.csv  # Export CSV (fallback Power BI)
+├── models/                    # Modèles XGBoost sauvegardés (.pkl)
+├── legacy/                    # Ancienne stack Docker (api_model, Gateway, ingest…)
+├── logs/
+│   └── pipeline.log
+└── requirements.txt
 ```
 
-Vérifiez que tous les conteneurs sont bien lancés. Utilisez le command:
+---
+
+## 4. Installation et premier lancement
+
+### Prérequis
+- Python 3.10+
+- (Optionnel) Apache Airflow 2.8+ pour l'orchestration automatique
+
+### Installation
+
+```bash
+git clone https://github.com/elliepsc/meteo.git australia-weather-mlops
+cd australia-weather-mlops
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+# Linux / macOS
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
-docker ps                          # Vérification des conteneurs
+
+### Premier lancement — backfill 2 ans
+
+Cette commande récupère 2 ans de données historiques, entraîne les 6 modèles XGBoost et génère les 8 colonnes de prédiction. À ne faire qu'une seule fois (~5–10 minutes).
+
+```bash
+python pipeline/run_pipeline.py backfill
 ```
-Une fois l'application lancé, ouvrez votre explorateur et connectez vous à:
 
-[http:localhost:8002](http:localhost:8002)
+### Lancer l'API Power BI
 
-## 4. Utilisation de l'application
-### 4.1 Utilisation 'user'
-Une fois dans l'interface graphique, insérez les crédentiels 'user' suivants:
-- Nom d'utilisateur : 'user'
-- Mot de passe : 'user'
+```bash
+python api/app.py
+# → http://localhost:8080
+```
 
-![login](_readme/images/Image2.png)
+---
 
-Une fois authentifié vous pouvez remplir l’information requis pour lancer la prédiction.
+## 5. Connexion Power BI
 
-![prediction](_readme/images/Image3.png)
+### Option A — Web connector (recommandée, auto-refresh)
 
-### 4.2 Utilisation 'admin'
-Si vous voulez accéder en tant qu'Administrateur, insérez les crédentiels suivantes:
-- Nom d'utilisateur: 'admin'
-- Mot de passe: 'admin'
+Dans Power BI Desktop :
+1. **Obtenir les données → Web**
+2. Coller l'URL : `http://localhost:8080/api/weather`
+3. Power Query → naviguer dans `data` → **Développer en nouvelles lignes**
+4. Configurer l'actualisation planifiée
 
-Le rôle administrateur vous ouvre accès à nouvelles fonctionnalités propres à l'administrateur
+Endpoints disponibles :
 
-![admin_access](_readme/images/Image4.png)
+| URL | Contenu |
+|---|---|
+| `/api/weather` | Table complète (historique + prédictions) |
+| `/api/weather/latest` | Dernière date par ville |
+| `/api/weather/predictions` | Prédictions seules |
+| `/api/export/csv` | Téléchargement CSV |
 
-Voici une description des différentes fonctionnalités
+### Option B — Fichier CSV (fallback local)
 
-- #### Lancer ingestion
-Permet de lancer l'ingestion des données indépendamment si la collection de données journalières a été réalisé ou pas.
+Fichier mis à jour quotidiennement par le pipeline :
+```
+data/output/weather_final.csv
+```
 
-- #### Lancer l'entraînement
-Permet de lancer l'entraînement du modèle indépendamment si ce tâche hebdomadier a été réalisé ou pas.
+---
 
-- #### Airfow
-Lien vers l'interface Airflow qui tourne au port `8080` ( [http:localhost:8080](http:localhost:8080) )
+## 6. Orchestration Airflow
 
-![airflow](_readme/images/Image5.png)
+| DAG | Schedule | Tâches |
+|---|---|---|
+| `weather_daily_ingestion` | Tous les jours à 06h UTC | init_db → fetch_daily → run_predictions → export_csv |
+| `weather_weekly_train` | Lundi à 02h UTC | retrain_models → run_predictions → export_csv |
+| `weather_daily_monitoring` | Tous les jours à 08h UTC | data_quality → prediction_coverage → drift_detection → model_metrics → alert |
+| `weather_backfill` | Manuel uniquement | fetch_historical (configurable) → retrain → predict → export |
 
-- #### MLFlow
-Lien vers l'interface MLFlow qui tourne au port `8100` ( [http:localhost:8100](http:localhost:8100) )
+### Lancer MLflow UI
 
-![mlflow](_readme/images/Image6.png)
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db --port 5000
+# → http://localhost:5000
+```
 
-### 4.3 Grafana & Prometheus (Monitoring)
-Pour superviser et visualiser les métriques du système, nous utilisons Grafana et Prometheus.
+Chaque entraînement crée un run parent avec les métriques agrégées et 6 runs enfants (un par modèle) avec hyperparamètres, métriques, feature importances et artefacts.
 
-- #### Accéder à Grafana
+### Lancer Airflow localement
 
-- Ouvrez http://localhost:3000 dans votre navigateur
-- Connectez-vous avec les identifiants par défaut (par exemple, admin / admin)
+```bash
+pip install apache-airflow
+export AIRFLOW_HOME=$(pwd)/airflow_home
+airflow db init
+airflow users create --username admin --password admin --role Admin \
+    --firstname Admin --lastname Admin --email admin@example.com
+airflow webserver --port 8080 &
+airflow scheduler &
+# → http://localhost:8080
+```
 
-- #### Ajouter Prometheus comme source de données
+### Mise à jour manuelle (sans Airflow)
 
-- Dans Grafana, cliquez sur Configuration → Data Sources → Add data source → Prometheus
-- Indiquez l’URL : http://prometheus:9000 (si vous utilisez le réseau interne Docker)
-- Testez la connexion puis enregistrez.
+```bash
+python pipeline/run_pipeline.py daily    # mise à jour quotidienne
+python pipeline/run_pipeline.py train    # retraining uniquement
+python pipeline/run_pipeline.py predict  # prédictions uniquement
+python pipeline/run_pipeline.py export   # export CSV uniquement
+```
 
-- #### Importer un dashboard
+---
 
-- Dans Grafana, cliquez sur + → Import
-- Saisissez l’ID d’un dashboard existant (par exemple 3662)
-- Sélectionnez la source de données Prometheus précédemment créée
-- Cliquez sur Import pour finaliser.
+## 7. Source de données
 
-Une fois le dashboard importé, vous pourrez visualiser diverses métriques (taux de requêtes, consommation de ressources, dérive du modèle, etc.) pour suivre en temps réel l’état de votre application.
+**Open-Meteo API** — [open-meteo.com](https://open-meteo.com)
+- Gratuite, sans clé API
+- Données horaires et journalières pour n'importe quelle coordonnée GPS
+- Archive historique disponible depuis 1940
 
-## 5. Auteurs
-Ce projet a été développés dans le cadre de la formation Machine Learning Engineer, format bootcamp de DataScientest. Les membres et contributeurs du répertoire sont: 
+Variables collectées : température min/max, précipitations, évapotranspiration, ensoleillement, vitesse et direction du vent, humidité, pression atmosphérique, couverture nuageuse — à 9h et 15h heure locale.
 
-### Contributeurs
-- Leila BELMIR /
-  [LinkedIn]() /
-  [GitHub]()
+---
 
-- Anas MBARKI /
-  [LinkedIn](https://www.linkedin.com/in/anas-mbarki-1010/) /
-  [GitHub](https://github.com/AnasMba19)
+## 8. Auteurs
 
-- Ellie PASCAUD /
-  [LinkedIn]() /
-  [GitHub]()
+Projet développé dans le cadre de la formation Machine Learning Engineer de DataScientest
 
-- Sergio VELASCO /
-  [LinkedIn](https://www.linkedin.com/in/sergio-velasco/) /
-  [GitHub](https://github.com/smvelascoc)
+| Contributeur | LinkedIn | GitHub |
+|---|---|---|
+| Leila BELMIR | [LinkedIn]() | [GitHub]() |
+| Anas MBARKI | [LinkedIn]() | [GitHub]() |
+| Ellie PASCAUD | [LinkedIn]() | [GitHub]() |
+| Sergio VELASCO | [LinkedIn]() | [GitHub]() |
 
-### Mentor
-- Sébastien SIME /
-  [LinkedIn](https://www.linkedin.com/in/s-sime/) /
-  [GitHub](https://github.com/ssime-git)
+**Mentor :** Sébastien SIME — [LinkedIn](https://www.linkedin.com/in/s-sime/) · [GitHub](https://github.com/ssime-git)

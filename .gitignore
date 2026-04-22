@@ -1,56 +1,64 @@
-# Ignorer les environnements virtuels
-venv_secu/
-env_meteo/
+# ── Environnements virtuels ──────────────────────────────────────────────────
 venv/
+venv_secu/
 env/
+env_meteo/
 .venv/
 airflow_env/
 train_env/
 src/ingest/env_test/
+src/Gateway/venv_se/
+src/train/train_env/
 
-# Fichiers temporaires de Jupyter Notebook
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# ── Jupyter ──────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
 *.ipynb~
 Ingestion.ipynb
 
-# Ignorer les fichiers de log
+# ── Données générées (ne pas versionner les gros fichiers) ───────────────────
+data/weather.db
+data/output/
+data/raw/weatherAUS.csv
+data/processed/
+data/monitoring/
+data/production_logs/
 
-#logs/
+# ── Modèles ML (générés par le pipeline) ─────────────────────────────────────
+models/*.pkl
+models/metrics.json
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
 src/airflow/logs/
-!src/airflow/logs/
-#*.log
+*.log
 
-# Fichiers MLflow (évite d'encombrer le repo avec des artifacts)
+# ── MLflow (artefacts lourds) ─────────────────────────────────────────────────
 mlflow/mlartifacts/
 mlflow/mlruns/
+mlflow.db
 
-# Ignorer les fichiers de configuration sensibles
+# ── DVC (ancien système) ──────────────────────────────────────────────────────
+.dvc/cache/
+.dvc/tmp/
+
+# ── Secrets & config locaux ───────────────────────────────────────────────────
 .env
-config.yaml
 *.secret
 *.key
 
-# Ignorer les fichiers CSV (données brutes)
-#data/raw/
-
-#*.csv
-#data/
-
-# Docker
+# ── Docker ───────────────────────────────────────────────────────────────────
 docker-compose.override.yml
-docker-compose.yaml
 
-# Fichiers spécifiques au projet
-src/Gateway/venv_se/
-logs/airflow/
-
-# Ignorer le fichier de données brut
-#data/raw/weatherAUS.csv
-
-# Ignorer les logs d'Airflow
-logs/airflow/dag_processor_manager/dag_processor_manager.log
-#logs/airflow/dag_processor_manager/
-
-# Ignorer les __pycache__folders__
-**/__pycache__/**
-src/train/train_env/
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

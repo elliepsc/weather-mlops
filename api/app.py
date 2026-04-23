@@ -28,6 +28,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from pipeline.database import DB_PATH, read_all, get_connection
+from pipeline.mlflow_config import get_mlflow_tracking_uri
 
 app = FastAPI(
     title="Weather Australia API",
@@ -192,8 +193,7 @@ def export_csv():
 
 def _get_mlflow_client():
     import mlflow
-    import os
-    uri = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{ROOT / 'mlflow' / 'mlflow.db'}")
+    uri = get_mlflow_tracking_uri(ROOT)
     mlflow.set_tracking_uri(uri)
     return mlflow.MlflowClient()
 

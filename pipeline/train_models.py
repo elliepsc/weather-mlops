@@ -13,7 +13,6 @@ Models trained:
 """
 import json
 import logging
-import os
 import pickle
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +28,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from xgboost import XGBClassifier, XGBRegressor
 
+from pipeline.mlflow_config import get_mlflow_artifacts_dir, get_mlflow_tracking_uri
 from pipeline.process_weather import (encode_categoricals, get_feature_matrix)
 
 logger = logging.getLogger(__name__)
@@ -36,9 +36,6 @@ logger = logging.getLogger(__name__)
 ROOT         = Path(__file__).parent.parent
 MODELS_DIR   = ROOT / "models"
 METRICS_PATH = MODELS_DIR / "metrics.json"
-
-MLFLOW_URI        = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{ROOT / 'mlflow' / 'mlflow.db'}")
-
 
 def _load_config() -> dict:
     path = ROOT / "config.yaml"
@@ -76,9 +73,22 @@ MLFLOW_EXPERIMENT = _get_experiment_name()
 # ─── MLflow setup ────────────────────────────────────────────────────────────
 
 def _setup_mlflow():
-    (ROOT / "mlflow").mkdir(parents=True, exist_ok=True)
-    mlflow.set_tracking_uri(MLFLOW_URI)
+    tracking_uri = get_mlflow_tracking_uri(ROOT)
+    artifacts_dir = get_mlflow_artifacts_dir(ROOT)
+
+    if artifacts_dir is not None:
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        artifacts_uri = artifacts_dir.resolve().as_uri()
+    else:
+        artifacts_uri = None
+
+    mlflow.set_tracking_uri(tracking_uri)
+    client = mlflow.MlflowClient()
+    experiment = client.get_experiment_by_name(MLFLOW_EXPERIMENT)
+    if experiment is None and artifacts_uri is not None:
+        client.create_experiment(MLFLOW_EXPERIMENT, artifact_location=artifacts_uri)
     mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    logger.info("MLflow tracking URI: %s", tracking_uri)
 
 
 # ─── model persistence ───────────────────────────────────────────────────────

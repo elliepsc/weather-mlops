@@ -43,6 +43,7 @@ logs/
 mlflow/mlartifacts/
 mlflow/mlruns/
 mlflow.db
+mlruns/
 
 # ── DVC (ancien système) ──────────────────────────────────────────────────────
 .dvc/cache/

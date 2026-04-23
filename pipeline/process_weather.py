@@ -134,11 +134,11 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # frost_risk: next day min_temp <= 2°C
     df["frost_risk"] = (grp["min_temp"].shift(-1).fillna(99) <= 2.0).astype(int)
 
-    # storm_probability: next day weather code in stormy range
-    next_code = grp["weather_code"].shift(-1)
-    df["storm_label"] = next_code.apply(
-        lambda c: 1 if (not pd.isna(c) and int(c) in _WMO_STORMY) else 0
-    )
+    # storm_probability: next day has heavy rain (>10mm) AND strong gusts (>50 km/h)
+    # ERA5-Land doesn't encode convective WMO codes (80-99), so we use a meteorological proxy
+    next_rain = grp["rainfall"].shift(-1).fillna(0)
+    next_gust = grp["wind_gust_speed"].shift(-1).fillna(0)
+    df["storm_label"] = ((next_rain > 10.0) & (next_gust > 50.0)).astype(int)
 
     # Drop last row per city (no "tomorrow" available)
     last_dates = df.groupby("city")["date"].transform("max")

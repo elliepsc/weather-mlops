@@ -18,8 +18,9 @@ prometheus-fastapi-instrumentator>=6.1.0
 # HTTP client (Open-Meteo)
 requests>=2.31.0
 
-# Airflow (install separately — heavyweight, see docs)
-# pip install apache-airflow>=2.8.0
+# Airflow (install separately — heavyweight, not included in pip install -r)
+# On WSL: cd ~ && pip install apache-airflow --no-cache-dir
+# On Linux/macOS: pip install apache-airflow>=2.9.0
 
 # Dev / testing
 pytest>=7.4.0

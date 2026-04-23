@@ -4,7 +4,7 @@ services:
   api:
     build: .
     ports:
-      - "8083:8083"
+      - "8003:8003"
     volumes:
       - ./data:/app/data
       - ./models:/app/models
@@ -12,7 +12,7 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -49,5 +49,125 @@ services:
     depends_on:
       - prometheus
 
+  # ── Airflow — PostgreSQL (metadata DB) ───────────────────────────────────────
+  # Airflow a besoin d'une vraie base relationnelle en prod.
+  # SQLite (utilisé par standalone en dev) ne supporte pas la concurrence
+  # entre webserver, scheduler et workers.
+  airflow-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+
+  # ── Airflow — Init (migration DB + création user admin) ───────────────────────
+  # Ce service tourne une seule fois au premier lancement pour initialiser la DB
+  # et créer le compte admin. Il s'arrête ensuite (restart: on-failure).
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      PYTHONPATH: /opt/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pipeline:/opt/airflow/pipeline
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+      - ./mlflow:/opt/airflow/mlflow
+      - airflow_logs:/opt/airflow/logs
+    command: >
+      bash -c "
+        airflow db migrate &&
+        airflow users create
+          --username admin
+          --password weather
+          --firstname Admin
+          --lastname Admin
+          --role Admin
+          --email admin@localhost
+      "
+    restart: on-failure
+
+  # ── Airflow — Webserver (UI sur localhost:8083) ───────────────────────────────
+  # Le webserver sert l'interface web. Il est séparé du scheduler pour pouvoir
+  # redémarrer l'UI sans interrompre les tâches en cours.
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    ports:
+      - "8083:8080"   # 8083 sur l'hôte → 8080 dans le container (port par défaut Airflow)
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      PYTHONPATH: /opt/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pipeline:/opt/airflow/pipeline
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+      - ./mlflow:/opt/airflow/mlflow
+      - airflow_logs:/opt/airflow/logs
+    command: webserver
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── Airflow — Scheduler (exécution des DAGs) ──────────────────────────────────
+  # Le scheduler surveille les DAGs et lance les tâches au bon moment.
+  # Avec LocalExecutor, les tâches tournent dans le même container que le scheduler
+  # (pas besoin de workers séparés).
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      PYTHONPATH: /opt/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pipeline:/opt/airflow/pipeline
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+      - ./mlflow:/opt/airflow/mlflow
+      - airflow_logs:/opt/airflow/logs
+    command: scheduler
+    restart: unless-stopped
+
 volumes:
   grafana_data:
+  airflow_db_data:   # données PostgreSQL Airflow (persistées entre les restarts)
+  airflow_logs:      # logs des tâches Airflow

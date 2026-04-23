@@ -74,7 +74,10 @@ cp .env.example .env
 Variables importantes dans `.env` :
 
 ```env
-MLFLOW_TRACKING_URI=sqlite:///mlflow/mlflow.db   # tracking local, rien à modifier
+# Laisser commenté pour le fallback automatique :
+# - Windows / Docker : <repo>/mlflow/mlflow.db
+# - WSL + repo sous /mnt/... : ~/.weather-rain/mlflow/mlflow.db
+# MLFLOW_TRACKING_URI=sqlite:///mlflow/mlflow.db
 API_HOST=0.0.0.0
 API_PORT=8083
 AIRFLOW_ADMIN_USERNAME=admin
@@ -179,10 +182,12 @@ streamlit run streamlit_app/app.py
 ### 3.3 MLflow UI
 
 ```bash
-mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db --port 5000
+mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-rain/mlflow/mlflow.db --port 5000
 # → http://localhost:5000
 # Expérience : weather_australia
 ```
+
+Sous Windows natif ou Docker, utilise `sqlite:///mlflow/mlflow.db`.
 
 ### 3.4 Monitoring Docker (Prometheus + Grafana)
 
@@ -319,7 +324,7 @@ Durée : ~10 minutes sur 173 k lignes.
 # Voir les runs MLflow
 python -c "
 import mlflow
-mlflow.set_tracking_uri('sqlite:///mlflow/mlflow.db')
+mlflow.set_tracking_uri('sqlite:////home/$USER/.weather-rain/mlflow/mlflow.db')
 client = mlflow.tracking.MlflowClient()
 exp = client.get_experiment_by_name('weather_australia')
 runs = client.search_runs(exp.experiment_id, order_by=['start_time DESC'], max_results=3)

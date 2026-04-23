@@ -39,8 +39,8 @@ data/weather.db (SQLite)
 | **Open-Meteo** | Source météo gratuite, sans clé API. ERA5-Land 9 km. Lag ~1 jour. |
 | **SQLite** | Base locale `data/weather.db`. Tables `weather_raw` + `weather_predictions` + vue `v_weather_full`. |
 | **XGBoost** | 6 modèles sauvegardés dans `models/`. Paramètres dans `config.yaml`. |
-| **MLflow** | Tracking local `mlflow/mlflow.db`. Runs imbriqués par modèle. |
-| **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8083. |
+| **MLflow** | Tracking local SQLite. Sous WSL avec repo sur `/mnt/...`, le backend bascule automatiquement vers `~/.weather-rain/mlflow`. |
+| **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8003. |
 | **Streamlit** | Dashboard local connecté à l'API. |
 | **Airflow** | Orchestration : ingestion quotidienne, réentraînement hebdomadaire, monitoring, backfill. |
 | **Prometheus/Grafana** | Monitoring API via Docker Compose. |
@@ -197,8 +197,7 @@ weather-rain/
 │   └── output/
 │       └── weather_final.csv     # Vue complète exportée (~174 000 lignes)
 ├── models/                       # Modèles .pkl + metrics.json + feature importances
-├── mlflow/
-│   └── mlflow.db                 # Tracking MLflow local
+├── mlflow/                       # Tracking MLflow local (Windows / Docker)
 ├── config.yaml                   # Hyperparamètres XGBoost + config MLflow
 ├── docker-compose.yaml           # API + Prometheus + Grafana
 ├── Dockerfile                    # Image Python 3.11 slim pour l'API
@@ -376,10 +375,11 @@ Régénéré automatiquement par `backfill`, `daily`, `train` et `export`.
 ## MLflow
 
 ```bash
-mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db --port 5000
+mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-rain/mlflow/mlflow.db --port 5000
 ```
 
 URL locale : `http://localhost:5000`
+Sous Windows natif ou Docker, garde `sqlite:///mlflow/mlflow.db`.
 
 Chaque entraînement crée un run parent (stats dataset) avec des runs enfants par modèle (params, métriques, artefacts).
 L'expérience par défaut est `weather_australia` (définie dans `config.yaml`).
@@ -398,13 +398,15 @@ Les DAGs sont dans `dags/`.
 | `weather_backfill` | Manuel | backfill paramétrable → entraînement → prédictions → export |
 
 ```bash
-pip install apache-airflow
-airflow db init
-airflow users create --username admin --password admin --role Admin \
-  --firstname Admin --lastname Admin --email admin@example.com
-airflow webserver --port 8081   # port différent si l'API tourne sur 8083
-airflow scheduler
+# Installation (depuis le home Linux pour éviter les problèmes WSL/NTFS)
+cd ~ && pip install apache-airflow --no-cache-dir
+
+# Lancement tout-en-un (webserver + scheduler + DB init automatique)
+# Port 8083 réservé à Airflow ; FastAPI tourne sur 8003
+AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8083 airflow standalone
 ```
+
+L'UI est accessible sur `localhost:8083`. Le mot de passe admin est affiché au premier démarrage dans les logs (`standalone | Login with username: admin  password: ...`).
 
 ---
 
@@ -441,6 +443,7 @@ data/monitoring/*.json
 models/*.pkl
 models/metrics.json
 mlflow/mlflow.db
+~/.weather-rain/mlflow/mlflow.db   # créé automatiquement sous WSL sur /mnt/...
 logs/pipeline.log
 ```
 

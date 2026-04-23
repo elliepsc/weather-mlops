@@ -60,12 +60,12 @@ def _extract_hour(hourly: dict, var: str, target_hour: int, dates: list[str]) ->
     return result
 
 
-def _call_api(url: str, params: dict, retries: int = 5) -> dict:
+def _call_api(url: str, params: dict, retries: int = 3) -> dict:
     for attempt in range(retries):
         try:
             r = requests.get(url, params=params, timeout=60)
             if r.status_code == 429:
-                wait = 60 * (attempt + 1)   # 60s, 120s, 180s…
+                wait = 30 * (2 ** attempt)  # 30s, 60s, 120s
                 logger.warning("Rate limited (429). Waiting %ds before retry %d/%d…",
                                wait, attempt + 1, retries)
                 time.sleep(wait)
@@ -113,7 +113,7 @@ def fetch_city(city: str, start_date: str, end_date: str) -> pd.DataFrame:
     dates   = daily.get("time", [])
 
     if not dates:
-        logger.warning("No data returned for %s (%s → %s)", city, start_date, end_date)
+        logger.warning("No data returned for %s (%s -> %s)", city, start_date, end_date)
         return pd.DataFrame()
 
     df = pd.DataFrame({
@@ -168,7 +168,7 @@ def fetch_all_cities(start_date: str, end_date: str,
     """
     frames = []
     for city in LOCATIONS:
-        logger.info("Fetching %s  (%s → %s)", city, start_date, end_date)
+        logger.info("Fetching %s  (%s -> %s)", city, start_date, end_date)
         try:
             df = fetch_city(city, start_date, end_date)
             if not df.empty:
@@ -184,14 +184,90 @@ def backfill_x_years(years: int = 5, start_date: str = "2021-01-01") -> pd.DataF
     """
     Fetch historical data for all cities.
     Uses start_date if provided, otherwise goes back `years` years from today.
-    Default: 2021-01-01 → yesterday.
+    Default: 2021-01-01 -> yesterday.
     delay_seconds=2.0 to stay within Open-Meteo free-tier rate limits.
     """
     end = (date.today() - timedelta(days=1)).isoformat()
     if start_date is None:
         start_date = (date.today() - timedelta(days=365 * years)).isoformat()
-    logger.info("Starting backfill: %s → %s (%d cities)", start_date, end, len(LOCATIONS))
+    logger.info("Starting backfill: %s -> %s (%d cities)", start_date, end, len(LOCATIONS))
     return fetch_all_cities(start_date, end, delay_seconds=2.0)
+
+
+NASA_URL = "https://power.larc.nasa.gov/api/temporal/daily/point"
+NASA_VARS = "T2M_MAX,T2M_MIN,PRECTOTCORR,RH2M,WS10M_MAX,WD10M,PS"
+
+
+def fetch_city_nasapower(city: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Fetch daily weather for one city via NASA POWER (free, no rate limits, no API key).
+    9am/3pm sub-daily values use daily humidity/pressure as proxies.
+    Unavailable columns (evaporation, cloud, weather_code, temp_9am/3pm) -> NULL.
+    """
+    loc = LOCATIONS[city]
+    lat, lon = loc["lat"], loc["lon"]
+
+    params = {
+        "parameters": NASA_VARS,
+        "community":  "RE",
+        "longitude":  lon,
+        "latitude":   lat,
+        "start":      start_date.replace("-", ""),
+        "end":        end_date.replace("-", ""),
+        "format":     "JSON",
+        "user":       "wxpipeline",
+    }
+    data = _call_api(NASA_URL, params)
+    p = data["properties"]["parameter"]
+
+    dates_raw = list(p["T2M_MAX"].keys())
+    dates = [d for d in dates_raw
+             if start_date.replace("-", "") <= d <= end_date.replace("-", "")]
+    n = len(dates)
+
+    if n == 0:
+        logger.warning("No NASA POWER data for %s", city)
+        return pd.DataFrame()
+
+    def col(key):
+        raw = p.get(key, {})
+        return [None if (v is None or v <= -990) else v for v in (raw.get(d) for d in dates)]
+
+    rh      = col("RH2M")
+    ps_hpa  = [v * 10 if v is not None else None for v in col("PS")]
+    ws_kmh  = [v * 3.6 if v is not None else None for v in col("WS10M_MAX")]
+    rainfall = col("PRECTOTCORR")
+
+    df = pd.DataFrame({
+        "date":           [f"{d[:4]}-{d[4:6]}-{d[6:]}" for d in dates],
+        "city":           city,
+        "state":          loc["state"],
+        "latitude":       lat,
+        "longitude":      lon,
+        "min_temp":       col("T2M_MIN"),
+        "max_temp":       col("T2M_MAX"),
+        "rainfall":       rainfall,
+        "evaporation":    [None] * n,
+        "sunshine_hours": [None] * n,
+        "wind_gust_speed": ws_kmh,
+        "wind_gust_dir":  [_degrees_to_compass(v) for v in col("WD10M")],
+        "weather_code":   [None] * n,
+        "temp_9am":       [None] * n,
+        "humidity_9am":   rh,
+        "wind_speed_9am": [None] * n,
+        "wind_dir_9am":   [None] * n,
+        "pressure_9am":   ps_hpa,
+        "cloud_9am":      [None] * n,
+        "temp_3pm":       [None] * n,
+        "humidity_3pm":   rh,
+        "wind_speed_3pm": [None] * n,
+        "wind_dir_3pm":   [None] * n,
+        "pressure_3pm":   ps_hpa,
+        "cloud_3pm":      [None] * n,
+    })
+
+    df["rain_today"] = (df["rainfall"].fillna(0) > 1.0).astype(int)
+    return df
 
 
 def fetch_today() -> pd.DataFrame:

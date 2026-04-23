@@ -13,18 +13,11 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
+from datetime import datetime, timedelta
 
 ROOT = Path(__file__).parent.parent  # project root
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from pipeline.run_pipeline import (
-    step_init_db,
-    step_ingest_daily,
-    step_predict,
-    step_export,
-)
 
 default_args = {
     "owner":            "airflow",
@@ -33,34 +26,37 @@ default_args = {
     "email_on_failure": False,
 }
 
+
+def step_init_db(**kwargs):
+    from pipeline.run_pipeline import step_init_db as _f
+    _f()
+
+def step_ingest_daily(**kwargs):
+    from pipeline.run_pipeline import step_ingest_daily as _f
+    _f()
+
+def step_predict(**kwargs):
+    from pipeline.run_pipeline import step_predict as _f
+    _f()
+
+def step_export(**kwargs):
+    from pipeline.run_pipeline import step_export as _f
+    _f()
+
+
 with DAG(
     dag_id="weather_daily_ingestion",
     description="Daily fetch from Open-Meteo API + prediction refresh",
-    schedule_interval="0 6 * * *",
-    start_date=days_ago(1),
+    schedule="0 6 * * *",
+    start_date=datetime(2026, 4, 22),
     catchup=False,
     default_args=default_args,
     tags=["weather", "ingestion", "daily"],
 ) as dag:
 
-    t_init = PythonOperator(
-        task_id="init_db",
-        python_callable=step_init_db,
-    )
-
-    t_fetch = PythonOperator(
-        task_id="fetch_daily",
-        python_callable=step_ingest_daily,
-    )
-
-    t_predict = PythonOperator(
-        task_id="run_predictions",
-        python_callable=step_predict,
-    )
-
-    t_export = PythonOperator(
-        task_id="export_csv",
-        python_callable=step_export,
-    )
+    t_init    = PythonOperator(task_id="init_db",          python_callable=step_init_db)
+    t_fetch   = PythonOperator(task_id="fetch_daily",      python_callable=step_ingest_daily)
+    t_predict = PythonOperator(task_id="run_predictions",  python_callable=step_predict)
+    t_export  = PythonOperator(task_id="export_csv",       python_callable=step_export)
 
     t_init >> t_fetch >> t_predict >> t_export

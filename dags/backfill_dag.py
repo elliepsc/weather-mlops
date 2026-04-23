@@ -23,7 +23,7 @@ from datetime import date, timedelta
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
+from datetime import datetime, timedelta
 
 ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
@@ -79,8 +79,8 @@ def run_export(**context):
 with DAG(
     dag_id="weather_backfill",
     description="Manual backfill: fetch historical data + retrain + predict (no schedule)",
-    schedule_interval=None,       # manual trigger only
-    start_date=days_ago(1),
+    schedule=None,                 # manual trigger only
+    start_date=datetime(2026, 4, 22),
     catchup=False,
     default_args=default_args,
     tags=["weather", "backfill", "manual"],

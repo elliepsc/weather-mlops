@@ -12,17 +12,11 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
+from datetime import datetime, timedelta
 
 ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from pipeline.run_pipeline import (
-    step_train,
-    step_predict,
-    step_export,
-)
 
 default_args = {
     "owner":            "airflow",
@@ -31,11 +25,25 @@ default_args = {
     "email_on_failure": False,
 }
 
+
+def step_train(**kwargs):
+    from pipeline.run_pipeline import step_train as _f
+    _f()
+
+def step_predict(**kwargs):
+    from pipeline.run_pipeline import step_predict as _f
+    _f()
+
+def step_export(**kwargs):
+    from pipeline.run_pipeline import step_export as _f
+    _f()
+
+
 with DAG(
     dag_id="weather_weekly_train",
     description="Weekly retraining of 6 XGBoost models + prediction refresh",
-    schedule_interval="0 2 * * 1",   # every Monday at 02:00 UTC
-    start_date=days_ago(7),
+    schedule="0 2 * * 1",            # every Monday at 02:00 UTC
+    start_date=datetime(2026, 4, 16),
     catchup=False,
     default_args=default_args,
     tags=["weather", "training", "weekly"],

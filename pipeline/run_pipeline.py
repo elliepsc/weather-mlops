@@ -24,14 +24,13 @@ from pipeline.database import init_db, upsert_weather_raw, upsert_predictions, r
 from pipeline.fetch_weather import fetch_city, fetch_today
 from pipeline.locations import LOCATIONS
 from pipeline.process_weather import add_features
-from pipeline.train_models import train_all
 from pipeline.predict import generate_predictions
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
     handlers=[
-        logging.StreamHandler(),
+        logging.StreamHandler(sys.stderr),
         logging.FileHandler(ROOT / "logs" / "pipeline.log", mode="a"),
     ],
 )
@@ -99,6 +98,7 @@ def step_ingest_daily():
 
 
 def step_train():
+    from pipeline.train_models import train_all
     logger.info("Loading raw data for training...")
     df_raw = read_raw()
     if len(df_raw) < 500:

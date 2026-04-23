@@ -17,7 +17,7 @@ from pathlib import Path
 from airflow import DAG
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dates import days_ago
+from datetime import datetime, timedelta
 
 ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
@@ -181,8 +181,8 @@ def alert_drift(**context):
 with DAG(
     dag_id="weather_daily_monitoring",
     description="Daily data quality check, KS drift detection, model metrics",
-    schedule_interval="0 8 * * *",
-    start_date=days_ago(1),
+    schedule="0 8 * * *",
+    start_date=datetime(2026, 4, 22),
     catchup=False,
     default_args=default_args,
     tags=["weather", "monitoring", "daily"],

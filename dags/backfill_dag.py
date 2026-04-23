@@ -3,15 +3,18 @@ Airflow DAG — Manual backfill
 Trigger type : manual only (no automatic schedule)
 
 Use this DAG to:
-  - Initialize the database for the first time (2-year historical fetch)
+  - Initialize the database for the first time (full 2008 historical fetch)
   - Re-fetch data for a specific date range after an outage
   - Force a full model retrain + prediction regeneration
 
 Trigger via Airflow UI → DAGs → weather_backfill → Trigger DAG w/ config:
   {
-    "start_date": "2023-01-01",   (optional, defaults to 2 years ago)
-    "end_date":   "2024-01-01"    (optional, defaults to yesterday)
+    "start_date": "2008-01-01",   (optional, defaults to 2008-01-01)
+    "end_date":   "2026-04-21"    (optional, defaults to yesterday)
   }
+
+Note: delay_seconds=10 between cities to stay within Open-Meteo free-tier rate limits.
+Full backfill (26 cities x 18 years) takes ~5 minutes.
 """
 import sys
 import logging
@@ -42,18 +45,18 @@ def run_backfill_with_config(**context):
     Falls back to 2-year default if no config provided.
     """
     conf = context.get("dag_run").conf or {}
-    start = conf.get("start_date", (date.today() - timedelta(days=365 * 2)).isoformat())
+    start = conf.get("start_date", "2008-01-01")
     end   = conf.get("end_date",   (date.today() - timedelta(days=1)).isoformat())
 
-    logger.info("Backfill requested: %s → %s", start, end)
+    logger.info("Backfill requested: %s -> %s", start, end)
 
     from pipeline.database import init_db, upsert_weather_raw
     from pipeline.fetch_weather import fetch_all_cities
 
     init_db()
-    df = fetch_all_cities(start, end, delay_seconds=1.0)
+    df = fetch_all_cities(start, end, delay_seconds=10.0)
     if df.empty:
-        raise ValueError(f"No data returned for {start} → {end}")
+        raise ValueError(f"No data returned for {start} -> {end}")
     upsert_weather_raw(df)
     logger.info("Backfill stored: %d rows", len(df))
 
@@ -82,8 +85,8 @@ with DAG(
     default_args=default_args,
     tags=["weather", "backfill", "manual"],
     params={
-        "start_date": "2023-04-21",
-        "end_date":   "2025-04-20",
+        "start_date": "2008-01-01",
+        "end_date":   "2026-04-21",
     },
 ) as dag:
 

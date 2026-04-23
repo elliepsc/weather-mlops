@@ -1,12 +1,12 @@
 """
 Streamlit demo — Weather Australia dashboard.
-Connects to the FastAPI backend at http://localhost:8080.
+Connects to the FastAPI backend at http://localhost:8083.
 """
 import streamlit as st
 import requests
 import pandas as pd
 
-API_URL = "http://localhost:8080"
+API_URL = "http://localhost:8083"
 
 st.set_page_config(page_title="Weather Australia", page_icon="🌦", layout="wide")
 st.title("Weather Australia — Live Dashboard")

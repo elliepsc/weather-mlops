@@ -13,8 +13,8 @@ COPY mlflow/    ./mlflow/
 
 ENV MLFLOW_TRACKING_URI=sqlite:///app/mlflow/mlflow.db
 ENV API_HOST=0.0.0.0
-ENV API_PORT=8080
+ENV API_PORT=8083
 
-EXPOSE 8080
+EXPOSE 8083
 
 CMD ["python", "api/app.py"]

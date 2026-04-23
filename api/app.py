@@ -258,5 +258,7 @@ def get_latest_mlflow_metrics():
 # ─── run ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("api.app:app", host="0.0.0.0", port=8083, reload=True)
+    import os, uvicorn
+    port = int(os.getenv("API_PORT", 8083))
+    host = os.getenv("API_HOST", "0.0.0.0")
+    uvicorn.run("api.app:app", host=host, port=port, reload=True)

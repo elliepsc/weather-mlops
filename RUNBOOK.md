@@ -239,16 +239,16 @@ UI : http://localhost:8081 — identifiants : `admin / weather`
 
 ### 4.3 bis — Redemarrer Airflow proprement via `start_airflow.sh`
 
-Si tu lances Airflow via un script copie dans `~`, il faut recopier la version du repo
-apres chaque modification de `start_airflow.sh`, sinon tu risques de relancer une
-ancienne version du bootstrap.
+Si tu veux lancer Airflow depuis `~`, crée un symlink vers le script du repo. Comme ça,
+les modifications de `start_airflow.sh` sont prises en compte sans recopier le fichier.
 
 ```bash
 # Arrete Airflow
 pkill -f "airflow standalone"
 
-# Recopie le script mis a jour (obligatoire si tu lances depuis ~)
-cp "/mnt/c/Users/Ellie Pro/Documents/Projets Data/projets_github/weather-rain/start_airflow.sh" ~/start_airflow.sh
+# Une seule fois, depuis le repo
+cd /chemin/vers/weather-rain
+ln -sfn "$(pwd)/start_airflow.sh" ~/start_airflow.sh
 
 # Relance
 bash ~/start_airflow.sh

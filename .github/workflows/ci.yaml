@@ -36,4 +36,4 @@ jobs:
         run: python -c "from api.app import app"
 
       - name: Run unit tests (if any)
-        run: pytest tests_unitaires/ --maxfail=5 --disable-warnings -q || true
+        run: pytest tests/ --maxfail=5 --disable-warnings -q || true

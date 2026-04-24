@@ -1,25 +1,34 @@
 #!/bin/bash
-# Lancement Airflow standalone pour ce projet
-# Usage: bash start_airflow.sh
+# Lancement Airflow 3 standalone pour ce projet
+# Usage: bash start_airflow.sh  OU  bash ~/start_airflow.sh
 #
-# UI disponible sur localhost:8083
+# UI disponible sur http://localhost:8083
 # Login : admin / voir ~/airflow/simple_auth_manager_passwords.json.generated
 # Arrêt  : Ctrl+C
 
-# Chemin absolu vers la racine du repo (indépendant du répertoire courant)
-REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Chemin du repo — fixe, indépendant de l'endroit où le script est lancé
+REPO_DIR="/mnt/c/Users/Ellie Pro/Documents/Projets Data/projets_github/weather-rain"
 
-# Port de l'UI Airflow — 8083 car 8080/8081/8082 sont occupés sur cette machine
+# ── Symlink sans espaces ──────────────────────────────────────────────────────
+# Airflow 3 LocalExecutor spawn des subprocessus via subprocess.Popen.
+# Les espaces dans le chemin Windows cassent ces commandes.
+# ~/weather-rain est un symlink sans espaces vers le repo.
+REPO_LINK="$HOME/weather-rain"
+ln -sfn "$REPO_DIR" "$REPO_LINK"
+
+# ── Port ──────────────────────────────────────────────────────────────────────
+# BASE_URL doit correspondre au port — sinon les appels API internes
+# (trigger, XCom, logs) partent sur localhost:8080 et échouent.
 export AIRFLOW__API__PORT=8083
+export AIRFLOW__API__BASE_URL="http://localhost:8083"
+export AIRFLOW__WEBSERVER__BASE_URL="http://localhost:8083"
 
-# Pointe Airflow vers les DAGs du projet au lieu du dossier par défaut ~/airflow/dags/
-export AIRFLOW__CORE__DAGS_FOLDER="$REPO_DIR/dags"
+# ── DAGs + PYTHONPATH ─────────────────────────────────────────────────────────
+export AIRFLOW__CORE__DAGS_FOLDER="$REPO_LINK/dags"
+export PYTHONPATH="$REPO_LINK"
 
-# Désactive les 90+ DAGs exemples fournis par Airflow (tutorials, demos)
+# ── Divers ────────────────────────────────────────────────────────────────────
 export AIRFLOW__CORE__LOAD_EXAMPLES=False
+export AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT=60
 
-# Désactive les connexions exemples (S3, GCP, etc.) inutiles ici
-export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
-
-# Lance depuis ~ pour éviter les erreurs os.getcwd() liées aux espaces dans le chemin WSL/NTFS
 cd ~ && airflow standalone

@@ -17,11 +17,13 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
+from config.settings import modeling_config
 from pipeline.process_weather import (encode_categoricals, get_feature_matrix,
                                        compute_comfort_score)
 from pipeline.train_models import load_all_models
 
 logger = logging.getLogger(__name__)
+RAIN_CLASSIFICATION_THRESHOLD = modeling_config.inference.rain_probability_threshold
 
 
 def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
@@ -37,7 +39,7 @@ def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
     # 1 & 2 — rain_tomorrow
     rain_model = models["rain_tomorrow"]
     rain_proba = rain_model.predict_proba(X)[:, 1]
-    rain_pred  = (rain_proba >= 0.5).astype(int)
+    rain_pred  = (rain_proba >= RAIN_CLASSIFICATION_THRESHOLD).astype(int)
 
     # 3 — max_temp_tomorrow
     temp_pred = models["max_temp_tomorrow"].predict(X)

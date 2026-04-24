@@ -1,0 +1,82 @@
+# =============================================================================
+# config/mlops.yaml — Seuils métier et paramètres MLOps
+# =============================================================================
+#
+# CE FICHIER EST VERSIONNÉ. Il contient les seuils et paramètres que l'équipe
+# data/métier peut ajuster. Toute modification doit passer par une PR.
+#
+# CE QU'ON NE MET PAS ICI : secrets, credentials, URLs → .env
+# CE QU'ON NE MET PAS DANS LES DAGs : magic numbers → ici
+#
+# Chargé et validé par config/settings.py (pydantic).
+# =============================================================================
+
+monitoring:
+  # Seuil accuracy pluie sous lequel un retrain est déclenché.
+  # Baseline historique : 77.4% sur 173k lignes. Marge de 2.4pp.
+  rain_accuracy_threshold: 0.75
+
+  # Seuil MAE température au-dessus duquel un retrain est déclenché.
+  # Baseline historique : 1.63°C MAE. Marge ×2 pour absorber la saisonnalité.
+  temp_mae_threshold_celsius: 3.0
+
+  # Drift KS sur ≥3 features → alerte seulement (probable saisonnalité).
+  min_drift_features_alert: 3
+
+  # Drift KS sur ≥4 features → retrain (drift structurel, pas juste saisonnier).
+  min_drift_features_retrain: 4
+
+  # Cooldown entre deux retrains. Evite les boucles monitoring→retrain→monitoring.
+  # Doit être > fréquence du monitoring DAG (quotidien).
+  retrain_cooldown_days: 7
+
+  # Niveau de significativité pour le test KS.
+  # NOTE : multiple testing non corrigé (6 tests, α=0.05 → ~26% false positive).
+  # À passer à 0.008 (Bonferroni sur 6 features) pour un usage production.
+  drift_ks_alpha: 0.05
+
+  # Fenêtre glissante pour le test KS (en jours).
+  drift_window_days: 30
+
+  # Features monitorées par le test KS.
+  # Toutes sont saisonnières → le drift saisonnier seul déclenche alert_only,
+  # pas trigger_retrain (seuil min_drift_features_retrain ≥ 4).
+  monitored_features:
+    - max_temp
+    - min_temp
+    - humidity_3pm
+    - pressure_3pm
+    - rainfall
+    - wind_gust_speed
+
+  # Nombre minimum de lignes pour calculer les métriques (30d × 26 villes théorique).
+  min_rows_for_metrics: 30
+
+ingestion:
+  # Nombre minimum de villes avec données J-1 pour valider l'ingestion.
+  # 21/26 = ~80% de couverture. En dessous → prédictions bloquées.
+  min_cities_threshold: 21
+
+  # Délai entre les appels API par ville (Open-Meteo free tier).
+  backfill_delay_seconds: 10.0
+
+  # Colonnes critiques qui doivent être non nulles pour considérer une ligne raw
+  # comme complète. Une ville avec une ligne partielle (ex: humidité NULL) est
+  # re-fetchée au daily/backfill jusqu'à obtenir une ligne exploitable.
+  required_non_null_columns:
+    - humidity_9am
+    - humidity_3pm
+    - pressure_9am
+    - pressure_3pm
+    - temp_9am
+    - temp_3pm
+    - weather_code
+
+training:
+  # Tolérances pour la comparaison new model vs baseline.
+  # Si le nouveau modèle est plus mauvais que ces deltas → WARNING + rollback manuel.
+  baseline_tolerance:
+    # Régression acceptable sur rain_accuracy (2 points de pourcentage).
+    rain_accuracy_pp: 0.02
+    # Régression acceptable sur temp_MAE (0.2°C).
+    temp_mae_celsius: 0.20

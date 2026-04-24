@@ -24,3 +24,8 @@ requests>=2.31.0
 
 # Dev / testing
 pytest>=7.4.0
+
+# Config management
+pydantic>=2.5
+pydantic-settings>=2.1
+PyYAML>=6.0

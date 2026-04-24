@@ -21,13 +21,13 @@ import mlflow
 import mlflow.xgboost
 import numpy as np
 import pandas as pd
-import yaml
 from sklearn.metrics import (accuracy_score, f1_score, mean_absolute_error,
                               r2_score, roc_auc_score)
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from xgboost import XGBClassifier, XGBRegressor
 
+from config.settings import modeling_config
 from pipeline.mlflow_config import get_mlflow_artifacts_dir, get_mlflow_tracking_uri
 from pipeline.process_weather import (encode_categoricals, get_feature_matrix)
 
@@ -37,19 +37,11 @@ ROOT         = Path(__file__).parent.parent
 MODELS_DIR   = ROOT / "models"
 METRICS_PATH = MODELS_DIR / "metrics.json"
 
-def _load_config() -> dict:
-    path = ROOT / "config.yaml"
-    if not path.exists():
-        return {}
-    with open(path) as f:
-        return yaml.safe_load(f) or {}
-
-
 def _get_xgb_params(model_name: str) -> dict:
     """Return XGBoost params for a given model (base merged with per-model overrides)."""
-    cfg = _load_config().get("xgboost", {})
-    params = dict(cfg.get("base", {}))
-    params.update(cfg.get("models", {}).get(model_name) or {})
+    cfg = modeling_config.xgboost
+    params = dict(cfg.base)
+    params.update(cfg.models.get(model_name) or {})
     # Fallback to hardcoded defaults if config is missing
     defaults = dict(n_estimators=300, max_depth=6, learning_rate=0.05,
                     subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1)
@@ -57,14 +49,14 @@ def _get_xgb_params(model_name: str) -> dict:
 
 
 def _get_training_config() -> dict:
-    cfg = _load_config().get("training", {})
-    return {"test_size": cfg.get("test_size", 0.2),
-            "random_state": cfg.get("random_state", 42)}
+    return {
+        "test_size": modeling_config.training.test_size,
+        "random_state": modeling_config.training.random_state,
+    }
 
 
 def _get_experiment_name() -> str:
-    cfg = _load_config().get("mlflow", {})
-    return cfg.get("experiment_name", "weather_australia")
+    return modeling_config.mlflow.experiment_name
 
 
 MLFLOW_EXPERIMENT = _get_experiment_name()
@@ -146,7 +138,7 @@ def _train_binary(X_tr, y_tr, X_te, y_te, name: str,
         with mlflow.start_run(run_name=name, nested=True, parent_run_id=parent_run_id):
             mlflow.log_params({k: v for k, v in params.items() if k != "use_label_encoder"})
             mlflow.log_metrics({k: v for k, v in metrics.items() if v is not None})
-            mlflow.xgboost.log_model(model, artifact_path=name,
+            mlflow.xgboost.log_model(model, name=name,
                                      registered_model_name=f"weather_{name}")
             _log_feature_importance(model, X_tr.columns.tolist(), name)
     except Exception as mlflow_exc:
@@ -175,7 +167,7 @@ def _train_regression(X_tr, y_tr, X_te, y_te, name: str,
         with mlflow.start_run(run_name=name, nested=True, parent_run_id=parent_run_id):
             mlflow.log_params(params)
             mlflow.log_metrics(metrics)
-            mlflow.xgboost.log_model(model, artifact_path=name,
+            mlflow.xgboost.log_model(model, name=name,
                                      registered_model_name=f"weather_{name}")
             _log_feature_importance(model, X_tr.columns.tolist(), name)
     except Exception as mlflow_exc:
@@ -210,7 +202,7 @@ def _train_multiclass(X_tr, y_tr, X_te, y_te, le: LabelEncoder,
                                if k not in ("use_label_encoder", "num_class")})
             mlflow.log_params({"classes": list(le.classes_)})
             mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, float)})
-            mlflow.xgboost.log_model(model, artifact_path=name,
+            mlflow.xgboost.log_model(model, name=name,
                                      registered_model_name=f"weather_{name}")
             _log_feature_importance(model, X_tr.columns.tolist(), name)
     except Exception as mlflow_exc:

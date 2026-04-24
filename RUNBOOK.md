@@ -237,13 +237,30 @@ airflow scheduler
 
 UI : http://localhost:8081 — identifiants : `admin / weather`
 
+### 4.3 bis — Redemarrer Airflow proprement via `start_airflow.sh`
+
+Si tu lances Airflow via un script copie dans `~`, il faut recopier la version du repo
+apres chaque modification de `start_airflow.sh`, sinon tu risques de relancer une
+ancienne version du bootstrap.
+
+```bash
+# Arrete Airflow
+pkill -f "airflow standalone"
+
+# Recopie le script mis a jour (obligatoire si tu lances depuis ~)
+cp "/mnt/c/Users/Ellie Pro/Documents/Projets Data/projets_github/weather-rain/start_airflow.sh" ~/start_airflow.sh
+
+# Relance
+bash ~/start_airflow.sh
+```
+
 ### 4.4 DAGs disponibles
 
 | DAG | Schedule | Déclenchement | Tâches |
 |---|---|---|---|
 | `weather_daily_ingestion` | `0 6 * * *` | Automatique | init_db → fetch J-1 → predict → export |
 | `weather_weekly_train` | `0 2 * * 1` | Automatique (lundi) | retrain → predict → export |
-| `weather_daily_monitoring` | `0 8 * * *` | Automatique | qualité → couverture → drift → métriques → alerte |
+| `weather_daily_monitoring` | `0 8 * * *` | Automatique | qualité → couverture → drift → métriques → retrain auto si dégradation |
 | `weather_backfill` | Manuel | Trigger UI avec config JSON | fetch historique → retrain → predict → export |
 
 ### 4.5 Activer les DAGs
@@ -379,14 +396,35 @@ for f in sorted(os.listdir('models')):
 "
 ```
 
-### 7.3 Détecter un drift (test KS)
+### 7.3 Monitoring automatique — drift et accuracy
 
-Le DAG `weather_daily_monitoring` compare les 30 derniers jours vs les 30 jours précédents via un test de Kolmogorov-Smirnov. En cas de drift détecté, une alerte est loguée (et email si SMTP configuré dans `.env`).
+Le DAG `weather_daily_monitoring` (08:00 UTC) effectue chaque jour :
 
-Pour lancer manuellement :
+1. **Qualité des données** — vérifie que ≥ 80 % des 26 villes ont leurs données J-1
+2. **Couverture des prédictions** — signale les villes dont les prédictions ne sont pas à jour
+3. **Détection de drift** — test KS entre les 30 derniers jours et les 30 jours précédents
+4. **Métriques modèle** — accuracy pluie et MAE température sur 30 jours glissants
+5. **Retrain automatique** si l'une des conditions est vraie :
+
+| Condition | Seuil |
+|---|---|
+| Drift KS détecté | p < 0.05 sur ≥ 1 feature |
+| Accuracy pluie | < 75% sur 30 jours |
+
+En cas de déclenchement, `weather_weekly_train` est lancé automatiquement sans intervention manuelle.
+
+**Lire les résultats :**
 ```bash
-airflow dags trigger weather_daily_monitoring
+cat ~/weather-rain/data/monitoring/model_metrics.json   # accuracy + MAE
+cat ~/weather-rain/data/monitoring/drift_report.json    # KS stat par feature
 ```
+
+**Lancement manuel :**
+```bash
+cd ~ && airflow dags trigger weather_daily_monitoring
+```
+
+**Dans l'UI :** tâche `trigger_retrain` verte = retrain lancé / `no_action` verte = modèle stable.
 
 ### 7.4 Note — storm_probability
 
@@ -423,14 +461,20 @@ Mis à jour automatiquement par chaque run `daily`, `train` ou `export`.
 ## PARTIE 9 — Tests
 
 ```bash
-pytest tests_unitaires/ -v
+pytest tests/ -v
 ```
 
-27 tests couvrant :
+59 tests couvrant :
 - Feature engineering (`test_preprocess.py`)
+- Mapping enrichi Open-Meteo (`test_fetch_weather.py`)
 - Entraînement et persistance modèles (`test_xgboost_model.py`)
+- Configuration MLflow (`test_mlflow_config.py`)
+- Configuration modèle (`test_modeling_config.py`)
+- Branching monitoring (`test_monitoring_branch.py`)
+- Gate et rollback du train DAG (`test_train_dag.py`)
+- Idempotence du daily ingestion et reprise incrémentale du backfill (`test_ingestion_backfill_flow.py`)
 
-Résultat attendu : `27 passed`
+Résultat attendu : `59 passed`
 
 ---
 
@@ -524,7 +568,7 @@ print('CSV       :', rows, 'lignes')
 curl -s http://localhost:8083/health
 
 # 5. Tests
-pytest tests_unitaires/ -q
+pytest tests/ -q
 ```
 
 ---

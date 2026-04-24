@@ -38,7 +38,7 @@ data/weather.db (SQLite)
 |---|---|
 | **Open-Meteo** | Source météo gratuite, sans clé API. ERA5-Land 9 km. Lag ~1 jour. |
 | **SQLite** | Base locale `data/weather.db`. Tables `weather_raw` + `weather_predictions` + vue `v_weather_full`. |
-| **XGBoost** | 6 modèles sauvegardés dans `models/`. Paramètres dans `config.yaml`. |
+| **XGBoost** | 6 modèles sauvegardés dans `models/`. Paramètres dans `config/modeling.yaml`. |
 | **MLflow** | Tracking local SQLite. Sous WSL avec repo sur `/mnt/...`, le backend bascule automatiquement vers `~/.weather-rain/mlflow`. |
 | **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8003. |
 | **Streamlit** | Dashboard local connecté à l'API. |
@@ -184,9 +184,13 @@ weather-rain/
 ├── streamlit_app/
 │   ├── app.py                    # Dashboard Streamlit
 │   └── requirements.txt
-├── tests_unitaires/
+├── tests/
 │   ├── test_preprocess.py
-│   └── test_xgboost_model.py
+│   ├── test_xgboost_model.py
+│   ├── test_mlflow_config.py
+│   ├── test_monitoring_branch.py
+│   ├── test_ingestion_backfill_flow.py
+│   └── test_train_dag.py
 ├── prometheus/
 │   └── prometheus.yml
 ├── grafana/
@@ -198,7 +202,10 @@ weather-rain/
 │       └── weather_final.csv     # Vue complète exportée (~174 000 lignes)
 ├── models/                       # Modèles .pkl + metrics.json + feature importances
 ├── mlflow/                       # Tracking MLflow local (Windows / Docker)
-├── config.yaml                   # Hyperparamètres XGBoost + config MLflow
+├── config/
+│   ├── mlops.yaml               # Seuils MLOps, gating, cooldowns
+│   ├── modeling.yaml            # Hyperparamètres XGBoost, features, labels
+│   └── settings.py              # Chargement typé des configs
 ├── docker-compose.yaml           # API + Prometheus + Grafana
 ├── Dockerfile                    # Image Python 3.11 slim pour l'API
 └── requirements.txt
@@ -246,6 +253,7 @@ Le point d'entrée est `pipeline/run_pipeline.py`.
 | `daily` | Ingestion J-1 + prédictions + export (tâche Airflow quotidienne) |
 | `train` | Réentraînement complet + prédictions + export (tâche Airflow hebdomadaire) |
 | `predict` | Régénération des prédictions avec les modèles existants (sans réentraîner) |
+| `repair --start-date ... --end-date ...` | Répare explicitement les dates manquantes ou incomplètes sur un intervalle |
 | `export` | Export de `v_weather_full` vers `data/output/weather_final.csv` |
 
 ```bash
@@ -257,6 +265,9 @@ python pipeline/run_pipeline.py daily
 
 # Réentraîner les modèles
 python pipeline/run_pipeline.py train
+
+# Réparer un intervalle avec trous / lignes incomplètes
+python pipeline/run_pipeline.py repair --start-date 2026-04-01 --end-date 2026-04-23
 
 # Exporter le CSV uniquement
 python pipeline/run_pipeline.py export
@@ -274,6 +285,8 @@ En cas d'échec partiel (certaines villes en erreur), relancer sans `--force` po
 ```bash
 python pipeline/run_pipeline.py backfill
 ```
+
+Le backfill relance aussi une phase `repair_gaps` qui scanne l'intervalle demandé et rejoue les dates manquantes ou incomplètes avant le retrain.
 
 ---
 
@@ -382,7 +395,7 @@ URL locale : `http://localhost:5000`
 Sous Windows natif ou Docker, garde `sqlite:///mlflow/mlflow.db`.
 
 Chaque entraînement crée un run parent (stats dataset) avec des runs enfants par modèle (params, métriques, artefacts).
-L'expérience par défaut est `weather_australia` (définie dans `config.yaml`).
+L'expérience par défaut est `weather_australia` (définie dans `config/modeling.yaml`).
 
 ---
 
@@ -427,10 +440,11 @@ docker compose up --build
 ## Tests
 
 ```bash
-pytest tests_unitaires
+pytest tests
 ```
 
 Couvrent le feature engineering, les helpers de training et la persistance des modèles.
+Couvrent aussi la config MLflow, la logique de branching/gating des DAGs Airflow, l'idempotence du daily ingestion et la reprise incrémentale du backfill.
 
 ---
 

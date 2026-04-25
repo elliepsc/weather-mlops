@@ -47,6 +47,11 @@ RAW_WEATHER_COLUMN_DEFS = [
     ("temp_3pm", "REAL"),
     ("rain_today", "INTEGER"),
     ("weather_code", "INTEGER"),
+    ("shortwave_radiation_sum", "REAL"),
+    ("vpd_9am", "REAL"),
+    ("vpd_3pm", "REAL"),
+    ("wind_speed_100m_9am", "REAL"),
+    ("wind_speed_100m_3pm", "REAL"),
 ]
 RAW_WEATHER_COLUMNS = [column for column, _ in RAW_WEATHER_COLUMN_DEFS]
 RAW_WEATHER_VALUE_COLUMNS = [column for column in RAW_WEATHER_COLUMNS if column not in {"date", "city"}]
@@ -96,6 +101,11 @@ RAW_VIEW_COLUMNS = [
     "temp_3pm",
     "rain_today",
     "weather_code",
+    "shortwave_radiation_sum",
+    "vpd_9am",
+    "vpd_3pm",
+    "wind_speed_100m_9am",
+    "wind_speed_100m_3pm",
 ]
 
 
@@ -194,6 +204,11 @@ def init_db(db_path: Path = DB_PATH):
                 temp_3pm        REAL,
                 rain_today      INTEGER,
                 weather_code    INTEGER,
+                shortwave_radiation_sum REAL,
+                vpd_9am         REAL,
+                vpd_3pm         REAL,
+                wind_speed_100m_9am REAL,
+                wind_speed_100m_3pm REAL,
                 UNIQUE(date, city)
             );
 

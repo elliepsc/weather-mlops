@@ -7,6 +7,14 @@ Tasks:
   4. log_model_metrics
   5. branch_on_monitoring_decision
   6. trigger_retrain / alert_only / alert_insufficient_data / no_action
+
+Changes vs original:
+  - Schedule moved from 08:00 to 09:00 to avoid a race condition with
+    weather_gap_monitor (07:30) and the weather_backfill it may trigger.
+  - log_model_metrics appends to model_metrics_history.jsonl (tracabilité complète)
+    en plus d'écraser model_metrics.json (snapshot courant).
+  - _send_slack_alert : utilise dags._notifications si disponible, sinon fallback local.
+    Miroir du pattern _airflow_compat.py déjà dans le projet.
 """
 
 import json
@@ -27,6 +35,24 @@ from dags._airflow_compat import (
     PythonOperator,
     TriggerDagRunOperator,
 )
+
+try:
+    from dags._notifications import send_slack_alert as _send_slack_alert
+except ImportError:
+    def _send_slack_alert(message: str) -> None:
+        import requests
+        from config.settings import settings
+
+        if not settings.slack_webhook_url:
+            logger.info("Slack webhook not configured - alert logged only: %s", message)
+            return
+        try:
+            response = requests.post(
+                settings.slack_webhook_url, json={"text": message}, timeout=5
+            )
+            response.raise_for_status()
+        except Exception as exc:
+            logger.warning("Slack alert failed: %s", exc)
 
 logger = logging.getLogger(__name__)
 
@@ -64,26 +90,6 @@ def _write_decision(data: dict) -> None:
     out = ROOT / "data" / "monitoring" / "monitoring_decision.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=2))
-
-
-def _send_slack_alert(message: str) -> None:
-    """Post to Slack when a webhook is configured."""
-    import requests
-    from config.settings import settings
-
-    if not settings.slack_webhook_url:
-        logger.info("Slack webhook not configured - alert logged only: %s", message)
-        return
-
-    try:
-        response = requests.post(
-            settings.slack_webhook_url,
-            json={"text": message},
-            timeout=5,
-        )
-        response.raise_for_status()
-    except Exception as exc:
-        logger.warning("Slack alert failed: %s", exc)
 
 
 def check_data_quality(**context):
@@ -266,9 +272,21 @@ def log_model_metrics(**context):
         )
 
     logger.info("Model metrics (30d): %s", metrics)
-    out = ROOT / "data" / "monitoring" / "model_metrics.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"date": today.isoformat(), **metrics}, indent=2))
+
+    monitoring_dir = ROOT / "data" / "monitoring"
+    monitoring_dir.mkdir(parents=True, exist_ok=True)
+
+    # Snapshot courant — écrasé à chaque run, lu par branch_on_monitoring_decision
+    snapshot = {"date": today.isoformat(), **metrics}
+    (monitoring_dir / "model_metrics.json").write_text(json.dumps(snapshot, indent=2))
+
+    # Historique complet — append en JSON Lines (une entrée par run)
+    # Permet de tracer l'évolution de accuracy et MAE dans le temps
+    history_path = monitoring_dir / "model_metrics_history.jsonl"
+    with history_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(snapshot) + "\n")
+
+    logger.info("Metrics appended to %s", history_path)
 
     context["ti"].xcom_push(key="rain_accuracy_30d", value=metrics.get("rain_accuracy_30d"))
     context["ti"].xcom_push(key="temp_mae_30d", value=metrics.get("temp_mae_30d"))
@@ -414,7 +432,9 @@ def send_insufficient_data_alert(**context):
 with DAG(
     dag_id="weather_daily_monitoring",
     description="Daily monitoring: data quality, drift, model metrics, retrain trigger",
-    schedule="0 8 * * *",
+    # Moved from 08:00 to 09:00 to avoid race condition with weather_gap_monitor
+    # (07:30) and the weather_backfill it may trigger asynchronously.
+    schedule="0 9 * * *",
     start_date=datetime(2026, 4, 22),
     catchup=False,
     default_args=default_args,

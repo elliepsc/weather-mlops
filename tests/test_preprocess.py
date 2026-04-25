@@ -89,6 +89,12 @@ def raw_df():
         "temp_3pm":       [24, 25, 27, 36, 37, 22, 18, 16, 13, 28],
         "rain_today":     [0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
         "weather_code":   [0, 0, 61, 0, 0, 80, 45, 45, 45, 95],
+        "precipitation_hours": [0, 0, 3, 0, 0, 2, 0, 0, 0, 1],
+        "shortwave_radiation_sum": [200, 210, 150, 220, 230, 180, 100, 80, 60, 200],
+        "vpd_9am":        [0.5, 0.6, 0.4, 1.2, 1.3, 0.5, 0.3, 0.2, 0.1, 0.7],
+        "vpd_3pm":        [1.0, 1.1, 0.8, 2.5, 2.6, 1.0, 0.6, 0.4, 0.2, 1.2],
+        "wind_speed_100m_9am": [12, 14, 18, 25, 28, 12, 10, 8, 7, 15],
+        "wind_speed_100m_3pm": [18, 22, 25, 38, 40, 18, 12, 10, 9, 22],
     })
 
 
@@ -131,6 +137,16 @@ def test_add_features_frost_risk(raw_df):
     result = add_features(raw_df)
     # Row with min_temp=1 on day 8 → frost_risk on day 8's row (predicts day 9)
     assert result["frost_risk"].sum() >= 1
+
+
+def test_add_features_rainfall_intensity(raw_df):
+    result = add_features(raw_df)
+    assert "rainfall_intensity" in result.columns
+    assert (result["rainfall_intensity"] >= 0).all()
+    # Day 2 has rainfall=5, precipitation_hours=3 → intensity ≈ 1.67 mm/h
+    day2 = result[result["date"] == "2023-01-03"]
+    assert not day2.empty
+    assert day2.iloc[0]["rainfall_intensity"] == pytest.approx(5 / 3, rel=1e-3)
 
 
 # ─── encode_categoricals ─────────────────────────────────────────────────────

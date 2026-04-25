@@ -1,4 +1,9 @@
-"""Airflow DAG - weekly model retraining."""
+"""Airflow DAG - weekly model retraining.
+
+Changes vs original:
+  - _send_slack_alert : utilise dags._notifications si disponible, sinon fallback local.
+    Miroir du pattern _airflow_compat.py déjà dans le projet.
+"""
 
 import json
 import logging
@@ -16,7 +21,26 @@ from dags._airflow_compat import BranchPythonOperator, DAG, PythonOperator
 
 logger = logging.getLogger(__name__)
 
+try:
+    from dags._notifications import send_slack_alert as _send_slack_alert
+except ImportError:
+    def _send_slack_alert(message: str) -> None:
+        import requests
+        from config.settings import settings
+
+        if not settings.slack_webhook_url:
+            logger.info("Slack webhook not configured - alert logged only: %s", message)
+            return
+        try:
+            response = requests.post(
+                settings.slack_webhook_url, json={"text": message}, timeout=5
+            )
+            response.raise_for_status()
+        except Exception as exc:
+            logger.warning("Slack alert failed: %s", exc)
+
 T = mlops_config.training
+
 MODELS_DIR = ROOT / "models"
 BASELINE_DIR = MODELS_DIR / "baseline"
 LAST_RETRAIN_PATH = ROOT / "data" / "monitoring" / "last_retrain.json"
@@ -27,25 +51,6 @@ default_args = {
     "retry_delay": timedelta(seconds=600),
     "email_on_failure": False,
 }
-
-
-def _send_slack_alert(message: str) -> None:
-    import requests
-    from config.settings import settings
-
-    if not settings.slack_webhook_url:
-        logger.info("Slack webhook not configured - alert logged only: %s", message)
-        return
-
-    try:
-        response = requests.post(
-            settings.slack_webhook_url,
-            json={"text": message},
-            timeout=5,
-        )
-        response.raise_for_status()
-    except Exception as exc:
-        logger.warning("Slack alert failed: %s", exc)
 
 
 def _copy_model_artifacts(src_dir: Path, dst_dir: Path) -> list[str]:
@@ -172,7 +177,7 @@ def send_degradation_alert(**context):
         f"Issues: {' | '.join(issues) if issues else 'unknown'}"
     )
     logger.warning("RETRAIN ROLLBACK ALERT: %s", message)
-    _send_slack_alert(message)
+    send_slack_alert(message)
 
 
 def step_predict(**context):

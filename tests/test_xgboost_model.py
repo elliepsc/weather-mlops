@@ -47,6 +47,12 @@ def tiny_df():
         "temp_3pm":       rng.uniform(15, 38, n),
         "rain_today":     rng.integers(0, 2, n),
         "weather_code":   rng.choice([0, 2, 51, 80, 95], n),
+        "precipitation_hours": rng.uniform(0, 8, n),
+        "shortwave_radiation_sum": rng.uniform(50, 300, n),
+        "vpd_9am":        rng.uniform(0.1, 2.0, n),
+        "vpd_3pm":        rng.uniform(0.5, 4.0, n),
+        "wind_speed_100m_9am": rng.uniform(5, 40, n),
+        "wind_speed_100m_3pm": rng.uniform(10, 50, n),
     })
     return add_features(df)
 

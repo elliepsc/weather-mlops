@@ -125,6 +125,11 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["hot_day_lag2"] = df.groupby("city")["hot_day"].shift(2).fillna(0).astype(int)
     df["consec_hot_days"] = df["hot_day"] + df["hot_day_lag1"] + df["hot_day_lag2"]
 
+    # Rainfall intensity: mm/h — distinguishes storm (10mm/1h) from drizzle (10mm/8h)
+    df["rainfall_intensity"] = (
+        df["rainfall"] / df["precipitation_hours"].replace(0, float("nan"))
+    ).fillna(0.0)
+
     # Comfort score (formula, no ML)
     df["comfort_score"] = df.apply(compute_comfort_score, axis=1)
 

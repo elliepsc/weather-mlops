@@ -1,4 +1,11 @@
-"""Airflow DAG - manual historical backfill."""
+"""Airflow DAG - manual historical backfill.
+
+Changes vs original:
+  - trigger_monitoring_after_backfill was a dead task (log only).
+    Replaced by TriggerDagRunOperator → weather_daily_monitoring so the
+    monitoring pipeline reruns automatically after a backfill completes.
+  - Added explicit note on retrain cooldown bypass (see run_backfill_with_config).
+"""
 
 import logging
 import sys
@@ -10,7 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config.settings import mlops_config
-from dags._airflow_compat import DAG, PythonOperator
+from dags._airflow_compat import DAG, PythonOperator, TriggerDagRunOperator
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +61,22 @@ def validate_backfill_config(**context):
 
 
 def run_backfill_with_config(**context):
-    """Fetch historical data incrementally, repair gaps, and fail if the range is incomplete."""
+    """Fetch historical data incrementally, repair gaps, and fail if the range is incomplete.
+
+    NOTE — retrain cooldown bypass:
+    This task calls step_train() directly via backfill_and_repair_date_range, which
+    bypasses the cooldown guard in weather_weekly_train / weather_daily_monitoring.
+    This is intentional: a backfill corrects the training dataset itself, so
+    retraining immediately on fresh complete data is correct behaviour.
+    The baseline snapshot + rollback gate from weather_weekly_train does NOT run here.
+    If you need that safety net after a large backfill, trigger weather_weekly_train
+    manually after this DAG completes.
+    """
     from pipeline.database import init_db
     from pipeline.run_pipeline import backfill_and_repair_date_range
+
+    dag_run = context.get("dag_run")
+    conf = dag_run.conf if dag_run and dag_run.conf else {}
 
     start = context["ti"].xcom_pull(
         task_ids="validate_backfill_config",
@@ -66,14 +86,15 @@ def run_backfill_with_config(**context):
         task_ids="validate_backfill_config",
         key="end_date",
     ) or DEFAULT_BACKFILL_END
+    force = bool(conf.get("force", False))
 
-    logger.info("Backfill requested: %s -> %s", start, end)
+    logger.info("Backfill requested: %s -> %s (force=%s)", start, end, force)
 
     init_db()
     summary = backfill_and_repair_date_range(
         start,
         end,
-        force=False,
+        force=force,
         delay_seconds=I.backfill_delay_seconds,
     )
     context["ti"].xcom_push(key="backfill_summary", value=summary)
@@ -113,16 +134,9 @@ def run_export(**context):
     step_export()
 
 
-def trigger_monitoring_after_backfill(**_):
-    logger.info(
-        "Backfill complete. Run weather_daily_monitoring manually to refresh "
-        "drift_report.json, model_metrics.json, and monitoring_decision.json."
-    )
-
-
 with DAG(
     dag_id="weather_backfill",
-    description="Manual backfill: validate config -> fetch -> retrain -> predict -> export",
+    description="Manual backfill: validate config -> fetch -> retrain -> predict -> export -> monitoring",
     schedule=None,
     start_date=datetime(2026, 4, 22),
     catchup=False,
@@ -131,6 +145,7 @@ with DAG(
     params={
         "start_date": DEFAULT_BACKFILL_START,
         "end_date": DEFAULT_BACKFILL_END,
+        "force": False,
     },
 ) as dag:
     t_validate = PythonOperator(
@@ -144,9 +159,15 @@ with DAG(
     t_train = PythonOperator(task_id="retrain_models", python_callable=run_train)
     t_predict = PythonOperator(task_id="run_predictions", python_callable=run_predict)
     t_export = PythonOperator(task_id="export_csv", python_callable=run_export)
-    t_notify = PythonOperator(
-        task_id="notify_run_monitoring",
-        python_callable=trigger_monitoring_after_backfill,
+
+    # Replaces the former trigger_monitoring_after_backfill task which only logged.
+    # Triggers weather_daily_monitoring so drift, metrics and model quality are
+    # re-evaluated immediately on the freshly completed dataset.
+    t_monitoring = TriggerDagRunOperator(
+        task_id="trigger_daily_monitoring",
+        trigger_dag_id="weather_daily_monitoring",
+        wait_for_completion=False,
+        reset_dag_run=True,
     )
 
-    t_validate >> t_fetch >> t_train >> t_predict >> t_export >> t_notify
+    t_validate >> t_fetch >> t_train >> t_predict >> t_export >> t_monitoring

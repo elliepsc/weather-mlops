@@ -59,6 +59,13 @@ features:
     - consec_hot_days
     - hot_day_lag1
     - hot_day_lag2
+    - precipitation_hours
+    - rainfall_intensity
+    - shortwave_radiation_sum
+    - vpd_9am
+    - vpd_3pm
+    - wind_speed_100m_9am
+    - wind_speed_100m_3pm
   categorical:
     - wind_gust_dir
     - wind_dir_9am

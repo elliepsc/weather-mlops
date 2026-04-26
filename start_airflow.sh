@@ -27,10 +27,10 @@ find_repo_dir() {
     current_dir="$(pwd -P)"
 
     for candidate in \
-        "${WEATHER_RAIN_REPO_DIR:-}" \
+        "${WEATHER_MLOPS_REPO_DIR:-}" \
         "$script_dir" \
         "$current_dir" \
-        "$HOME/weather-rain"
+        "$HOME/weather-mlops"
     do
         [[ -n "$candidate" && -d "$candidate" ]] || continue
 
@@ -51,14 +51,14 @@ find_repo_dir() {
 }
 
 REPO_DIR="$(find_repo_dir)" || {
-    echo "Impossible de trouver le repo weather-rain." >&2
+    echo "Impossible de trouver le repo weather-mlops." >&2
     echo "Lance ce script depuis le repo ou définis :" >&2
-    echo "  export WEATHER_RAIN_REPO_DIR=/chemin/vers/weather-rain" >&2
+    echo "  export WEATHER_MLOPS_REPO_DIR=/chemin/vers/weather-mlops" >&2
     exit 1
 }
 
 # ── .env ──────────────────────────────────────────────────────────────────────
-ENV_FILE="${WEATHER_RAIN_ENV_FILE:-$REPO_DIR/.env}"
+ENV_FILE="${WEATHER_MLOPS_ENV_FILE:-$REPO_DIR/.env}"
 
 if [[ -f "$ENV_FILE" ]]; then
     set -a
@@ -70,13 +70,13 @@ AIRFLOW_PORT="${AIRFLOW_PORT:-8083}"
 
 # ── Symlink sans espaces ──────────────────────────────────────────────────────
 # Airflow peut mal gérer les chemins Windows avec espaces.
-# On utilise donc ~/weather-rain comme chemin propre pour Airflow.
-REPO_LINK="${WEATHER_RAIN_REPO_LINK:-$HOME/weather-rain}"
+# On utilise donc ~/weather-mlops comme chemin propre pour Airflow.
+REPO_LINK="${WEATHER_MLOPS_REPO_LINK:-$HOME/weather-mlops}"
 
 if [[ "$REPO_LINK" != "$REPO_DIR" ]]; then
     if [[ -e "$REPO_LINK" && ! -L "$REPO_LINK" ]]; then
         echo "$REPO_LINK existe déjà et n'est pas un symlink." >&2
-        echo "Supprime-le ou définis WEATHER_RAIN_REPO_LINK vers un autre chemin." >&2
+        echo "Supprime-le ou définis WEATHER_MLOPS_REPO_LINK vers un autre chemin." >&2
         exit 1
     fi
 

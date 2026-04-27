@@ -8,13 +8,20 @@ Tasks:
   5. branch_on_monitoring_decision
   6. trigger_retrain / alert_only / alert_insufficient_data / no_action
 
-Changes vs original:
-  - Schedule moved from 08:00 to 09:00 to avoid a race condition with
-    weather_gap_monitor (07:30) and the weather_backfill it may trigger.
-  - log_model_metrics appends to model_metrics_history.jsonl (tracabilité complète)
-    en plus d'écraser model_metrics.json (snapshot courant).
-  - _send_slack_alert : utilise dags._notifications si disponible, sinon fallback local.
-    Miroir du pattern _airflow_compat.py déjà dans le projet.
+Fixes applied:
+  #3  detect_drift: guard on window data completeness before KS test.
+      If either window is < 70% complete (gaps present), results are flagged
+      as unreliable in drift_report.json — not discarded, but annotated.
+  #6  log_model_metrics: INNER JOIN → LEFT JOIN. Cities with missing
+      predictions are counted and logged; metrics computed on partial coverage
+      are now explicitly flagged rather than silently biased.
+  #8  execution_timeout added to all tasks.
+  #9  log_model_metrics: "no_data" entry written to history JSONL when
+      metrics cannot be computed — no more silent holes in the timeline.
+  #11 email_on_failure: True (requires SMTP configured in airflow.cfg).
+  Schedule moved to 09:00 (was 08:00) to avoid race with gap_monitor + backfill.
+  _send_slack_alert: tries dags._notifications, falls back to local definition.
+  Dedup alert_key passed to all Slack calls.
 """
 
 import json
@@ -27,7 +34,7 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from config.settings import mlops_config
+from config.settings import mlops_config, settings
 from dags._airflow_compat import (
     BranchPythonOperator,
     DAG,
@@ -39,7 +46,7 @@ from dags._airflow_compat import (
 try:
     from dags._notifications import send_slack_alert as _send_slack_alert
 except ImportError:
-    def _send_slack_alert(message: str) -> None:
+    def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
         from config.settings import settings
 
@@ -63,7 +70,11 @@ default_args = {
     "owner": "airflow",
     "retries": 1,
     "retry_delay": timedelta(seconds=120),
-    "email_on_failure": False,
+    # Set True once SMTP is configured:
+    # AIRFLOW__SMTP__SMTP_HOST, AIRFLOW__SMTP__SMTP_USER, etc.
+    "email_on_failure": True,
+    "email": [settings.alert_email] if settings.alert_email else [],
+    "execution_timeout": timedelta(minutes=30),
 }
 
 
@@ -151,13 +162,20 @@ def check_prediction_coverage(**context):
 
 
 def detect_drift(**context):
-    """KS test: last N days versus previous N days on configured features."""
+    """KS test: last N days versus previous N days on configured features.
+
+    Fix #3: before computing KS, check data completeness in both windows.
+    If either window has < 70% of expected rows (cities × days), the test
+    still runs but results are flagged as unreliable in drift_report.json.
+    A drift signal on incomplete data is likely a data quality artefact,
+    not a genuine distribution shift.
+    """
     from datetime import date, timedelta
 
     import pandas as pd
     from scipy import stats
-
     from pipeline.database import get_connection
+    from pipeline.locations import LOCATIONS
 
     today = date.fromisoformat(context["ds"])
     recent_start = (today - timedelta(days=M.drift_window_days)).isoformat()
@@ -176,6 +194,22 @@ def detect_drift(**context):
             conn,
             params=(baseline_start, baseline_end),
         )
+
+    # --- Fix #3: completeness guard ------------------------------------------
+    expected_rows = M.drift_window_days * len(LOCATIONS)
+    completeness_recent = len(recent) / max(expected_rows, 1)
+    completeness_baseline = len(baseline) / max(expected_rows, 1)
+    data_quality_warning = completeness_recent < 0.7 or completeness_baseline < 0.7
+
+    if data_quality_warning:
+        logger.warning(
+            "Drift window completeness low — KS results may be unreliable. "
+            "recent: %.0f%% (%d/%d rows) | baseline: %.0f%% (%d/%d rows). "
+            "Gap monitor should have triggered a backfill.",
+            completeness_recent * 100, len(recent), expected_rows,
+            completeness_baseline * 100, len(baseline), expected_rows,
+        )
+    # -------------------------------------------------------------------------
 
     report = {}
     drifted_features = []
@@ -198,36 +232,50 @@ def detect_drift(**context):
 
     out = ROOT / "data" / "monitoring" / "drift_report.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"date": today.isoformat(), "features": report}, indent=2))
+    out.write_text(json.dumps({
+        "date": today.isoformat(),
+        "data_quality_warning": data_quality_warning,
+        "completeness_recent_pct": round(completeness_recent * 100, 1),
+        "completeness_baseline_pct": round(completeness_baseline * 100, 1),
+        "features": report,
+    }, indent=2))
 
     context["ti"].xcom_push(key="drifted_features", value=drifted_features)
     context["ti"].xcom_push(key="drift_detected", value=bool(drifted_features))
+    context["ti"].xcom_push(key="drift_data_quality_warning", value=data_quality_warning)
 
 
 def log_model_metrics(**context):
-    """Compute verifiable rain accuracy and next-day temp MAE."""
+    """Compute verifiable rain accuracy and next-day temp MAE.
+
+    Fix #6: LEFT JOIN instead of INNER JOIN — cities without predictions are
+    counted and logged. Metrics are still computed on available data, but the
+    coverage gap is now visible rather than silently excluded.
+    Fix #9: writes a "no_data" entry to history JSONL when metrics cannot be
+    computed, so the timeline has no silent holes.
+    """
     from datetime import date, timedelta
 
     import pandas as pd
     from sklearn.metrics import accuracy_score, mean_absolute_error
-
     from pipeline.database import get_connection
 
     today = date.fromisoformat(context["ds"])
     cutoff = (today - timedelta(days=M.drift_window_days)).isoformat()
+    monitoring_dir = ROOT / "data" / "monitoring"
+    monitoring_dir.mkdir(parents=True, exist_ok=True)
+    history_path = monitoring_dir / "model_metrics_history.jsonl"
 
     with get_connection() as conn:
+        # Fix #6: LEFT JOIN — keeps all raw rows, NULLs where predictions missing.
         df = pd.read_sql(
             """
             SELECT
-                r.date,
-                r.city,
-                r.rain_today,
-                r.max_temp,
-                p.rain_tomorrow,
-                p.max_temp_tomorrow
+                r.date, r.city, r.rain_today, r.max_temp,
+                p.rain_tomorrow, p.max_temp_tomorrow
             FROM weather_raw r
-            JOIN weather_predictions p ON r.date = p.date AND r.city = p.city
+            LEFT JOIN weather_predictions p
+                   ON r.date = p.date AND r.city = p.city
             WHERE r.date >= ?
             ORDER BY r.date, r.city
             """,
@@ -235,12 +283,27 @@ def log_model_metrics(**context):
             params=(cutoff,),
         )
 
-    if len(df) < M.min_rows_for_metrics:
-        logger.info(
-            "Not enough rows for metrics (%d < %d).",
-            len(df),
-            M.min_rows_for_metrics,
+    # Fix #6: explicit coverage warning.
+    cities_without_preds = df[df["rain_tomorrow"].isna()]["city"].nunique()
+    if cities_without_preds > 0:
+        logger.warning(
+            "%d cities have raw data but no predictions — "
+            "metrics reflect partial coverage only.",
+            cities_without_preds,
         )
+
+    if len(df) < M.min_rows_for_metrics:
+        logger.info("Not enough rows for metrics (%d < %d).", len(df), M.min_rows_for_metrics)
+
+        # Fix #9: record the skip so history has no silent holes.
+        no_data_entry = {
+            "date": today.isoformat(),
+            "status": "no_data",
+            "reason": f"insufficient_rows ({len(df)} < {M.min_rows_for_metrics})",
+        }
+        with history_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(no_data_entry) + "\n")
+
         context["ti"].xcom_push(key="rain_accuracy_30d", value=None)
         context["ti"].xcom_push(key="temp_mae_30d", value=None)
         return
@@ -249,7 +312,7 @@ def log_model_metrics(**context):
     df["actual_rain_tomorrow"] = df.groupby("city")["rain_today"].shift(-1)
     df["actual_max_temp_tomorrow"] = df.groupby("city")["max_temp"].shift(-1)
 
-    metrics = {}
+    metrics: dict = {"status": "computed"}
 
     rain_df = df.dropna(subset=["actual_rain_tomorrow", "rain_tomorrow"])
     if not rain_df.empty:
@@ -273,20 +336,14 @@ def log_model_metrics(**context):
 
     logger.info("Model metrics (30d): %s", metrics)
 
-    monitoring_dir = ROOT / "data" / "monitoring"
-    monitoring_dir.mkdir(parents=True, exist_ok=True)
-
-    # Snapshot courant — écrasé à chaque run, lu par branch_on_monitoring_decision
     snapshot = {"date": today.isoformat(), **metrics}
+
+    # Snapshot courant — écrasé à chaque run, lu par branch_on_monitoring_decision.
     (monitoring_dir / "model_metrics.json").write_text(json.dumps(snapshot, indent=2))
 
-    # Historique complet — append en JSON Lines (une entrée par run)
-    # Permet de tracer l'évolution de accuracy et MAE dans le temps
-    history_path = monitoring_dir / "model_metrics_history.jsonl"
+    # Historique — append JSONL, jamais effacé.
     with history_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(snapshot) + "\n")
-
-    logger.info("Metrics appended to %s", history_path)
 
     context["ti"].xcom_push(key="rain_accuracy_30d", value=metrics.get("rain_accuracy_30d"))
     context["ti"].xcom_push(key="temp_mae_30d", value=metrics.get("temp_mae_30d"))
@@ -294,18 +351,9 @@ def log_model_metrics(**context):
 
 def branch_on_monitoring_decision(**context):
     """Route monitoring to retrain, alert, insufficient data, or no action."""
-    features = context["ti"].xcom_pull(
-        task_ids="detect_drift",
-        key="drifted_features",
-    ) or []
-    accuracy = context["ti"].xcom_pull(
-        task_ids="log_model_metrics",
-        key="rain_accuracy_30d",
-    )
-    temp_mae = context["ti"].xcom_pull(
-        task_ids="log_model_metrics",
-        key="temp_mae_30d",
-    )
+    features = context["ti"].xcom_pull(task_ids="detect_drift", key="drifted_features") or []
+    accuracy = context["ti"].xcom_pull(task_ids="log_model_metrics", key="rain_accuracy_30d")
+    temp_mae = context["ti"].xcom_pull(task_ids="log_model_metrics", key="temp_mae_30d")
     ds = context["ds"]
 
     n_drifted = len(features)
@@ -340,9 +388,7 @@ def branch_on_monitoring_decision(**context):
             logger.warning(
                 "Retrain needed but cooldown active - downgrading to alert_only. "
                 "accuracy=%.3f mae=%.2f drifted=%s",
-                accuracy or 0,
-                temp_mae or 0,
-                features,
+                accuracy or 0, temp_mae or 0, features,
             )
             decision_data["action"] = "alert_only"
             decision_data["reason"] = "retrain_needed_but_cooldown_active"
@@ -352,17 +398,11 @@ def branch_on_monitoring_decision(**context):
 
         reasons = []
         if low_accuracy:
-            reasons.append(
-                f"rain_accuracy {accuracy:.1%} < {M.rain_accuracy_threshold:.0%}"
-            )
+            reasons.append(f"rain_accuracy {accuracy:.1%} < {M.rain_accuracy_threshold:.0%}")
         if high_mae:
-            reasons.append(
-                f"temp_mae {temp_mae:.2f}C > {M.temp_mae_threshold_celsius}C"
-            )
+            reasons.append(f"temp_mae {temp_mae:.2f}C > {M.temp_mae_threshold_celsius}C")
         if heavy_drift:
-            reasons.append(
-                f"drift on {n_drifted} features (>={M.min_drift_features_retrain})"
-            )
+            reasons.append(f"drift on {n_drifted} features (>={M.min_drift_features_retrain})")
 
         logger.warning("RETRAIN triggered - %s", " | ".join(reasons))
         decision_data["action"] = "trigger_retrain"
@@ -374,8 +414,7 @@ def branch_on_monitoring_decision(**context):
     if mild_drift:
         logger.warning(
             "ALERT - mild drift on %d features %s (seasonal likely). Metrics OK.",
-            n_drifted,
-            features,
+            n_drifted, features,
         )
         decision_data["action"] = "alert_only"
         decision_data["reason"] = f"mild_drift_on_{n_drifted}_features"
@@ -385,9 +424,7 @@ def branch_on_monitoring_decision(**context):
 
     logger.info(
         "No action needed - accuracy=%.1f%% mae=%.2f drifted=%d",
-        (accuracy or 0) * 100,
-        temp_mae or 0,
-        n_drifted,
+        (accuracy or 0) * 100, temp_mae or 0, n_drifted,
     )
     decision_data["action"] = "no_action"
     decision_data["reason"] = "all_metrics_nominal"
@@ -399,69 +436,69 @@ def branch_on_monitoring_decision(**context):
 def send_alert(**context):
     """Send Slack alert for mild drift or cooldown-blocked retrain."""
     action = context["ti"].xcom_pull(
-        task_ids="branch_on_monitoring_decision",
-        key="monitoring_action",
+        task_ids="branch_on_monitoring_decision", key="monitoring_action"
     )
     out = ROOT / "data" / "monitoring" / "monitoring_decision.json"
     details = json.loads(out.read_text()) if out.exists() else {}
-    reason = details.get("reason", "unknown")
     ds = context["ds"]
 
     message = (
-        f":warning: *weather-rain monitoring alert* ({ds})\n"
-        f"Action: `{action}` | Reason: `{reason}`\n"
+        f":warning: *weather-mlops monitoring alert* ({ds})\n"
+        f"Action: `{action}` | Reason: `{details.get('reason', 'unknown')}`\n"
         f"accuracy={details.get('rain_accuracy_30d')} "
         f"mae={details.get('temp_mae_30d')} "
         f"drifted={details.get('drifted_features')}"
     )
     logger.warning("MONITORING ALERT: %s", message)
-    _send_slack_alert(message)
+    _send_slack_alert(message, alert_key="monitoring_alert")
 
 
 def send_insufficient_data_alert(**context):
     """Alert when metrics could not be computed."""
     ds = context["ds"]
     message = (
-        f":x: *weather-rain monitoring - insufficient data* ({ds})\n"
-        f"Not enough rows (< {M.min_rows_for_metrics}) to compute rain accuracy / temp MAE."
+        f":x: *weather-mlops monitoring - insufficient data* ({ds})\n"
+        f"Not enough rows (< {M.min_rows_for_metrics}) to compute metrics."
     )
     logger.warning("INSUFFICIENT DATA: %s", message)
-    _send_slack_alert(message)
+    _send_slack_alert(message, alert_key="insufficient_data")
 
 
 with DAG(
     dag_id="weather_daily_monitoring",
     description="Daily monitoring: data quality, drift, model metrics, retrain trigger",
-    # Moved from 08:00 to 09:00 to avoid race condition with weather_gap_monitor
-    # (07:30) and the weather_backfill it may trigger asynchronously.
     schedule="0 9 * * *",
     start_date=datetime(2026, 4, 22),
     catchup=False,
     default_args=default_args,
     tags=["weather", "monitoring", "daily"],
 ) as dag:
+
     t_quality = PythonOperator(
         task_id="check_data_quality",
         python_callable=check_data_quality,
+        execution_timeout=timedelta(minutes=10),
     )
     t_coverage = PythonOperator(
         task_id="check_prediction_coverage",
         python_callable=check_prediction_coverage,
+        execution_timeout=timedelta(minutes=10),
     )
     t_drift = PythonOperator(
         task_id="detect_drift",
         python_callable=detect_drift,
+        execution_timeout=timedelta(minutes=30),
     )
     t_metrics = PythonOperator(
         task_id="log_model_metrics",
         python_callable=log_model_metrics,
+        execution_timeout=timedelta(minutes=30),
     )
-
     t_branch = BranchPythonOperator(
         task_id="branch_on_monitoring_decision",
         python_callable=branch_on_monitoring_decision,
+        execution_timeout=timedelta(minutes=5),
     )
-
     t_retrain = TriggerDagRunOperator(
         task_id="trigger_retrain",
         trigger_dag_id="weather_weekly_train",
@@ -471,10 +508,12 @@ with DAG(
     t_alert = PythonOperator(
         task_id="alert_only",
         python_callable=send_alert,
+        execution_timeout=timedelta(minutes=5),
     )
     t_alert_nodata = PythonOperator(
         task_id="alert_insufficient_data",
         python_callable=send_insufficient_data_alert,
+        execution_timeout=timedelta(minutes=5),
     )
     t_ok = EmptyOperator(task_id="no_action")
 

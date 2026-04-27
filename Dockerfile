@@ -6,15 +6,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pipeline/ ./pipeline/
+COPY config/   ./config/
 COPY api/       ./api/
-COPY data/      ./data/
-COPY models/    ./models/
-COPY mlflow/    ./mlflow/
+
+# Directories populated at runtime via docker-compose volume mounts
+RUN mkdir -p /app/data/output /app/models /app/mlflow
 
 ENV MLFLOW_TRACKING_URI=sqlite:///app/mlflow/mlflow.db
 ENV API_HOST=0.0.0.0
-ENV API_PORT=8083
+ENV API_PORT=8003
 
-EXPOSE 8083
+EXPOSE 8003
 
 CMD ["python", "api/app.py"]

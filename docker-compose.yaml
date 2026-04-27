@@ -12,7 +12,7 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -74,6 +74,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    env_file: .env
     depends_on:
       airflow-db:
         condition: service_healthy
@@ -82,34 +83,32 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: weather-mlops-internal-api-secret
+      AIRFLOW__API_AUTH__JWT_SECRET: weather-mlops-jwt-secret
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
       PYTHONPATH: /opt/airflow
     volumes:
       - ./dags:/opt/airflow/dags
       - ./pipeline:/opt/airflow/pipeline
+      - ./config:/opt/airflow/config
       - ./data:/opt/airflow/data
       - ./models:/opt/airflow/models
       - ./mlflow:/opt/airflow/mlflow
       - airflow_logs:/opt/airflow/logs
     command: >
-      bash -c "
-        airflow db migrate &&
-        airflow users create
-          --username admin
-          --password weather
-          --firstname Admin
-          --lastname Admin
-          --role Admin
-          --email admin@localhost
-      "
+      bash -c "airflow db migrate"
     restart: on-failure
 
-  # ── Airflow — Webserver (UI sur localhost:8083) ───────────────────────────────
-  # Le webserver sert l'interface web. Il est séparé du scheduler pour pouvoir
-  # redémarrer l'UI sans interrompre les tâches en cours.
+  # ── Airflow — API Server (UI sur localhost:8083) ─────────────────────────────
+  # Airflow 3.x : "webserver" renommé en "api-server". Sert l'UI React et l'API REST.
+  # Séparé du scheduler pour redémarrer l'UI sans interrompre les tâches en cours.
   airflow-webserver:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    env_file: .env
     depends_on:
       airflow-db:
         condition: service_healthy
@@ -122,18 +121,24 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: weather-mlops-internal-api-secret
+      AIRFLOW__API_AUTH__JWT_SECRET: weather-mlops-jwt-secret
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
       PYTHONPATH: /opt/airflow
     volumes:
       - ./dags:/opt/airflow/dags
       - ./pipeline:/opt/airflow/pipeline
+      - ./config:/opt/airflow/config
       - ./data:/opt/airflow/data
       - ./models:/opt/airflow/models
       - ./mlflow:/opt/airflow/mlflow
       - airflow_logs:/opt/airflow/logs
-    command: webserver
+    command: api-server
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v2/monitor/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -146,6 +151,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    env_file: .env
     depends_on:
       airflow-db:
         condition: service_healthy
@@ -156,10 +162,16 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: weather-mlops-internal-api-secret
+      AIRFLOW__API_AUTH__JWT_SECRET: weather-mlops-jwt-secret
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
       PYTHONPATH: /opt/airflow
     volumes:
       - ./dags:/opt/airflow/dags
       - ./pipeline:/opt/airflow/pipeline
+      - ./config:/opt/airflow/config
       - ./data:/opt/airflow/data
       - ./models:/opt/airflow/models
       - ./mlflow:/opt/airflow/mlflow

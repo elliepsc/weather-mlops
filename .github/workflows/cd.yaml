@@ -1,22 +1,33 @@
-name: CD — Deploy (disabled)
+name: CD — Docker build check
 
-# Disabled until deployment target is configured (Streamlit Cloud / VPS / etc.)
-# Re-enable by replacing `workflow_dispatch` with the appropriate trigger:
-#
-#   on:
-#     workflow_run:
-#       workflows: ["CI — Weather Pipeline"]
-#       types: [completed]
-#
 on:
-  workflow_dispatch:   # manual trigger only — does nothing automatically
+  push:
+    branches: [main]
 
 jobs:
-  deploy:
+  build-api:
+    name: Build API image
     runs-on: ubuntu-latest
-    # Uncomment and configure when a deployment target is ready
-    if: false
     steps:
       - uses: actions/checkout@v4
-      - name: Placeholder
-        run: echo "Configure deployment target first (Streamlit Cloud, VPS, etc.)"
+
+      - name: Build API Docker image
+        run: docker build -t weather-mlops-api:ci .
+
+  build-airflow:
+    name: Build Airflow image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Airflow Docker image
+        run: docker build -f Dockerfile.airflow -t weather-mlops-airflow:ci .
+
+  validate-compose:
+    name: Validate docker-compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker compose config
+        run: docker compose config --quiet

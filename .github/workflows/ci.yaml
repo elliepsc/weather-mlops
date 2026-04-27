@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-import:
-    name: Syntax check & imports
+  quality:
+    name: Imports · DAG syntax · Config
     runs-on: ubuntu-latest
 
     steps:
@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check pipeline imports
+      - name: Pipeline imports
         run: |
           python -c "from pipeline.locations import LOCATIONS; assert len(LOCATIONS) == 26"
           python -c "from pipeline.database import init_db"
@@ -31,9 +31,57 @@ jobs:
           python -c "from pipeline.train_models import load_all_models"
           python -c "from pipeline.predict import generate_predictions"
           python -c "from pipeline.run_pipeline import run_daily"
+          python -c "from api.app import app"
 
-      - name: Check API imports
-        run: python -c "from api.app import app"
+      - name: DAG syntax check
+        run: |
+          python - <<'EOF'
+          import ast
+          from pathlib import Path
+          failed = []
+          dag_files = sorted(Path("dags").glob("*.py"))
+          for f in dag_files:
+              try:
+                  ast.parse(f.read_text(encoding="utf-8"))
+              except SyntaxError as e:
+                  failed.append(f"{f.name}: {e}")
+          if failed:
+              raise SystemExit("\n".join(failed))
+          print(f"{len(dag_files)} DAG files parse cleanly")
+          EOF
 
-      - name: Run unit tests (if any)
-        run: pytest tests/ --maxfail=5 --disable-warnings -q || true
+      - name: Config YAML validation
+        run: |
+          python - <<'EOF'
+          import yaml
+          checks = {
+              "config/mlops.yaml":   ["ingestion", "monitoring", "training"],
+              "config/modeling.yaml": ["features", "xgboost", "labels"],
+          }
+          for path, required_keys in checks.items():
+              with open(path) as f:
+                  cfg = yaml.safe_load(f)
+              missing = [k for k in required_keys if k not in cfg]
+              if missing:
+                  raise SystemExit(f"{path} missing top-level keys: {missing}")
+          print("Config files valid")
+          EOF
+
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest tests/ -q --tb=short

@@ -26,6 +26,22 @@ logger = logging.getLogger(__name__)
 RAIN_CLASSIFICATION_THRESHOLD = modeling_config.inference.rain_probability_threshold
 
 
+def _align_to_model(X: pd.DataFrame, model) -> pd.DataFrame:
+    """Reindex X to the exact feature set the model was trained with.
+
+    Protects against modeling.yaml listing features added after the last
+    retrain — XGBoost raises feature_names mismatch if columns differ.
+    """
+    try:
+        expected = list(model.feature_names_in_)
+    except AttributeError:
+        expected = model.get_booster().feature_names
+    missing = [f for f in expected if f not in X.columns]
+    if missing:
+        logger.warning("Filling missing features with 0: %s", missing)
+    return X.reindex(columns=expected, fill_value=0)
+
+
 def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
     """
     Run all models on df (already processed with add_features).
@@ -34,10 +50,11 @@ def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
     models = load_all_models()
 
     df_enc, _ = encode_categoricals(df)
-    X = get_feature_matrix(df_enc)
+    X_full = get_feature_matrix(df_enc)
 
-    # 1 & 2 — rain_tomorrow
+    # 1 & 2 — rain_tomorrow; align X once (all models share the same feature set)
     rain_model = models["rain_tomorrow"]
+    X = _align_to_model(X_full, rain_model)
     rain_proba = rain_model.predict_proba(X)[:, 1]
     rain_pred  = (rain_proba >= RAIN_CLASSIFICATION_THRESHOLD).astype(int)
 

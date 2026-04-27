@@ -39,7 +39,7 @@ data/weather.db (SQLite)
 | **Open-Meteo** | Source météo gratuite, sans clé API. ERA5-Land 9 km. Lag ~1 jour. |
 | **SQLite** | Base locale `data/weather.db`. Tables `weather_raw` + `weather_predictions` + vue `v_weather_full`. |
 | **XGBoost** | 6 modèles sauvegardés dans `models/`. Paramètres dans `config/modeling.yaml`. |
-| **MLflow** | Tracking local SQLite. Sous WSL avec repo sur `/mnt/...`, le backend bascule automatiquement vers `~/.weather-rain/mlflow`. |
+| **MLflow** | Tracking local SQLite. Sous WSL avec repo sur `/mnt/...`, le backend bascule automatiquement vers `~/.weather-mlops/mlflow`. |
 | **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8003. |
 | **Streamlit** | Dashboard local connecté à l'API. |
 | **Airflow** | Orchestration : ingestion quotidienne, réentraînement hebdomadaire, monitoring, backfill. |
@@ -165,7 +165,7 @@ Les données Open-Meteo correspondent bien aux stations BOM (mesures terrain) :
 ## Structure du projet
 
 ```text
-weather-rain/
+weather-mlops/
 ├── api/
 │   └── app.py                    # FastAPI — 9 endpoints + Prometheus
 ├── dags/
@@ -222,8 +222,8 @@ weather-rain/
 - Apache Airflow (optionnel, pour l'orchestration planifiée)
 
 ```bash
-git clone https://github.com/elliepsc/meteo.git weather-rain
-cd weather-rain
+git clone https://github.com/elliepsc/meteo.git weather-mlops
+cd weather-mlops
 
 python -m venv .venv
 
@@ -388,7 +388,7 @@ Régénéré automatiquement par `backfill`, `daily`, `train` et `export`.
 ## MLflow
 
 ```bash
-mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-rain/mlflow/mlflow.db --port 5000
+mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-mlops/mlflow/mlflow.db --port 5000
 ```
 
 URL locale : `http://localhost:5000`
@@ -457,7 +457,7 @@ data/monitoring/*.json
 models/*.pkl
 models/metrics.json
 mlflow/mlflow.db
-~/.weather-rain/mlflow/mlflow.db   # créé automatiquement sous WSL sur /mnt/...
+~/.weather-mlops/mlflow/mlflow.db   # créé automatiquement sous WSL sur /mnt/...
 logs/pipeline.log
 ```
 

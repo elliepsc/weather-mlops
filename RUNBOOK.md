@@ -34,8 +34,8 @@ L'infrastructure (services, environnement) doit être démarrée manuellement ou
 ### 1.1 Cloner le projet
 
 ```bash
-git clone https://github.com/elliepsc/meteo.git weather-rain
-cd weather-rain
+git clone https://github.com/elliepsc/meteo.git weather-mlops
+cd weather-mlops
 ```
 
 ### 1.2 Environnement Python
@@ -76,7 +76,7 @@ Variables importantes dans `.env` :
 ```env
 # Laisser commenté pour le fallback automatique :
 # - Windows / Docker : <repo>/mlflow/mlflow.db
-# - WSL + repo sous /mnt/... : ~/.weather-rain/mlflow/mlflow.db
+# - WSL + repo sous /mnt/... : ~/.weather-mlops/mlflow/mlflow.db
 # MLFLOW_TRACKING_URI=sqlite:///mlflow/mlflow.db
 API_HOST=0.0.0.0
 API_PORT=8083
@@ -182,24 +182,95 @@ streamlit run streamlit_app/app.py
 ### 3.3 MLflow UI
 
 ```bash
-mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-rain/mlflow/mlflow.db --port 5000
+mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-mlops/mlflow/mlflow.db --port 5000
 # → http://localhost:5000
 # Expérience : weather_australia
 ```
 
 Sous Windows natif ou Docker, utilise `sqlite:///mlflow/mlflow.db`.
 
-### 3.4 Monitoring Docker (Prometheus + Grafana)
+### 3.4 Docker Compose — tous les services (API + Prometheus + Grafana + Airflow)
+
+#### Premier lancement
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
+
+`-d` = détaché, sinon le terminal est bloqué indéfiniment.  
+Ne pas utiliser `--build` sauf si les Dockerfiles ont changé.
 
 | Service | URL | Identifiants |
 |---|---|---|
-| API FastAPI | http://localhost:8083 | — |
+| API FastAPI | http://localhost:8003 | — |
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
+| Airflow UI | http://localhost:8083 | voir ci-dessous |
+
+#### Identifiants Airflow (SimpleAuthManager — Airflow 3.x)
+
+Au **premier démarrage**, Airflow génère un mot de passe aléatoire et l'affiche dans les logs :
+
+```bash
+docker compose logs airflow-webserver | grep "Password for user"
+# Simple auth manager | Password for user 'admin': <mot_de_passe_généré>
+```
+
+Pour fixer un mot de passe permanent, ajouter dans `airflow-webserver` **et** `airflow-scheduler` du `docker-compose.yaml` :
+
+```yaml
+environment:
+  AIRFLOW__SIMPLE_AUTH_MANAGER__PASSWORDS: "admin:mon_mot_de_passe"
+```
+
+Puis `docker compose up -d --force-recreate airflow-webserver airflow-scheduler`.
+
+#### Après une modification du `docker-compose.yaml`
+
+Un simple `docker compose up -d` **ne recrée pas** les containers existants.  
+Si tu changes des volumes ou des variables d'environnement :
+
+```bash
+# Recréer uniquement les services modifiés
+docker compose up -d --force-recreate airflow-scheduler airflow-webserver
+
+# Ou tout recréer (plus sûr)
+docker compose up -d --force-recreate
+```
+
+#### Compatibilité Airflow 3.x (breaking changes vs 2.x)
+
+| Ancienne commande (Airflow 2.x) | Nouvelle commande (Airflow 3.x) |
+|---|---|
+| `command: webserver` | `command: api-server` |
+| `airflow webserver` | `airflow api-server` |
+| `airflow users create` | idem, mais `--role Admin` → SimpleAuthManager |
+
+Volumes **obligatoires** dans les 3 services Airflow (`airflow-init`, `airflow-webserver`, `airflow-scheduler`) :
+
+```yaml
+volumes:
+  - ./dags:/opt/airflow/dags
+  - ./pipeline:/opt/airflow/pipeline
+  - ./config:/opt/airflow/config   # ← requis : les DAGs importent config.settings
+  - ./data:/opt/airflow/data
+  - ./models:/opt/airflow/models
+  - ./mlflow:/opt/airflow/mlflow
+  - airflow_logs:/opt/airflow/logs
+```
+
+Sans `./config`, tous les DAGs échouent avec `ModuleNotFoundError: No module named 'config'`.
+
+#### Vérifier que les DAGs sont chargés
+
+```bash
+docker compose exec airflow-scheduler airflow dags list
+# Attendu : 5 DAGs listés
+
+# Si vide ou erreur :
+docker compose exec airflow-scheduler airflow dags reserialize
+docker compose exec airflow-scheduler airflow dags list-import-errors
+```
 
 ---
 
@@ -247,7 +318,7 @@ les modifications de `start_airflow.sh` sont prises en compte sans recopier le f
 pkill -f "airflow standalone"
 
 # Une seule fois, depuis le repo
-cd /chemin/vers/weather-rain
+cd /chemin/vers/weather-mlops
 ln -sfn "$(pwd)/start_airflow.sh" ~/start_airflow.sh
 
 # Relance
@@ -341,7 +412,7 @@ Durée : ~10 minutes sur 173 k lignes.
 # Voir les runs MLflow
 python -c "
 import mlflow
-mlflow.set_tracking_uri('sqlite:////home/$USER/.weather-rain/mlflow/mlflow.db')
+mlflow.set_tracking_uri('sqlite:////home/$USER/.weather-mlops/mlflow/mlflow.db')
 client = mlflow.tracking.MlflowClient()
 exp = client.get_experiment_by_name('weather_australia')
 runs = client.search_runs(exp.experiment_id, order_by=['start_time DESC'], max_results=3)
@@ -415,8 +486,8 @@ En cas de déclenchement, `weather_weekly_train` est lancé automatiquement sans
 
 **Lire les résultats :**
 ```bash
-cat ~/weather-rain/data/monitoring/model_metrics.json   # accuracy + MAE
-cat ~/weather-rain/data/monitoring/drift_report.json    # KS stat par feature
+cat ~/weather-mlops/data/monitoring/model_metrics.json   # accuracy + MAE
+cat ~/weather-mlops/data/monitoring/drift_report.json    # KS stat par feature
 ```
 
 **Lancement manuel :**

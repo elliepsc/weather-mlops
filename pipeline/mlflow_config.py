@@ -26,7 +26,7 @@ def get_mlflow_home(root: Path) -> Path | None:
     if tracking_uri:
         return None
     if _is_wsl() and _is_windows_mount(root):
-        return Path.home() / ".weather-rain" / "mlflow"
+        return Path.home() / ".weather-mlops" / "mlflow"
     return root / "mlflow"
 
 

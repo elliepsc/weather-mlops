@@ -1,12 +1,16 @@
 """Airflow DAG - manual historical backfill.
 
-Changes vs original:
-  - trigger_monitoring_after_backfill was a dead task (log only).
-    Replaced by TriggerDagRunOperator → weather_daily_monitoring so the
-    monitoring pipeline reruns automatically after a backfill completes.
-  - Added explicit note on retrain cooldown bypass (see run_backfill_with_config).
+Fixes applied:
+  #1  write_last_retrain added at end of pipeline so daily monitoring
+      respects the cooldown after a backfill retrain.
+  #2  max_active_runs=1 prevents concurrent backfill runs (SQLite write locks).
+  #5  DEFAULT_BACKFILL_END moved inside validate_backfill_config —
+      was evaluated at DAG parse time, not at task runtime.
+  #8  execution_timeout on all tasks. fetch_historical overridden to 8h
+      (worst case: 15+ years of data). retrain overridden to 2h.
 """
 
+import json
 import logging
 import sys
 from datetime import date, datetime, timedelta
@@ -23,13 +27,15 @@ logger = logging.getLogger(__name__)
 
 I = mlops_config.ingestion
 DEFAULT_BACKFILL_START = "2008-01-01"
-DEFAULT_BACKFILL_END = (date.today() - timedelta(days=1)).isoformat()
+LAST_RETRAIN_PATH = ROOT / "data" / "monitoring" / "last_retrain.json"
 
 default_args = {
     "owner": "airflow",
     "retries": 1,
     "retry_delay": timedelta(seconds=300),
     "email_on_failure": False,
+    # Conservative default — overridden per-task where needed.
+    "execution_timeout": timedelta(minutes=30),
 }
 
 
@@ -39,8 +45,13 @@ def validate_backfill_config(**context):
     conf = dag_run.conf if dag_run and dag_run.conf else {}
     reference_day = date.fromisoformat(context["ds"])
 
-    start = conf.get("start_date", DEFAULT_BACKFILL_START)
-    end = conf.get("end_date", (reference_day - timedelta(days=1)).isoformat())
+    # Computed here (runtime), not at module level (parse time). Fix #5.
+    default_end = (reference_day - timedelta(days=1)).isoformat()
+
+    start = conf.get("start_date") or DEFAULT_BACKFILL_START
+    # Treat empty string or UI placeholder "yesterday" as "use default"
+    end_raw = (conf.get("end_date") or "").strip()
+    end = end_raw if (end_raw and end_raw != "yesterday") else default_end
 
     try:
         start_date = date.fromisoformat(start)
@@ -61,16 +72,17 @@ def validate_backfill_config(**context):
 
 
 def run_backfill_with_config(**context):
-    """Fetch historical data incrementally, repair gaps, and fail if the range is incomplete.
+    """Fetch historical data incrementally, repair gaps, and fail if incomplete.
 
     NOTE — retrain cooldown bypass:
-    This task calls step_train() directly via backfill_and_repair_date_range, which
-    bypasses the cooldown guard in weather_weekly_train / weather_daily_monitoring.
-    This is intentional: a backfill corrects the training dataset itself, so
-    retraining immediately on fresh complete data is correct behaviour.
-    The baseline snapshot + rollback gate from weather_weekly_train does NOT run here.
-    If you need that safety net after a large backfill, trigger weather_weekly_train
-    manually after this DAG completes.
+    This task calls step_train() directly, bypassing the cooldown guard in
+    weather_weekly_train / weather_daily_monitoring. This is intentional:
+    a backfill corrects the training dataset itself, so retraining on fresh
+    complete data is correct behaviour. write_last_retrain runs afterwards
+    to update the cooldown file so monitoring does not re-trigger a retrain.
+    The baseline snapshot + rollback gate from weather_weekly_train do NOT
+    run here. For large backfills, consider triggering weather_weekly_train
+    manually after completion.
     """
     from pipeline.database import init_db
     from pipeline.run_pipeline import backfill_and_repair_date_range
@@ -79,23 +91,18 @@ def run_backfill_with_config(**context):
     conf = dag_run.conf if dag_run and dag_run.conf else {}
 
     start = context["ti"].xcom_pull(
-        task_ids="validate_backfill_config",
-        key="start_date",
+        task_ids="validate_backfill_config", key="start_date"
     ) or DEFAULT_BACKFILL_START
     end = context["ti"].xcom_pull(
-        task_ids="validate_backfill_config",
-        key="end_date",
-    ) or DEFAULT_BACKFILL_END
+        task_ids="validate_backfill_config", key="end_date"
+    ) or (date.today() - timedelta(days=1)).isoformat()
     force = bool(conf.get("force", False))
 
     logger.info("Backfill requested: %s -> %s (force=%s)", start, end, force)
 
     init_db()
     summary = backfill_and_repair_date_range(
-        start,
-        end,
-        force=force,
-        delay_seconds=I.backfill_delay_seconds,
+        start, end, force=force, delay_seconds=I.backfill_delay_seconds
     )
     context["ti"].xcom_push(key="backfill_summary", value=summary)
 
@@ -118,51 +125,86 @@ def run_backfill_with_config(**context):
 
 def run_train(**context):
     from pipeline.run_pipeline import step_train
-
     step_train()
 
 
 def run_predict(**context):
     from pipeline.run_pipeline import step_predict
-
     step_predict()
 
 
 def run_export(**context):
     from pipeline.run_pipeline import step_export
-
     step_export()
+
+
+def write_last_retrain(**context):
+    """Update cooldown file so daily monitoring doesn't trigger another retrain.
+
+    Fix #1: backfill retrains the model but the original code never updated
+    last_retrain.json, so weather_daily_monitoring would immediately queue
+    another retrain the next morning.
+    """
+    LAST_RETRAIN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "last_retrain": context["ds"],
+        "written_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "source": "weather_backfill",
+    }
+    LAST_RETRAIN_PATH.write_text(json.dumps(payload, indent=2))
+    logger.info("Cooldown updated after backfill retrain: %s", payload["last_retrain"])
 
 
 with DAG(
     dag_id="weather_backfill",
-    description="Manual backfill: validate config -> fetch -> retrain -> predict -> export -> monitoring",
+    description="Manual backfill: validate -> fetch -> retrain -> predict -> export -> monitoring",
     schedule=None,
     start_date=datetime(2026, 4, 22),
     catchup=False,
+    # Fix #2: one active run at a time — prevents concurrent SQLite write locks.
+    max_active_runs=1,
     default_args=default_args,
     tags=["weather", "backfill", "manual"],
     params={
         "start_date": DEFAULT_BACKFILL_START,
-        "end_date": DEFAULT_BACKFILL_END,
+        "end_date": "",  # leave empty → defaults to yesterday at runtime
         "force": False,
     },
 ) as dag:
+
     t_validate = PythonOperator(
         task_id="validate_backfill_config",
         python_callable=validate_backfill_config,
+        execution_timeout=timedelta(minutes=5),
     )
     t_fetch = PythonOperator(
         task_id="fetch_historical",
         python_callable=run_backfill_with_config,
+        # 8h: worst case is 15+ years of multi-city data with API rate limiting.
+        execution_timeout=timedelta(hours=8),
     )
-    t_train = PythonOperator(task_id="retrain_models", python_callable=run_train)
-    t_predict = PythonOperator(task_id="run_predictions", python_callable=run_predict)
-    t_export = PythonOperator(task_id="export_csv", python_callable=run_export)
-
-    # Replaces the former trigger_monitoring_after_backfill task which only logged.
-    # Triggers weather_daily_monitoring so drift, metrics and model quality are
-    # re-evaluated immediately on the freshly completed dataset.
+    t_train = PythonOperator(
+        task_id="retrain_models",
+        python_callable=run_train,
+        execution_timeout=timedelta(hours=2),
+    )
+    t_predict = PythonOperator(
+        task_id="run_predictions",
+        python_callable=run_predict,
+        execution_timeout=timedelta(minutes=30),
+    )
+    t_export = PythonOperator(
+        task_id="export_csv",
+        python_callable=run_export,
+        execution_timeout=timedelta(minutes=15),
+    )
+    t_cooldown = PythonOperator(
+        task_id="write_last_retrain",
+        python_callable=write_last_retrain,
+        execution_timeout=timedelta(minutes=5),
+    )
+    # Triggers monitoring so drift + metrics are re-evaluated on the
+    # freshly completed dataset. Replaced the former dead log-only task.
     t_monitoring = TriggerDagRunOperator(
         task_id="trigger_daily_monitoring",
         trigger_dag_id="weather_daily_monitoring",
@@ -170,4 +212,4 @@ with DAG(
         reset_dag_run=True,
     )
 
-    t_validate >> t_fetch >> t_train >> t_predict >> t_export >> t_monitoring
+    t_validate >> t_fetch >> t_train >> t_predict >> t_export >> t_cooldown >> t_monitoring

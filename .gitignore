@@ -73,3 +73,4 @@ Thumbs.db
 # ── Autres ───────────────────────────────────────────────────────────────────
 AIRFLOW.md
 CLAUDE.md
+config/simple_auth_manager_passwords.json

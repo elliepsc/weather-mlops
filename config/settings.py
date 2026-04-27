@@ -1,4 +1,4 @@
-"""Typed configuration loading for weather-rain.
+"""Typed configuration loading for weather-mlops.
 
 Three layers:
   - Settings: environment-specific values loaded from .env and process env
@@ -151,6 +151,7 @@ class Settings(BaseSettings):
     db_path: str = "data/weather.db"
     openmeteo_base_url: str = "https://archive-api.open-meteo.com/v1/archive"
     slack_webhook_url: str = ""
+    alert_email: str = ""
 
 
 def load_mlops_config() -> MLOpsConfig:

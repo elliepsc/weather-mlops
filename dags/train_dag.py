@@ -1,8 +1,11 @@
 """Airflow DAG - weekly model retraining.
 
-Changes vs original:
-  - _send_slack_alert : utilise dags._notifications si disponible, sinon fallback local.
-    Miroir du pattern _airflow_compat.py déjà dans le projet.
+Fixes applied:
+  #8  execution_timeout added to all tasks. retrain_models overridden to 2h.
+  #11 email_on_failure: True (requires SMTP configured in airflow.cfg).
+  Bugfix: send_degradation_alert was calling send_slack_alert (undefined) instead
+          of _send_slack_alert. Fixed + alert_key added for dedup.
+  _send_slack_alert: tries dags._notifications, falls back to local definition.
 """
 
 import json
@@ -16,7 +19,7 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from config.settings import mlops_config
+from config.settings import mlops_config, settings
 from dags._airflow_compat import BranchPythonOperator, DAG, PythonOperator
 
 logger = logging.getLogger(__name__)
@@ -24,7 +27,7 @@ logger = logging.getLogger(__name__)
 try:
     from dags._notifications import send_slack_alert as _send_slack_alert
 except ImportError:
-    def _send_slack_alert(message: str) -> None:
+    def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
         from config.settings import settings
 
@@ -49,7 +52,10 @@ default_args = {
     "owner": "airflow",
     "retries": 1,
     "retry_delay": timedelta(seconds=600),
-    "email_on_failure": False,
+    # Set True once SMTP is configured.
+    "email_on_failure": True,
+    "email": [settings.alert_email] if settings.alert_email else [],
+    "execution_timeout": timedelta(minutes=30),
 }
 
 
@@ -61,7 +67,9 @@ def _copy_model_artifacts(src_dir: Path, dst_dir: Path) -> list[str]:
             continue
         if path.suffix not in {".pkl", ".json"}:
             continue
-        shutil.copy2(path, dst_dir / path.name)
+        # copyfile: content only — copy/copy2 also call copymode/copystat
+        # which fail on NTFS-backed Docker volume mounts (no chmod on Windows).
+        shutil.copyfile(path, dst_dir / path.name)
         copied.append(path.name)
     return copied
 
@@ -96,10 +104,7 @@ def compare_vs_baseline(**context):
         return
 
     baseline = json.loads(baseline_metrics_path.read_text())
-    new_metrics = context["ti"].xcom_pull(
-        task_ids="retrain_models",
-        key="new_metrics",
-    ) or {}
+    new_metrics = context["ti"].xcom_pull(task_ids="retrain_models", key="new_metrics") or {}
 
     tolerance = T.baseline_tolerance
     degraded = False
@@ -110,28 +115,21 @@ def compare_vs_baseline(**context):
     if old_rain is not None and new_rain is not None:
         if new_rain < old_rain - tolerance.rain_accuracy_pp:
             degraded = True
-            issues.append(
-                f"rain_accuracy degraded: {new_rain:.3f} vs baseline {old_rain:.3f}"
-            )
+            issues.append(f"rain_accuracy degraded: {new_rain:.3f} vs baseline {old_rain:.3f}")
 
     old_mae = baseline.get("max_temp_tomorrow", {}).get("mae")
     new_mae = new_metrics.get("max_temp_tomorrow", {}).get("mae")
     if old_mae is not None and new_mae is not None:
         if new_mae > old_mae + tolerance.temp_mae_celsius:
             degraded = True
-            issues.append(
-                f"temp_mae degraded: {new_mae:.2f} vs baseline {old_mae:.2f}"
-            )
+            issues.append(f"temp_mae degraded: {new_mae:.2f} vs baseline {old_mae:.2f}")
 
     if degraded:
         logger.warning("MODEL DEGRADATION DETECTED after retrain - %s", " | ".join(issues))
     else:
         logger.info(
             "Model validation OK - rain=%.3f (was %.3f) | mae=%.2f (was %.2f)",
-            new_rain or 0,
-            old_rain or 0,
-            new_mae or 0,
-            old_mae or 0,
+            new_rain or 0, old_rain or 0, new_mae or 0, old_mae or 0,
         )
 
     context["ti"].xcom_push(key="degraded", value=degraded)
@@ -141,10 +139,7 @@ def compare_vs_baseline(**context):
 def branch_after_validation(**context):
     """Use new models only when comparison against baseline succeeds."""
     degraded = bool(
-        context["ti"].xcom_pull(
-            task_ids="compare_vs_baseline",
-            key="degraded",
-        )
+        context["ti"].xcom_pull(task_ids="compare_vs_baseline", key="degraded")
     )
     return "rollback_to_baseline" if degraded else "run_predictions"
 
@@ -167,28 +162,26 @@ def rollback_to_baseline(**context):
 def send_degradation_alert(**context):
     """Notify humans when a degraded retrain was rolled back."""
     issues = context["ti"].xcom_pull(
-        task_ids="compare_vs_baseline",
-        key="degradation_issues",
+        task_ids="compare_vs_baseline", key="degradation_issues"
     ) or []
     ds = context["ds"]
     message = (
-        f":x: *weather-rain retrain rolled back* ({ds})\n"
+        f":x: *weather-mlops retrain rolled back* ({ds})\n"
         f"Degraded model was blocked from production.\n"
         f"Issues: {' | '.join(issues) if issues else 'unknown'}"
     )
     logger.warning("RETRAIN ROLLBACK ALERT: %s", message)
-    send_slack_alert(message)
+    # Bugfix: was calling undefined send_slack_alert — now _send_slack_alert + dedup key.
+    _send_slack_alert(message, alert_key="retrain_degradation")
 
 
 def step_predict(**context):
     from pipeline.run_pipeline import step_predict as _step_predict
-
     _step_predict()
 
 
 def step_export(**context):
     from pipeline.run_pipeline import step_export as _step_export
-
     _step_export()
 
 
@@ -213,41 +206,52 @@ with DAG(
     default_args=default_args,
     tags=["weather", "training", "weekly"],
 ) as dag:
+
     t_snapshot = PythonOperator(
         task_id="snapshot_models",
         python_callable=snapshot_current_models,
+        execution_timeout=timedelta(minutes=15),
     )
     t_train = PythonOperator(
         task_id="retrain_models",
         python_callable=step_train,
+        # Training can take significantly longer than the default.
+        execution_timeout=timedelta(hours=2),
     )
     t_validate = PythonOperator(
         task_id="compare_vs_baseline",
         python_callable=compare_vs_baseline,
+        execution_timeout=timedelta(minutes=10),
     )
     t_gate = BranchPythonOperator(
         task_id="branch_after_validation",
         python_callable=branch_after_validation,
+        execution_timeout=timedelta(minutes=5),
     )
     t_predict = PythonOperator(
         task_id="run_predictions",
         python_callable=step_predict,
+        execution_timeout=timedelta(minutes=30),
     )
     t_export = PythonOperator(
         task_id="export_csv",
         python_callable=step_export,
+        execution_timeout=timedelta(minutes=15),
     )
     t_write_last_retrain = PythonOperator(
         task_id="write_last_retrain",
         python_callable=write_last_retrain,
+        execution_timeout=timedelta(minutes=5),
     )
     t_rollback = PythonOperator(
         task_id="rollback_to_baseline",
         python_callable=rollback_to_baseline,
+        execution_timeout=timedelta(minutes=15),
     )
     t_alert = PythonOperator(
         task_id="alert_degraded_model",
         python_callable=send_degradation_alert,
+        execution_timeout=timedelta(minutes=5),
     )
 
     t_snapshot >> t_train >> t_validate >> t_gate

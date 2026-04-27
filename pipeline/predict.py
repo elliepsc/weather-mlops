@@ -11,6 +11,7 @@ Predictions produced:
   7. frost_risk           (0.0–1.0 probability)
   8. storm_probability    (0.0–1.0 probability)
 """
+
 import logging
 from datetime import UTC, datetime
 
@@ -55,14 +56,14 @@ def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
     rain_model = models["rain_tomorrow"]
     X = _align_to_model(X_full, rain_model)
     rain_proba = rain_model.predict_proba(X)[:, 1]
-    rain_pred  = (rain_proba >= RAIN_CLASSIFICATION_THRESHOLD).astype(int)
+    rain_pred = (rain_proba >= RAIN_CLASSIFICATION_THRESHOLD).astype(int)
 
     # 3 — max_temp_tomorrow
     temp_pred = models["max_temp_tomorrow"].predict(X)
 
     # 4 — weather_type_tomorrow
-    le      = models["weather_type_encoder"]
-    wt_idx  = models["weather_type_tomorrow"].predict(X)
+    le = models["weather_type_encoder"]
+    wt_idx = models["weather_type_tomorrow"].predict(X)
     wt_pred = le.inverse_transform(wt_idx)
 
     # 5 — comfort_score (formula, no model)
@@ -79,20 +80,21 @@ def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
 
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    result = pd.DataFrame({
-        "date":                 df["date"].values,
-        "city":                 df["city"].values,
-        "rain_tomorrow":        rain_pred,
-        "rain_tomorrow_proba":  np.round(rain_proba, 4),
-        "max_temp_tomorrow":    np.round(temp_pred, 1),
-        "weather_type_tomorrow": wt_pred,
-        "comfort_score":        comfort,
-        "heatwave_risk":        np.round(hw_proba, 4),
-        "frost_risk":           np.round(fr_proba, 4),
-        "storm_probability":    np.round(st_proba, 4),
-        "predicted_at":         now,
-    })
+    result = pd.DataFrame(
+        {
+            "date": df["date"].values,
+            "city": df["city"].values,
+            "rain_tomorrow": rain_pred,
+            "rain_tomorrow_proba": np.round(rain_proba, 4),
+            "max_temp_tomorrow": np.round(temp_pred, 1),
+            "weather_type_tomorrow": wt_pred,
+            "comfort_score": comfort,
+            "heatwave_risk": np.round(hw_proba, 4),
+            "frost_risk": np.round(fr_proba, 4),
+            "storm_probability": np.round(st_proba, 4),
+            "predicted_at": now,
+        }
+    )
 
-    logger.info("Generated %d predictions for %d cities",
-                len(result), result["city"].nunique())
+    logger.info("Generated %d predictions for %d cities", len(result), result["city"].nunique())
     return result

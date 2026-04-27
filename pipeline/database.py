@@ -54,7 +54,9 @@ RAW_WEATHER_COLUMN_DEFS = [
     ("wind_speed_100m_3pm", "REAL"),
 ]
 RAW_WEATHER_COLUMNS = [column for column, _ in RAW_WEATHER_COLUMN_DEFS]
-RAW_WEATHER_VALUE_COLUMNS = [column for column in RAW_WEATHER_COLUMNS if column not in {"date", "city"}]
+RAW_WEATHER_VALUE_COLUMNS = [
+    column for column in RAW_WEATHER_COLUMNS if column not in {"date", "city"}
+]
 WEATHER_PREDICTION_COLUMN_DEFS = [
     ("date", "TEXT NOT NULL"),
     ("city", "TEXT NOT NULL"),
@@ -123,10 +125,7 @@ def get_connection(db_path: Path = DB_PATH) -> sqlite3.Connection:
 
 
 def _ensure_weather_raw_columns(conn: sqlite3.Connection):
-    existing_columns = {
-        row[1]
-        for row in conn.execute("PRAGMA table_info(weather_raw)").fetchall()
-    }
+    existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(weather_raw)").fetchall()}
     for column, sql_type in RAW_WEATHER_COLUMN_DEFS:
         if column in existing_columns or column in {"date", "city"}:
             continue
@@ -135,8 +134,7 @@ def _ensure_weather_raw_columns(conn: sqlite3.Connection):
 
 def _ensure_weather_prediction_columns(conn: sqlite3.Connection):
     existing_columns = {
-        row[1]
-        for row in conn.execute("PRAGMA table_info(weather_predictions)").fetchall()
+        row[1] for row in conn.execute("PRAGMA table_info(weather_predictions)").fetchall()
     }
     for column, sql_type in WEATHER_PREDICTION_COLUMN_DEFS:
         if column in existing_columns or column in {"date", "city"}:
@@ -147,8 +145,7 @@ def _ensure_weather_prediction_columns(conn: sqlite3.Connection):
 def _refresh_weather_full_view(conn: sqlite3.Connection):
     raw_columns_sql = ",\n                ".join(f"r.{column}" for column in RAW_VIEW_COLUMNS)
     conn.execute("DROP VIEW IF EXISTS v_weather_full")
-    conn.execute(
-        f"""
+    conn.execute(f"""
         CREATE VIEW v_weather_full AS
         SELECT
                 {raw_columns_sql},
@@ -163,8 +160,7 @@ def _refresh_weather_full_view(conn: sqlite3.Connection):
                 p.predicted_at
         FROM weather_raw r
         LEFT JOIN weather_predictions p ON r.date = p.date AND r.city = p.city
-        """
-    )
+        """)
 
 
 def init_db(db_path: Path = DB_PATH):
@@ -249,13 +245,16 @@ def upsert_weather_raw(df: pd.DataFrame, db_path: Path = DB_PATH):
     )
 
     with get_connection(db_path) as conn:
-        conn.executemany(f"""
+        conn.executemany(
+            f"""
             INSERT INTO weather_raw
                 ({column_list})
             VALUES ({value_list})
             ON CONFLICT(date, city) DO UPDATE SET
                  {update_list}
-        """, records)
+        """,
+            records,
+        )
 
 
 def upsert_predictions(df: pd.DataFrame, db_path: Path = DB_PATH):

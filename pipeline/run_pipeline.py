@@ -304,9 +304,12 @@ def step_ingest_backfill(force: bool = False):
     if summary["failed_cities"] or summary["failed_ranges"] or summary["remaining_gap_counts"]:
         failed_cities = ", ".join(sorted(summary["failed_cities"])) or "none"
         failed_ranges = ", ".join(sorted(summary["failed_ranges"])) or "none"
-        remaining = ", ".join(
-            f"{city}:{count}" for city, count in sorted(summary["remaining_gap_counts"].items())
-        ) or "none"
+        remaining = (
+            ", ".join(
+                f"{city}:{count}" for city, count in sorted(summary["remaining_gap_counts"].items())
+            )
+            or "none"
+        )
         raise RuntimeError(
             "Backfill incomplete - "
             f"failed cities: {failed_cities}; "
@@ -466,9 +469,12 @@ def run_repair_gaps(start_date: str, end_date: str):
     )
     if summary["failed_ranges"] or summary["remaining_gap_counts"]:
         failed_ranges = ", ".join(sorted(summary["failed_ranges"])) or "none"
-        remaining = ", ".join(
-            f"{city}:{count}" for city, count in sorted(summary["remaining_gap_counts"].items())
-        ) or "none"
+        remaining = (
+            ", ".join(
+                f"{city}:{count}" for city, count in sorted(summary["remaining_gap_counts"].items())
+            )
+            or "none"
+        )
         raise RuntimeError(
             "Gap repair incomplete - "
             f"failed ranges: {failed_ranges}; "

@@ -37,7 +37,9 @@ def test_step_ingest_daily_fetches_only_missing_cities(monkeypatch):
     monkeypatch.setattr(
         rp,
         "get_existing_cities_for_date",
-        lambda target_date, table="weather_raw", required_columns=None: {"A"} if required_columns else {"A"},
+        lambda target_date, table="weather_raw", required_columns=None: (
+            {"A"} if required_columns else {"A"}
+        ),
     )
 
     fetch_calls = []
@@ -116,7 +118,9 @@ def test_backfill_date_range_retries_from_latest_complete_row(monkeypatch):
     monkeypatch.setattr(
         rp,
         "get_latest_date",
-        lambda city, db_path=None, required_columns=None: {"A": "2026-04-22", "B": "2026-04-23"}[city],
+        lambda city, db_path=None, required_columns=None: {"A": "2026-04-22", "B": "2026-04-23"}[
+            city
+        ],
     )
 
     fetch_calls = []
@@ -215,7 +219,9 @@ def test_backfill_and_repair_combines_summaries(monkeypatch):
             "status": "repaired",
             "stored_rows": 2,
             "initial_gap_counts": {"A": 2},
-            "repaired_ranges": [{"city": "A", "start_date": "2026-04-21", "end_date": "2026-04-22", "gap_days": 2}],
+            "repaired_ranges": [
+                {"city": "A", "start_date": "2026-04-21", "end_date": "2026-04-22", "gap_days": 2}
+            ],
             "failed_ranges": {},
             "remaining_gap_counts": {},
         },
@@ -287,8 +293,7 @@ def test_upsert_weather_raw_keeps_existing_values_when_refetch_has_nulls(tmp_pat
 def test_init_db_migrates_new_open_meteo_columns_and_refreshes_view(tmp_path):
     db_path = tmp_path / "weather.db"
     with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
+        conn.executescript("""
             CREATE TABLE weather_raw (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
@@ -330,24 +335,24 @@ def test_init_db_migrates_new_open_meteo_columns_and_refreshes_view(tmp_path):
             SELECT r.date, r.city, r.rainfall, p.predicted_at
             FROM weather_raw r
             LEFT JOIN weather_predictions p ON r.date = p.date AND r.city = p.city;
-            """
-        )
+            """)
 
     init_db(db_path)
 
     with sqlite3.connect(db_path) as conn:
-        columns = {
-            row[1]
-            for row in conn.execute("PRAGMA table_info(weather_raw)").fetchall()
-        }
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(weather_raw)").fetchall()}
         view_columns = {
-            row[1]
-            for row in conn.execute("PRAGMA table_info(v_weather_full)").fetchall()
+            row[1] for row in conn.execute("PRAGMA table_info(v_weather_full)").fetchall()
         }
 
     assert {"rain_sum", "precipitation_hours", "dew_point_9am", "dew_point_3pm"} <= columns
     assert {"surface_pressure_9am", "surface_pressure_3pm"} <= columns
-    assert {"rain_sum", "precipitation_hours", "dew_point_9am", "surface_pressure_9am"} <= view_columns
+    assert {
+        "rain_sum",
+        "precipitation_hours",
+        "dew_point_9am",
+        "surface_pressure_9am",
+    } <= view_columns
 
 
 def test_backfill_dag_raises_when_fetch_is_incomplete(monkeypatch):

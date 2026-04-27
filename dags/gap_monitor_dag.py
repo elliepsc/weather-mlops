@@ -44,6 +44,7 @@ from dags._airflow_compat import (
 try:
     from dags._notifications import send_slack_alert as _send_slack_alert
 except ImportError:
+
     def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
 
@@ -53,12 +54,11 @@ except ImportError:
             logger.info("Slack webhook not configured - alert logged only: %s", message)
             return
         try:
-            response = requests.post(
-                settings.slack_webhook_url, json={"text": message}, timeout=5
-            )
+            response = requests.post(settings.slack_webhook_url, json={"text": message}, timeout=5)
             response.raise_for_status()
         except Exception as exc:
             logger.warning("Slack alert failed: %s", exc)
+
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,7 @@ CRITICAL_COLUMNS = ["max_temp", "min_temp", "rainfall"]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _get_valid_critical_columns(conn) -> list[str]:
     """Return only CRITICAL_COLUMNS that exist in weather_raw (SQLite schema check).
 
@@ -84,18 +85,18 @@ def _get_valid_critical_columns(conn) -> list[str]:
     list is not updated in sync.
     """
     import pandas as pd
+
     schema = pd.read_sql("PRAGMA table_info(weather_raw)", conn)
     actual = set(schema["name"].tolist())
     valid = [c for c in CRITICAL_COLUMNS if c in actual]
     missing = [c for c in CRITICAL_COLUMNS if c not in actual]
     if missing:
-        logger.warning(
-            "CRITICAL_COLUMNS not found in weather_raw schema — skipped: %s", missing
-        )
+        logger.warning("CRITICAL_COLUMNS not found in weather_raw schema — skipped: %s", missing)
     return valid
 
 
 # ── Task callables ────────────────────────────────────────────────────────────
+
 
 def detect_gaps_and_partials(**context) -> None:
     """Scan weather_raw over a rolling window and classify bad dates."""
@@ -115,7 +116,10 @@ def detect_gaps_and_partials(**context) -> None:
 
     logger.info(
         "Gap scan: %s → %s | lookback=%d days | expected cities=%d",
-        window_start, window_end, lookback, expected_cities,
+        window_start,
+        window_end,
+        lookback,
+        expected_cities,
     )
 
     with get_connection() as conn:
@@ -154,22 +158,19 @@ def detect_gaps_and_partials(**context) -> None:
 
     # Build expected date set
     all_expected = {
-        (date.fromisoformat(window_start) + timedelta(days=i)).isoformat()
-        for i in range(lookback)
+        (date.fromisoformat(window_start) + timedelta(days=i)).isoformat() for i in range(lookback)
     }
     present_dates = set(coverage_df["date"].tolist())
     missing_dates = sorted(all_expected - present_dates)
 
-    partial_coverage = (
-        coverage_df[coverage_df["n_cities"] < ING.min_cities_threshold]
-        [["date", "n_cities"]]
-        .to_dict(orient="records")
-    )
+    partial_coverage = coverage_df[coverage_df["n_cities"] < ING.min_cities_threshold][
+        ["date", "n_cities"]
+    ].to_dict(orient="records")
 
     partial_rows = (
-        null_df.groupby("date").size().reset_index(name="null_row_count")
-        .to_dict(orient="records")
-        if not null_df.empty else []
+        null_df.groupby("date").size().reset_index(name="null_row_count").to_dict(orient="records")
+        if not null_df.empty
+        else []
     )
 
     all_bad_dates = sorted(
@@ -198,7 +199,9 @@ def detect_gaps_and_partials(**context) -> None:
 
     logger.info(
         "Scan complete — missing: %d | partial coverage: %d | dates with NULLs: %d",
-        len(missing_dates), len(partial_coverage), len(partial_rows),
+        len(missing_dates),
+        len(partial_coverage),
+        len(partial_rows),
     )
 
 
@@ -239,7 +242,9 @@ def send_gap_alert(**context) -> None:
 
     if report["partial_rows_by_date"]:
         cols = ", ".join(f"`{c}`" for c in CRITICAL_COLUMNS)
-        lines.append(f":warning: *NULL rows* in {cols} ({len(report['partial_rows_by_date'])} dates):")
+        lines.append(
+            f":warning: *NULL rows* in {cols} ({len(report['partial_rows_by_date'])} dates):"
+        )
         for entry in report["partial_rows_by_date"]:
             lines.append(f"  • `{entry['date']}` — {entry['null_row_count']} rows")
         lines.append("")

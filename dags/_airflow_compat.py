@@ -16,6 +16,7 @@ try:
         TriggerDagRunOperator,
     )
 except ModuleNotFoundError:
+
     class DAG:
         def __init__(self, *args, **kwargs):
             self.args = args
@@ -26,7 +27,6 @@ except ModuleNotFoundError:
 
         def __exit__(self, exc_type, exc, tb):
             return False
-
 
     class _DummyOperator:
         def __init__(self, *args, **kwargs):
@@ -41,18 +41,14 @@ except ModuleNotFoundError:
         def __rrshift__(self, other):
             return self
 
-
     class PythonOperator(_DummyOperator):
         pass
-
 
     class BranchPythonOperator(_DummyOperator):
         pass
 
-
     class EmptyOperator(_DummyOperator):
         pass
-
 
     class TriggerDagRunOperator(_DummyOperator):
         pass

@@ -2,6 +2,7 @@
 Streamlit demo — Weather Australia dashboard.
 Connects to the FastAPI backend at http://localhost:8083.
 """
+
 import pandas as pd
 import requests
 import streamlit as st
@@ -82,11 +83,16 @@ try:
         st.info("No data yet — run the pipeline first.")
     else:
         prediction_cols = [
-            "city", "date",
-            "rain_tomorrow", "rain_tomorrow_proba",
-            "max_temp_tomorrow", "weather_type_tomorrow",
+            "city",
+            "date",
+            "rain_tomorrow",
+            "rain_tomorrow_proba",
+            "max_temp_tomorrow",
+            "weather_type_tomorrow",
             "comfort_score",
-            "heatwave_risk", "frost_risk", "storm_probability",
+            "heatwave_risk",
+            "frost_risk",
+            "storm_probability",
         ]
         visible = [c for c in prediction_cols if c in df_latest.columns]
         st.dataframe(df_latest[visible], use_container_width=True)

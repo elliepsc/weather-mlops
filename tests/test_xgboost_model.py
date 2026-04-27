@@ -1,4 +1,5 @@
 """Unit tests for pipeline/train_models.py."""
+
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -14,44 +15,47 @@ from pipeline.train_models import _train_binary, _train_multiclass, _train_regre
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def tiny_df():
     """Minimal synthetic dataset with all required columns for training."""
     n = 100
     rng = np.random.default_rng(0)
     dates = pd.date_range("2022-01-01", periods=n, freq="D")
-    df = pd.DataFrame({
-        "date":           dates.strftime("%Y-%m-%d"),
-        "city":           ["Sydney"] * 50 + ["Melbourne"] * 50,
-        "state":          ["NSW"] * 50 + ["VIC"] * 50,
-        "max_temp":       rng.uniform(10, 40, n),
-        "min_temp":       rng.uniform(0, 20, n),
-        "rainfall":       rng.exponential(2, n),
-        "evaporation":    rng.uniform(2, 8, n),
-        "sunshine_hours": rng.uniform(3, 12, n),
-        "wind_gust_speed":rng.uniform(10, 60, n),
-        "wind_speed_9am": rng.uniform(5, 30, n),
-        "wind_speed_3pm": rng.uniform(5, 30, n),
-        "wind_gust_dir":  rng.choice(["N", "S", "E", "W"], n),
-        "wind_dir_9am":   rng.choice(["N", "NE", "E"], n),
-        "wind_dir_3pm":   rng.choice(["NW", "W", "SW"], n),
-        "humidity_9am":   rng.uniform(30, 90, n),
-        "humidity_3pm":   rng.uniform(20, 80, n),
-        "pressure_9am":   rng.uniform(1005, 1025, n),
-        "pressure_3pm":   rng.uniform(1000, 1020, n),
-        "cloud_9am":      rng.integers(0, 8, n),
-        "cloud_3pm":      rng.integers(0, 8, n),
-        "temp_9am":       rng.uniform(8, 30, n),
-        "temp_3pm":       rng.uniform(15, 38, n),
-        "rain_today":     rng.integers(0, 2, n),
-        "weather_code":   rng.choice([0, 2, 51, 80, 95], n),
-        "precipitation_hours": rng.uniform(0, 8, n),
-        "shortwave_radiation_sum": rng.uniform(50, 300, n),
-        "vpd_9am":        rng.uniform(0.1, 2.0, n),
-        "vpd_3pm":        rng.uniform(0.5, 4.0, n),
-        "wind_speed_100m_9am": rng.uniform(5, 40, n),
-        "wind_speed_100m_3pm": rng.uniform(10, 50, n),
-    })
+    df = pd.DataFrame(
+        {
+            "date": dates.strftime("%Y-%m-%d"),
+            "city": ["Sydney"] * 50 + ["Melbourne"] * 50,
+            "state": ["NSW"] * 50 + ["VIC"] * 50,
+            "max_temp": rng.uniform(10, 40, n),
+            "min_temp": rng.uniform(0, 20, n),
+            "rainfall": rng.exponential(2, n),
+            "evaporation": rng.uniform(2, 8, n),
+            "sunshine_hours": rng.uniform(3, 12, n),
+            "wind_gust_speed": rng.uniform(10, 60, n),
+            "wind_speed_9am": rng.uniform(5, 30, n),
+            "wind_speed_3pm": rng.uniform(5, 30, n),
+            "wind_gust_dir": rng.choice(["N", "S", "E", "W"], n),
+            "wind_dir_9am": rng.choice(["N", "NE", "E"], n),
+            "wind_dir_3pm": rng.choice(["NW", "W", "SW"], n),
+            "humidity_9am": rng.uniform(30, 90, n),
+            "humidity_3pm": rng.uniform(20, 80, n),
+            "pressure_9am": rng.uniform(1005, 1025, n),
+            "pressure_3pm": rng.uniform(1000, 1020, n),
+            "cloud_9am": rng.integers(0, 8, n),
+            "cloud_3pm": rng.integers(0, 8, n),
+            "temp_9am": rng.uniform(8, 30, n),
+            "temp_3pm": rng.uniform(15, 38, n),
+            "rain_today": rng.integers(0, 2, n),
+            "weather_code": rng.choice([0, 2, 51, 80, 95], n),
+            "precipitation_hours": rng.uniform(0, 8, n),
+            "shortwave_radiation_sum": rng.uniform(50, 300, n),
+            "vpd_9am": rng.uniform(0.1, 2.0, n),
+            "vpd_3pm": rng.uniform(0.5, 4.0, n),
+            "wind_speed_100m_9am": rng.uniform(5, 40, n),
+            "wind_speed_100m_3pm": rng.uniform(10, 50, n),
+        }
+    )
     return add_features(df)
 
 
@@ -64,6 +68,7 @@ def xy(tiny_df):
 
 
 # ─── _train_binary ───────────────────────────────────────────────────────────
+
 
 def test_train_binary_returns_metrics(xy):
     X_tr, X_te, df_tr, df_te = xy
@@ -82,6 +87,7 @@ def test_train_binary_returns_metrics(xy):
 
 # ─── _train_regression ───────────────────────────────────────────────────────
 
+
 def test_train_regression_returns_metrics(xy):
     X_tr, X_te, df_tr, df_te = xy
     y_tr = df_tr["max_temp_tomorrow"].astype(float)
@@ -98,6 +104,7 @@ def test_train_regression_returns_metrics(xy):
 
 
 # ─── _train_multiclass ───────────────────────────────────────────────────────
+
 
 def test_train_multiclass_returns_metrics(xy):
     X_tr, X_te, df_tr, df_te = xy
@@ -119,8 +126,10 @@ def test_train_multiclass_returns_metrics(xy):
 
 # ─── model save / load ───────────────────────────────────────────────────────
 
+
 def test_save_and_load_model():
     from pipeline.train_models import _load, _save
+
     model = XGBClassifier(n_estimators=2)
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -133,6 +142,7 @@ def test_save_and_load_model():
 
 def test_load_missing_model_raises():
     from pipeline.train_models import _load
+
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch("pipeline.train_models.MODELS_DIR", Path(tmpdir)):
             with pytest.raises(FileNotFoundError):

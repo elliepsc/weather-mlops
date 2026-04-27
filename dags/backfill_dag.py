@@ -90,12 +90,14 @@ def run_backfill_with_config(**context):
     dag_run = context.get("dag_run")
     conf = dag_run.conf if dag_run and dag_run.conf else {}
 
-    start = context["ti"].xcom_pull(
-        task_ids="validate_backfill_config", key="start_date"
-    ) or DEFAULT_BACKFILL_START
-    end = context["ti"].xcom_pull(
-        task_ids="validate_backfill_config", key="end_date"
-    ) or (date.today() - timedelta(days=1)).isoformat()
+    start = (
+        context["ti"].xcom_pull(task_ids="validate_backfill_config", key="start_date")
+        or DEFAULT_BACKFILL_START
+    )
+    end = (
+        context["ti"].xcom_pull(task_ids="validate_backfill_config", key="end_date")
+        or (date.today() - timedelta(days=1)).isoformat()
+    )
     force = bool(conf.get("force", False))
 
     logger.info("Backfill requested: %s -> %s (force=%s)", start, end, force)
@@ -109,9 +111,12 @@ def run_backfill_with_config(**context):
     if summary["failed_cities"] or summary["failed_ranges"] or summary["remaining_gap_counts"]:
         failed_cities = ", ".join(sorted(summary["failed_cities"])) or "none"
         failed_ranges = ", ".join(sorted(summary["failed_ranges"])) or "none"
-        remaining = ", ".join(
-            f"{city}:{count}" for city, count in sorted(summary["remaining_gap_counts"].items())
-        ) or "none"
+        remaining = (
+            ", ".join(
+                f"{city}:{count}" for city, count in sorted(summary["remaining_gap_counts"].items())
+            )
+            or "none"
+        )
         raise RuntimeError(
             "Backfill incomplete - "
             f"failed cities: {failed_cities}; "
@@ -125,16 +130,19 @@ def run_backfill_with_config(**context):
 
 def run_train(**context):
     from pipeline.run_pipeline import step_train
+
     step_train()
 
 
 def run_predict(**context):
     from pipeline.run_pipeline import step_predict
+
     step_predict()
 
 
 def run_export(**context):
     from pipeline.run_pipeline import step_export
+
     step_export()
 
 

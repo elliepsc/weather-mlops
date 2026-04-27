@@ -2,6 +2,7 @@
 Fetch weather data from Open-Meteo API (free, no API key required).
 Covers both historical backfill (2 years) and daily incremental updates.
 """
+
 import logging
 import time
 from datetime import date, timedelta
@@ -47,8 +48,24 @@ HOURLY_VARS = [
     "cloudcover",
 ]
 
-_COMPASS = ["N","NNE","NE","ENE","E","ESE","SE","SSE",
-            "S","SSW","SW","WSW","W","WNW","NW","NNW"]
+_COMPASS = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+]
 
 
 def _degrees_to_compass(deg) -> str | None:
@@ -74,9 +91,13 @@ def _call_api(url: str, params: dict, retries: int = 3) -> dict:
         try:
             r = requests.get(url, params=params, timeout=60)
             if r.status_code == 429:
-                wait = 30 * (2 ** attempt)  # 30s, 60s, 120s
-                logger.warning("Rate limited (429). Waiting %ds before retry %d/%d…",
-                               wait, attempt + 1, retries)
+                wait = 30 * (2**attempt)  # 30s, 60s, 120s
+                logger.warning(
+                    "Rate limited (429). Waiting %ds before retry %d/%d…",
+                    wait,
+                    attempt + 1,
+                    retries,
+                )
                 time.sleep(wait)
                 continue
             r.raise_for_status()
@@ -102,75 +123,90 @@ def fetch_city(city: str, start_date: str, end_date: str) -> pd.DataFrame:
     if end_date >= today:
         # forecast API handles last ~90 days + next 7 days
         url = FORECAST_URL
-        params_extra = {"past_days": min(92, (date.today() - date.fromisoformat(start_date)).days + 1)}
+        params_extra = {
+            "past_days": min(92, (date.today() - date.fromisoformat(start_date)).days + 1)
+        }
     else:
         url = ARCHIVE_URL
         params_extra = {"start_date": start_date, "end_date": end_date}
 
     params = {
-        "latitude":   lat,
-        "longitude":  lon,
-        "timezone":   tz,
-        "daily":      ",".join(DAILY_VARS),
-        "hourly":     ",".join(HOURLY_VARS),
+        "latitude": lat,
+        "longitude": lon,
+        "timezone": tz,
+        "daily": ",".join(DAILY_VARS),
+        "hourly": ",".join(HOURLY_VARS),
         **params_extra,
     }
 
     data = _call_api(url, params)
-    daily   = data.get("daily", {})
-    hourly  = data.get("hourly", {})
-    dates   = daily.get("time", [])
+    daily = data.get("daily", {})
+    hourly = data.get("hourly", {})
+    dates = daily.get("time", [])
 
     if not dates:
         logger.warning("No data returned for %s (%s -> %s)", city, start_date, end_date)
         return pd.DataFrame()
 
-    df = pd.DataFrame({
-        "date":    dates,
-        "city":    city,
-        "state":   loc["state"],
-        "latitude":  lat,
-        "longitude": lon,
-        "min_temp":        daily.get("temperature_2m_min"),
-        "max_temp":        daily.get("temperature_2m_max"),
-        "rainfall":        daily.get("precipitation_sum"),
-        "rain_sum":        daily.get("rain_sum"),
-        "precipitation_hours": daily.get("precipitation_hours"),
-        "evaporation":     daily.get("et0_fao_evapotranspiration"),
-        "sunshine_hours":  [v / 3600 if v is not None else None
-                            for v in (daily.get("sunshine_duration") or [None]*len(dates))],
-        "shortwave_radiation_sum": daily.get("shortwave_radiation_sum"),
-        "wind_gust_speed": daily.get("windgusts_10m_max"),
-        "wind_gust_dir":   [_degrees_to_compass(d)
-                            for d in (daily.get("winddirection_10m_dominant") or [None]*len(dates))],
-        "weather_code":    daily.get("weathercode"),
-        # 9am values (hour index 9)
-        "temp_9am":        _extract_hour(hourly, "temperature_2m",      9, dates),
-        "humidity_9am":    _extract_hour(hourly, "relative_humidity_2m", 9, dates),
-        "dew_point_9am":   _extract_hour(hourly, "dew_point_2m",         9, dates),
-        "wind_speed_9am":  _extract_hour(hourly, "windspeed_10m",        9, dates),
-        "wind_speed_100m_9am": _extract_hour(hourly, "windspeed_100m",   9, dates),
-        "wind_dir_9am":    [_degrees_to_compass(d)
-                            for d in _extract_hour(hourly, "winddirection_10m", 9, dates)],
-        "vpd_9am":         _extract_hour(hourly, "vapour_pressure_deficit", 9, dates),
-        "pressure_9am":    _extract_hour(hourly, "pressure_msl",         9, dates),
-        "surface_pressure_9am": _extract_hour(hourly, "surface_pressure", 9, dates),
-        "cloud_9am":       [v / 12.5 if v is not None else None
-                            for v in _extract_hour(hourly, "cloudcover",  9, dates)],
-        # 3pm values (hour index 15)
-        "temp_3pm":        _extract_hour(hourly, "temperature_2m",      15, dates),
-        "humidity_3pm":    _extract_hour(hourly, "relative_humidity_2m", 15, dates),
-        "dew_point_3pm":   _extract_hour(hourly, "dew_point_2m",        15, dates),
-        "wind_speed_3pm":  _extract_hour(hourly, "windspeed_10m",        15, dates),
-        "wind_speed_100m_3pm": _extract_hour(hourly, "windspeed_100m",  15, dates),
-        "wind_dir_3pm":    [_degrees_to_compass(d)
-                            for d in _extract_hour(hourly, "winddirection_10m", 15, dates)],
-        "vpd_3pm":         _extract_hour(hourly, "vapour_pressure_deficit", 15, dates),
-        "pressure_3pm":    _extract_hour(hourly, "pressure_msl",         15, dates),
-        "surface_pressure_3pm": _extract_hour(hourly, "surface_pressure", 15, dates),
-        "cloud_3pm":       [v / 12.5 if v is not None else None
-                            for v in _extract_hour(hourly, "cloudcover",  15, dates)],
-    })
+    df = pd.DataFrame(
+        {
+            "date": dates,
+            "city": city,
+            "state": loc["state"],
+            "latitude": lat,
+            "longitude": lon,
+            "min_temp": daily.get("temperature_2m_min"),
+            "max_temp": daily.get("temperature_2m_max"),
+            "rainfall": daily.get("precipitation_sum"),
+            "rain_sum": daily.get("rain_sum"),
+            "precipitation_hours": daily.get("precipitation_hours"),
+            "evaporation": daily.get("et0_fao_evapotranspiration"),
+            "sunshine_hours": [
+                v / 3600 if v is not None else None
+                for v in (daily.get("sunshine_duration") or [None] * len(dates))
+            ],
+            "shortwave_radiation_sum": daily.get("shortwave_radiation_sum"),
+            "wind_gust_speed": daily.get("windgusts_10m_max"),
+            "wind_gust_dir": [
+                _degrees_to_compass(d)
+                for d in (daily.get("winddirection_10m_dominant") or [None] * len(dates))
+            ],
+            "weather_code": daily.get("weathercode"),
+            # 9am values (hour index 9)
+            "temp_9am": _extract_hour(hourly, "temperature_2m", 9, dates),
+            "humidity_9am": _extract_hour(hourly, "relative_humidity_2m", 9, dates),
+            "dew_point_9am": _extract_hour(hourly, "dew_point_2m", 9, dates),
+            "wind_speed_9am": _extract_hour(hourly, "windspeed_10m", 9, dates),
+            "wind_speed_100m_9am": _extract_hour(hourly, "windspeed_100m", 9, dates),
+            "wind_dir_9am": [
+                _degrees_to_compass(d) for d in _extract_hour(hourly, "winddirection_10m", 9, dates)
+            ],
+            "vpd_9am": _extract_hour(hourly, "vapour_pressure_deficit", 9, dates),
+            "pressure_9am": _extract_hour(hourly, "pressure_msl", 9, dates),
+            "surface_pressure_9am": _extract_hour(hourly, "surface_pressure", 9, dates),
+            "cloud_9am": [
+                v / 12.5 if v is not None else None
+                for v in _extract_hour(hourly, "cloudcover", 9, dates)
+            ],
+            # 3pm values (hour index 15)
+            "temp_3pm": _extract_hour(hourly, "temperature_2m", 15, dates),
+            "humidity_3pm": _extract_hour(hourly, "relative_humidity_2m", 15, dates),
+            "dew_point_3pm": _extract_hour(hourly, "dew_point_2m", 15, dates),
+            "wind_speed_3pm": _extract_hour(hourly, "windspeed_10m", 15, dates),
+            "wind_speed_100m_3pm": _extract_hour(hourly, "windspeed_100m", 15, dates),
+            "wind_dir_3pm": [
+                _degrees_to_compass(d)
+                for d in _extract_hour(hourly, "winddirection_10m", 15, dates)
+            ],
+            "vpd_3pm": _extract_hour(hourly, "vapour_pressure_deficit", 15, dates),
+            "pressure_3pm": _extract_hour(hourly, "pressure_msl", 15, dates),
+            "surface_pressure_3pm": _extract_hour(hourly, "surface_pressure", 15, dates),
+            "cloud_3pm": [
+                v / 12.5 if v is not None else None
+                for v in _extract_hour(hourly, "cloudcover", 15, dates)
+            ],
+        }
+    )
 
     # rain_today: precipitation_sum above configured wet-day threshold
     df["rain_today"] = (df["rainfall"].fillna(0) > RAIN_MIN_MM).astype(int)
@@ -180,8 +216,7 @@ def fetch_city(city: str, start_date: str, end_date: str) -> pd.DataFrame:
     return df
 
 
-def fetch_all_cities(start_date: str, end_date: str,
-                     delay_seconds: float = 0.5) -> pd.DataFrame:
+def fetch_all_cities(start_date: str, end_date: str, delay_seconds: float = 0.5) -> pd.DataFrame:
     """
     Fetch all 26 cities for a given date range.
     delay_seconds: polite pause between API calls.
@@ -229,20 +264,19 @@ def fetch_city_nasapower(city: str, start_date: str, end_date: str) -> pd.DataFr
 
     params = {
         "parameters": NASA_VARS,
-        "community":  "RE",
-        "longitude":  lon,
-        "latitude":   lat,
-        "start":      start_date.replace("-", ""),
-        "end":        end_date.replace("-", ""),
-        "format":     "JSON",
-        "user":       "wxpipeline",
+        "community": "RE",
+        "longitude": lon,
+        "latitude": lat,
+        "start": start_date.replace("-", ""),
+        "end": end_date.replace("-", ""),
+        "format": "JSON",
+        "user": "wxpipeline",
     }
     data = _call_api(NASA_URL, params)
     p = data["properties"]["parameter"]
 
     dates_raw = list(p["T2M_MAX"].keys())
-    dates = [d for d in dates_raw
-             if start_date.replace("-", "") <= d <= end_date.replace("-", "")]
+    dates = [d for d in dates_raw if start_date.replace("-", "") <= d <= end_date.replace("-", "")]
     n = len(dates)
 
     if n == 0:
@@ -253,49 +287,51 @@ def fetch_city_nasapower(city: str, start_date: str, end_date: str) -> pd.DataFr
         raw = p.get(key, {})
         return [None if (v is None or v <= -990) else v for v in (raw.get(d) for d in dates)]
 
-    rh      = col("RH2M")
-    ps_hpa  = [v * 10 if v is not None else None for v in col("PS")]
-    ws_kmh  = [v * 3.6 if v is not None else None for v in col("WS10M_MAX")]
+    rh = col("RH2M")
+    ps_hpa = [v * 10 if v is not None else None for v in col("PS")]
+    ws_kmh = [v * 3.6 if v is not None else None for v in col("WS10M_MAX")]
     rainfall = col("PRECTOTCORR")
 
-    df = pd.DataFrame({
-        "date":           [f"{d[:4]}-{d[4:6]}-{d[6:]}" for d in dates],
-        "city":           city,
-        "state":          loc["state"],
-        "latitude":       lat,
-        "longitude":      lon,
-        "min_temp":       col("T2M_MIN"),
-        "max_temp":       col("T2M_MAX"),
-        "rainfall":       rainfall,
-        "rain_sum":       rainfall,
-        "precipitation_hours": [None] * n,
-        "evaporation":    [None] * n,
-        "sunshine_hours": [None] * n,
-        "shortwave_radiation_sum": [None] * n,
-        "wind_gust_speed": ws_kmh,
-        "wind_gust_dir":  [_degrees_to_compass(v) for v in col("WD10M")],
-        "weather_code":   [None] * n,
-        "temp_9am":       [None] * n,
-        "humidity_9am":   rh,
-        "dew_point_9am":  [None] * n,
-        "wind_speed_9am": [None] * n,
-        "wind_speed_100m_9am": [None] * n,
-        "wind_dir_9am":   [None] * n,
-        "vpd_9am":        [None] * n,
-        "pressure_9am":   ps_hpa,
-        "surface_pressure_9am": ps_hpa,
-        "cloud_9am":      [None] * n,
-        "temp_3pm":       [None] * n,
-        "humidity_3pm":   rh,
-        "dew_point_3pm":  [None] * n,
-        "wind_speed_3pm": [None] * n,
-        "wind_speed_100m_3pm": [None] * n,
-        "wind_dir_3pm":   [None] * n,
-        "vpd_3pm":        [None] * n,
-        "pressure_3pm":   ps_hpa,
-        "surface_pressure_3pm": ps_hpa,
-        "cloud_3pm":      [None] * n,
-    })
+    df = pd.DataFrame(
+        {
+            "date": [f"{d[:4]}-{d[4:6]}-{d[6:]}" for d in dates],
+            "city": city,
+            "state": loc["state"],
+            "latitude": lat,
+            "longitude": lon,
+            "min_temp": col("T2M_MIN"),
+            "max_temp": col("T2M_MAX"),
+            "rainfall": rainfall,
+            "rain_sum": rainfall,
+            "precipitation_hours": [None] * n,
+            "evaporation": [None] * n,
+            "sunshine_hours": [None] * n,
+            "shortwave_radiation_sum": [None] * n,
+            "wind_gust_speed": ws_kmh,
+            "wind_gust_dir": [_degrees_to_compass(v) for v in col("WD10M")],
+            "weather_code": [None] * n,
+            "temp_9am": [None] * n,
+            "humidity_9am": rh,
+            "dew_point_9am": [None] * n,
+            "wind_speed_9am": [None] * n,
+            "wind_speed_100m_9am": [None] * n,
+            "wind_dir_9am": [None] * n,
+            "vpd_9am": [None] * n,
+            "pressure_9am": ps_hpa,
+            "surface_pressure_9am": ps_hpa,
+            "cloud_9am": [None] * n,
+            "temp_3pm": [None] * n,
+            "humidity_3pm": rh,
+            "dew_point_3pm": [None] * n,
+            "wind_speed_3pm": [None] * n,
+            "wind_speed_100m_3pm": [None] * n,
+            "wind_dir_3pm": [None] * n,
+            "vpd_3pm": [None] * n,
+            "pressure_3pm": ps_hpa,
+            "surface_pressure_3pm": ps_hpa,
+            "cloud_3pm": [None] * n,
+        }
+    )
 
     df["rain_today"] = (df["rainfall"].fillna(0) > RAIN_MIN_MM).astype(int)
     return df
@@ -304,5 +340,6 @@ def fetch_city_nasapower(city: str, start_date: str, end_date: str) -> pd.DataFr
 def fetch_today() -> pd.DataFrame:
     """Fetch yesterday's confirmed data for all cities (daily incremental)."""
     from datetime import date, timedelta
+
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     return fetch_all_cities(yesterday, yesterday, delay_seconds=0.3)

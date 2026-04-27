@@ -18,6 +18,7 @@ ROOT = Path(__file__).parent.parent
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
 except ModuleNotFoundError:
+
     class BaseSettings(BaseModel):
         """Small fallback so local tests can run without pydantic-settings."""
 
@@ -37,7 +38,6 @@ except ModuleNotFoundError:
 
             values.update(data)
             super().__init__(**values)
-
 
     def SettingsConfigDict(**kwargs):
         return kwargs

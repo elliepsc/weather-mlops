@@ -47,6 +47,7 @@ def _target_date_from_context(context):
 
 def step_init_db(**kwargs):
     from pipeline.run_pipeline import step_init_db as _step_init_db
+
     _step_init_db()
 
 
@@ -86,11 +87,13 @@ def check_daily_ingestion(**context):
 
 def step_predict(**kwargs):
     from pipeline.run_pipeline import step_predict as _step_predict
+
     _step_predict()
 
 
 def step_export(**kwargs):
     from pipeline.run_pipeline import step_export as _step_export
+
     _step_export()
 
 

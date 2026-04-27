@@ -108,8 +108,8 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Rolling averages (7-day window per city)
     for col in ["max_temp", "rainfall", "humidity_3pm"]:
-        df[f"{col}_rolling7"] = (
-            df.groupby("city")[col].transform(lambda x: x.shift(1).rolling(7, min_periods=3).mean())
+        df[f"{col}_rolling7"] = df.groupby("city")[col].transform(
+            lambda x: x.shift(1).rolling(7, min_periods=3).mean()
         )
 
     # Pressure tendency (drop -> storm risk)
@@ -152,7 +152,9 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["heatwave_risk"] = ((next_hot == 1) & (df["consec_hot_days"] >= 1)).astype(int)
 
     # frost_risk: next day min_temp below configured frost threshold
-    df["frost_risk"] = (grp["min_temp"].shift(-1).fillna(99) <= LABELS.frost_temp_celsius).astype(int)
+    df["frost_risk"] = (grp["min_temp"].shift(-1).fillna(99) <= LABELS.frost_temp_celsius).astype(
+        int
+    )
 
     # storm_probability: next day has heavy rain and strong gusts
     next_rain = grp["rainfall"].shift(-1).fillna(0)

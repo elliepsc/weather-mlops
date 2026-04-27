@@ -46,6 +46,7 @@ from dags._airflow_compat import (
 try:
     from dags._notifications import send_slack_alert as _send_slack_alert
 except ImportError:
+
     def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
 
@@ -55,12 +56,11 @@ except ImportError:
             logger.info("Slack webhook not configured - alert logged only: %s", message)
             return
         try:
-            response = requests.post(
-                settings.slack_webhook_url, json={"text": message}, timeout=5
-            )
+            response = requests.post(settings.slack_webhook_url, json={"text": message}, timeout=5)
             response.raise_for_status()
         except Exception as exc:
             logger.warning("Slack alert failed: %s", exc)
+
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +111,7 @@ def check_data_quality(**context):
     from pipeline.database import get_connection
     from pipeline.locations import LOCATIONS
 
-    yesterday = (
-        datetime.fromisoformat(context["ds"]) - timedelta(days=1)
-    ).date().isoformat()
+    yesterday = (datetime.fromisoformat(context["ds"]) - timedelta(days=1)).date().isoformat()
 
     with get_connection() as conn:
         df = pd.read_sql(
@@ -210,8 +208,12 @@ def detect_drift(**context):
             "Drift window completeness low — KS results may be unreliable. "
             "recent: %.0f%% (%d/%d rows) | baseline: %.0f%% (%d/%d rows). "
             "Gap monitor should have triggered a backfill.",
-            completeness_recent * 100, len(recent), expected_rows,
-            completeness_baseline * 100, len(baseline), expected_rows,
+            completeness_recent * 100,
+            len(recent),
+            expected_rows,
+            completeness_baseline * 100,
+            len(baseline),
+            expected_rows,
         )
     # -------------------------------------------------------------------------
 
@@ -236,13 +238,18 @@ def detect_drift(**context):
 
     out = ROOT / "data" / "monitoring" / "drift_report.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({
-        "date": today.isoformat(),
-        "data_quality_warning": data_quality_warning,
-        "completeness_recent_pct": round(completeness_recent * 100, 1),
-        "completeness_baseline_pct": round(completeness_baseline * 100, 1),
-        "features": report,
-    }, indent=2))
+    out.write_text(
+        json.dumps(
+            {
+                "date": today.isoformat(),
+                "data_quality_warning": data_quality_warning,
+                "completeness_recent_pct": round(completeness_recent * 100, 1),
+                "completeness_baseline_pct": round(completeness_baseline * 100, 1),
+                "features": report,
+            },
+            indent=2,
+        )
+    )
 
     context["ti"].xcom_push(key="drifted_features", value=drifted_features)
     context["ti"].xcom_push(key="drift_detected", value=bool(drifted_features))
@@ -393,7 +400,9 @@ def branch_on_monitoring_decision(**context):
             logger.warning(
                 "Retrain needed but cooldown active - downgrading to alert_only. "
                 "accuracy=%.3f mae=%.2f drifted=%s",
-                accuracy or 0, temp_mae or 0, features,
+                accuracy or 0,
+                temp_mae or 0,
+                features,
             )
             decision_data["action"] = "alert_only"
             decision_data["reason"] = "retrain_needed_but_cooldown_active"
@@ -419,7 +428,8 @@ def branch_on_monitoring_decision(**context):
     if mild_drift:
         logger.warning(
             "ALERT - mild drift on %d features %s (seasonal likely). Metrics OK.",
-            n_drifted, features,
+            n_drifted,
+            features,
         )
         decision_data["action"] = "alert_only"
         decision_data["reason"] = f"mild_drift_on_{n_drifted}_features"
@@ -429,7 +439,9 @@ def branch_on_monitoring_decision(**context):
 
     logger.info(
         "No action needed - accuracy=%.1f%% mae=%.2f drifted=%d",
-        (accuracy or 0) * 100, temp_mae or 0, n_drifted,
+        (accuracy or 0) * 100,
+        temp_mae or 0,
+        n_drifted,
     )
     decision_data["action"] = "no_action"
     decision_data["reason"] = "all_metrics_nominal"

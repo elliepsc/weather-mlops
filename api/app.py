@@ -11,6 +11,7 @@ Endpoints:
   GET /api/export/csv           — download CSV file directly
   GET /health                   — health check
 """
+
 import sys
 from pathlib import Path
 
@@ -38,7 +39,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # Power BI Desktop needs this
+    allow_origins=["*"],  # Power BI Desktop needs this
     allow_methods=["GET"],
     allow_headers=["*"],
 )
@@ -56,6 +57,7 @@ def _df_to_records(df: pd.DataFrame) -> list[dict]:
 
 # ─── endpoints ───────────────────────────────────────────────────────────────
 
+
 @app.get("/health")
 def health():
     return {"status": "ok", "db": str(DB_PATH), "db_exists": DB_PATH.exists()}
@@ -65,18 +67,21 @@ def health():
 def list_cities():
     """Return available cities and their coordinates."""
     from pipeline.locations import LOCATIONS
-    return {"cities": [
-        {"city": k, "state": v["state"], "lat": v["lat"], "lon": v["lon"]}
-        for k, v in LOCATIONS.items()
-    ]}
+
+    return {
+        "cities": [
+            {"city": k, "state": v["state"], "lat": v["lat"], "lon": v["lon"]}
+            for k, v in LOCATIONS.items()
+        ]
+    }
 
 
 @app.get("/api/weather")
 def get_weather(
-    city:       Optional[str] = Query(None, description="Filter by city name"),
+    city: Optional[str] = Query(None, description="Filter by city name"),
     start_date: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
-    end_date:   Optional[str] = Query(None, description="End date YYYY-MM-DD"),
-    limit:      int           = Query(50000, description="Max rows returned"),
+    end_date: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
+    limit: int = Query(50000, description="Max rows returned"),
 ):
     """
     Full weather + predictions table.
@@ -100,11 +105,13 @@ def get_weather(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-    return JSONResponse({
-        "count":        len(df),
-        "last_updated": date.today().isoformat(),
-        "data":         _df_to_records(df),
-    })
+    return JSONResponse(
+        {
+            "count": len(df),
+            "last_updated": date.today().isoformat(),
+            "data": _df_to_records(df),
+        }
+    )
 
 
 @app.get("/api/weather/latest")
@@ -129,17 +136,19 @@ def get_latest(city: Optional[str] = Query(None)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-    return JSONResponse({
-        "count": len(df),
-        "data":  _df_to_records(df),
-    })
+    return JSONResponse(
+        {
+            "count": len(df),
+            "data": _df_to_records(df),
+        }
+    )
 
 
 @app.get("/api/weather/predictions")
 def get_predictions(
-    city:       Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
-    end_date:   Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
 ):
     """Predictions-only table (lighter payload for Power BI dashboards)."""
     try:
@@ -191,8 +200,10 @@ def export_csv():
 
 # ─── MLflow endpoints ────────────────────────────────────────────────────────
 
+
 def _get_mlflow_client():
     import mlflow
+
     uri = get_mlflow_tracking_uri(ROOT)
     mlflow.set_tracking_uri(uri)
     return mlflow.MlflowClient()
@@ -215,25 +226,36 @@ def get_mlflow_runs(n: int = Query(10, description="Number of most recent runs")
             order_by=["start_time DESC"],
             max_results=n,
             filter_string="tags.mlflow.runName NOT LIKE '%rain%' "
-                          "AND tags.mlflow.runName NOT LIKE '%temp%' "
-                          "AND tags.mlflow.runName NOT LIKE '%heatwave%' "
-                          "AND tags.mlflow.runName NOT LIKE '%frost%' "
-                          "AND tags.mlflow.runName NOT LIKE '%storm%' "
-                          "AND tags.mlflow.runName NOT LIKE '%weather_type%'",
+            "AND tags.mlflow.runName NOT LIKE '%temp%' "
+            "AND tags.mlflow.runName NOT LIKE '%heatwave%' "
+            "AND tags.mlflow.runName NOT LIKE '%frost%' "
+            "AND tags.mlflow.runName NOT LIKE '%storm%' "
+            "AND tags.mlflow.runName NOT LIKE '%weather_type%'",
         )
 
         result = []
         for r in runs:
-            result.append({
-                "run_id":        r.info.run_id,
-                "run_name":      r.info.run_name,
-                "status":        r.info.status,
-                "start_time":    r.info.start_time,
-                "metrics":       r.data.metrics,
-                "params":        {k: v for k, v in r.data.params.items()
-                                  if k in ("n_rows", "n_features", "n_cities",
-                                           "date_range_start", "date_range_end")},
-            })
+            result.append(
+                {
+                    "run_id": r.info.run_id,
+                    "run_name": r.info.run_name,
+                    "status": r.info.status,
+                    "start_time": r.info.start_time,
+                    "metrics": r.data.metrics,
+                    "params": {
+                        k: v
+                        for k, v in r.data.params.items()
+                        if k
+                        in (
+                            "n_rows",
+                            "n_features",
+                            "n_cities",
+                            "date_range_start",
+                            "date_range_end",
+                        )
+                    },
+                }
+            )
 
         return JSONResponse({"count": len(result), "runs": result})
 
@@ -248,9 +270,11 @@ def get_latest_mlflow_metrics():
     """
     metrics_path = ROOT / "models" / "metrics.json"
     if not metrics_path.exists():
-        raise HTTPException(status_code=404,
-                            detail="No metrics file found. Run the pipeline first.")
+        raise HTTPException(
+            status_code=404, detail="No metrics file found. Run the pipeline first."
+        )
     import json
+
     return JSONResponse(json.loads(metrics_path.read_text()))
 
 
@@ -260,6 +284,7 @@ if __name__ == "__main__":
     import os
 
     import uvicorn
+
     port = int(os.getenv("API_PORT", 8083))
     host = os.getenv("API_HOST", "0.0.0.0")
     uvicorn.run("api.app:app", host=host, port=port, reload=True)

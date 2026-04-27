@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 try:
     from dags._notifications import send_slack_alert as _send_slack_alert
 except ImportError:
+
     def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
 
@@ -36,12 +37,11 @@ except ImportError:
             logger.info("Slack webhook not configured - alert logged only: %s", message)
             return
         try:
-            response = requests.post(
-                settings.slack_webhook_url, json={"text": message}, timeout=5
-            )
+            response = requests.post(settings.slack_webhook_url, json={"text": message}, timeout=5)
             response.raise_for_status()
         except Exception as exc:
             logger.warning("Slack alert failed: %s", exc)
+
 
 T = mlops_config.training
 
@@ -130,7 +130,10 @@ def compare_vs_baseline(**context):
     else:
         logger.info(
             "Model validation OK - rain=%.3f (was %.3f) | mae=%.2f (was %.2f)",
-            new_rain or 0, old_rain or 0, new_mae or 0, old_mae or 0,
+            new_rain or 0,
+            old_rain or 0,
+            new_mae or 0,
+            old_mae or 0,
         )
 
     context["ti"].xcom_push(key="degraded", value=degraded)
@@ -139,9 +142,7 @@ def compare_vs_baseline(**context):
 
 def branch_after_validation(**context):
     """Use new models only when comparison against baseline succeeds."""
-    degraded = bool(
-        context["ti"].xcom_pull(task_ids="compare_vs_baseline", key="degraded")
-    )
+    degraded = bool(context["ti"].xcom_pull(task_ids="compare_vs_baseline", key="degraded"))
     return "rollback_to_baseline" if degraded else "run_predictions"
 
 
@@ -152,9 +153,7 @@ def rollback_to_baseline(**context):
 
     restored = _copy_model_artifacts(BASELINE_DIR, MODELS_DIR)
     if not restored:
-        raise FileNotFoundError(
-            f"No baseline model artifacts found in {BASELINE_DIR} for rollback"
-        )
+        raise FileNotFoundError(f"No baseline model artifacts found in {BASELINE_DIR} for rollback")
 
     logger.warning("Rollback completed - restored baseline artifacts: %s", restored)
     context["ti"].xcom_push(key="rollback_files", value=restored)
@@ -162,9 +161,7 @@ def rollback_to_baseline(**context):
 
 def send_degradation_alert(**context):
     """Notify humans when a degraded retrain was rolled back."""
-    issues = context["ti"].xcom_pull(
-        task_ids="compare_vs_baseline", key="degradation_issues"
-    ) or []
+    issues = context["ti"].xcom_pull(task_ids="compare_vs_baseline", key="degradation_issues") or []
     ds = context["ds"]
     message = (
         f":x: *weather-mlops retrain rolled back* ({ds})\n"
@@ -178,11 +175,13 @@ def send_degradation_alert(**context):
 
 def step_predict(**context):
     from pipeline.run_pipeline import step_predict as _step_predict
+
     _step_predict()
 
 
 def step_export(**context):
     from pipeline.run_pipeline import step_export as _step_export
+
     _step_export()
 
 

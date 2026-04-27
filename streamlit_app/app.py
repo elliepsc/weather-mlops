@@ -2,9 +2,9 @@
 Streamlit demo — Weather Australia dashboard.
 Connects to the FastAPI backend at http://localhost:8083.
 """
-import streamlit as st
-import requests
 import pandas as pd
+import requests
+import streamlit as st
 
 API_URL = "http://localhost:8083"
 
@@ -70,7 +70,7 @@ with st.sidebar:
     selected_city = city_choice if city_choice != "All" else None
 
     st.markdown("---")
-    st.markdown(f"[Prometheus](http://localhost:9090) · [Grafana](http://localhost:3000)")
+    st.markdown("[Prometheus](http://localhost:9090) · [Grafana](http://localhost:3000)")
 
 
 # ─── latest predictions ──────────────────────────────────────────────────────

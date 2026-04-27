@@ -1,5 +1,5 @@
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 import pandas as pd
 
@@ -249,13 +249,13 @@ def upsert_weather_raw(df: pd.DataFrame, db_path: Path = DB_PATH):
     )
 
     with get_connection(db_path) as conn:
-        conn.executemany("""
+        conn.executemany(f"""
             INSERT INTO weather_raw
-                ({columns})
-            VALUES ({values})
+                ({column_list})
+            VALUES ({value_list})
             ON CONFLICT(date, city) DO UPDATE SET
-                 {updates}
-        """.format(columns=column_list, values=value_list, updates=update_list), records)
+                 {update_list}
+        """, records)
 
 
 def upsert_predictions(df: pd.DataFrame, db_path: Path = DB_PATH):

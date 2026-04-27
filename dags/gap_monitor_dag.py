@@ -34,7 +34,11 @@ if str(ROOT) not in sys.path:
 
 from config.settings import mlops_config, settings
 from dags._airflow_compat import (
-    DAG, BranchPythonOperator, EmptyOperator, PythonOperator, TriggerDagRunOperator,
+    DAG,
+    BranchPythonOperator,
+    EmptyOperator,
+    PythonOperator,
+    TriggerDagRunOperator,
 )
 
 try:
@@ -42,6 +46,7 @@ try:
 except ImportError:
     def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
+
         from config.settings import settings
 
         if not settings.slack_webhook_url:
@@ -57,7 +62,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-I = mlops_config.ingestion
+ING = mlops_config.ingestion
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -95,6 +100,7 @@ def _get_valid_critical_columns(conn) -> list[str]:
 def detect_gaps_and_partials(**context) -> None:
     """Scan weather_raw over a rolling window and classify bad dates."""
     import pandas as pd
+
     from pipeline.database import get_connection
     from pipeline.locations import LOCATIONS
 
@@ -155,7 +161,7 @@ def detect_gaps_and_partials(**context) -> None:
     missing_dates = sorted(all_expected - present_dates)
 
     partial_coverage = (
-        coverage_df[coverage_df["n_cities"] < I.min_cities_threshold]
+        coverage_df[coverage_df["n_cities"] < ING.min_cities_threshold]
         [["date", "n_cities"]]
         .to_dict(orient="records")
     )

@@ -36,8 +36,8 @@ if str(ROOT) not in sys.path:
 
 from config.settings import mlops_config, settings
 from dags._airflow_compat import (
-    BranchPythonOperator,
     DAG,
+    BranchPythonOperator,
     EmptyOperator,
     PythonOperator,
     TriggerDagRunOperator,
@@ -48,6 +48,7 @@ try:
 except ImportError:
     def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
+
         from config.settings import settings
 
         if not settings.slack_webhook_url:
@@ -64,7 +65,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 M = mlops_config.monitoring
-I = mlops_config.ingestion
+ING = mlops_config.ingestion
 
 default_args = {
     "owner": "airflow",
@@ -106,6 +107,7 @@ def _write_decision(data: dict) -> None:
 def check_data_quality(**context):
     """Fail when yesterday coverage is below the configured threshold."""
     import pandas as pd
+
     from pipeline.database import get_connection
     from pipeline.locations import LOCATIONS
 
@@ -127,10 +129,10 @@ def check_data_quality(**context):
     context["ti"].xcom_push(key="missing_cities", value=list(missing))
     logger.info("Data quality - %d/%d cities for %s", available, len(expected), yesterday)
 
-    if available < I.min_cities_threshold:
+    if available < ING.min_cities_threshold:
         raise ValueError(
             f"Data quality FAIL: only {available}/{len(expected)} cities for {yesterday}. "
-            f"Minimum required: {I.min_cities_threshold}. Missing: {missing}"
+            f"Minimum required: {ING.min_cities_threshold}. Missing: {missing}"
         )
     if missing:
         logger.warning("Partial data: missing %s", missing)
@@ -139,6 +141,7 @@ def check_data_quality(**context):
 def check_prediction_coverage(**context):
     """Warn if predictions lag behind the latest raw data."""
     import pandas as pd
+
     from pipeline.database import get_connection
 
     with get_connection() as conn:
@@ -174,6 +177,7 @@ def detect_drift(**context):
 
     import pandas as pd
     from scipy import stats
+
     from pipeline.database import get_connection
     from pipeline.locations import LOCATIONS
 
@@ -258,6 +262,7 @@ def log_model_metrics(**context):
 
     import pandas as pd
     from sklearn.metrics import accuracy_score, mean_absolute_error
+
     from pipeline.database import get_connection
 
     today = date.fromisoformat(context["ds"])

@@ -12,14 +12,13 @@ Predictions produced:
   8. storm_probability    (0.0–1.0 probability)
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
 
 from config.settings import modeling_config
-from pipeline.process_weather import (encode_categoricals, get_feature_matrix,
-                                       compute_comfort_score)
+from pipeline.process_weather import compute_comfort_score, encode_categoricals, get_feature_matrix
 from pipeline.train_models import load_all_models
 
 logger = logging.getLogger(__name__)
@@ -78,7 +77,7 @@ def generate_predictions(df: pd.DataFrame) -> pd.DataFrame:
     # 8 — storm_probability
     st_proba = models["storm_probability"].predict_proba(X)[:, 1]
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     result = pd.DataFrame({
         "date":                 df["date"].values,

@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config.settings import mlops_config, settings
-from dags._airflow_compat import BranchPythonOperator, DAG, PythonOperator
+from dags._airflow_compat import DAG, BranchPythonOperator, PythonOperator
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ try:
 except ImportError:
     def _send_slack_alert(message: str, alert_key=None, cooldown_hours: int = 24) -> None:
         import requests
+
         from config.settings import settings
 
         if not settings.slack_webhook_url:

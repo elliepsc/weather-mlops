@@ -23,6 +23,7 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from config.settings import mlops_config
 from pipeline.database import (
     find_weather_raw_gaps,
     get_existing_cities_for_date,
@@ -33,7 +34,6 @@ from pipeline.database import (
     upsert_predictions,
     upsert_weather_raw,
 )
-from config.settings import mlops_config
 from pipeline.fetch_weather import fetch_city
 from pipeline.locations import LOCATIONS
 from pipeline.predict import generate_predictions

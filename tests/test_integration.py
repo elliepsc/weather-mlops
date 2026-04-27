@@ -10,7 +10,6 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture

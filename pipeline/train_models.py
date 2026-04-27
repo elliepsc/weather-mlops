@@ -17,19 +17,18 @@ import pickle
 from datetime import datetime
 from pathlib import Path
 
-import mlflow
 import mlflow.xgboost
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (accuracy_score, f1_score, mean_absolute_error,
-                              r2_score, roc_auc_score)
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, r2_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from xgboost import XGBClassifier, XGBRegressor
 
+import mlflow
 from config.settings import modeling_config
 from pipeline.mlflow_config import get_mlflow_artifacts_dir, get_mlflow_tracking_uri
-from pipeline.process_weather import (encode_categoricals, get_feature_matrix)
+from pipeline.process_weather import encode_categoricals, get_feature_matrix
 
 logger = logging.getLogger(__name__)
 

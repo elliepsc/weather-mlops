@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import pytest
 import pandas as pd
+import pytest
 
 from pipeline import fetch_weather as fw
 

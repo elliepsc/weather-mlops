@@ -19,7 +19,7 @@ from dags._airflow_compat import DAG, PythonOperator
 
 logger = logging.getLogger(__name__)
 
-I = mlops_config.ingestion
+ING = mlops_config.ingestion
 
 default_args = {
     "owner": "airflow",
@@ -60,6 +60,7 @@ def step_ingest_daily(**context):
 def check_daily_ingestion(**context):
     """Fail when yesterday coverage is below the configured city threshold."""
     import pandas as pd
+
     from pipeline.database import get_connection
     from pipeline.locations import LOCATIONS
 
@@ -76,10 +77,10 @@ def check_daily_ingestion(**context):
     n_cities = int(df["n"].iloc[0])
     logger.info("Ingestion check: %d/%d cities for %s", n_cities, expected, yesterday)
 
-    if n_cities < I.min_cities_threshold:
+    if n_cities < ING.min_cities_threshold:
         raise ValueError(
             f"Ingestion quality FAIL: only {n_cities}/{expected} cities for {yesterday}. "
-            f"Minimum required: {I.min_cities_threshold}. Predictions blocked."
+            f"Minimum required: {ING.min_cities_threshold}. Predictions blocked."
         )
 
 

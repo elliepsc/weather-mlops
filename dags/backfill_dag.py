@@ -25,7 +25,7 @@ from dags._airflow_compat import DAG, PythonOperator, TriggerDagRunOperator
 
 logger = logging.getLogger(__name__)
 
-I = mlops_config.ingestion
+ING = mlops_config.ingestion
 DEFAULT_BACKFILL_START = "2008-01-01"
 LAST_RETRAIN_PATH = ROOT / "data" / "monitoring" / "last_retrain.json"
 
@@ -102,7 +102,7 @@ def run_backfill_with_config(**context):
 
     init_db()
     summary = backfill_and_repair_date_range(
-        start, end, force=force, delay_seconds=I.backfill_delay_seconds
+        start, end, force=force, delay_seconds=ING.backfill_delay_seconds
     )
     context["ti"].xcom_push(key="backfill_summary", value=summary)
 

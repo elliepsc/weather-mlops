@@ -3,7 +3,6 @@ Feature engineering and label construction.
 Adds lag features, derived columns, and ML target labels.
 """
 
-import numpy as np
 import pandas as pd
 
 from config.settings import modeling_config

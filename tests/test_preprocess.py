@@ -4,15 +4,14 @@ import pandas as pd
 import pytest
 
 from pipeline.process_weather import (
-    wmo_to_weather_type,
-    compute_comfort_score,
+    CATEGORICAL_FEATURES,
+    ML_FEATURES,
     add_features,
+    compute_comfort_score,
     encode_categoricals,
     get_feature_matrix,
-    ML_FEATURES,
-    CATEGORICAL_FEATURES,
+    wmo_to_weather_type,
 )
-
 
 # ─── wmo_to_weather_type ─────────────────────────────────────────────────────
 

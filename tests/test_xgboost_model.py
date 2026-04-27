@@ -1,5 +1,4 @@
 """Unit tests for pipeline/train_models.py."""
-import pickle
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -8,11 +7,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier, XGBRegressor
+from xgboost import XGBClassifier
 
 from pipeline.process_weather import add_features, encode_categoricals, get_feature_matrix
-from pipeline.train_models import _train_binary, _train_regression, _train_multiclass, MODELS_DIR
-
+from pipeline.train_models import _train_binary, _train_multiclass, _train_regression
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -122,7 +120,7 @@ def test_train_multiclass_returns_metrics(xy):
 # ─── model save / load ───────────────────────────────────────────────────────
 
 def test_save_and_load_model():
-    from pipeline.train_models import _save, _load
+    from pipeline.train_models import _load, _save
     model = XGBClassifier(n_estimators=2)
 
     with tempfile.TemporaryDirectory() as tmpdir:

@@ -2,12 +2,12 @@
 Fetch weather data from Open-Meteo API (free, no API key required).
 Covers both historical backfill (2 years) and daily incremental updates.
 """
-import time
 import logging
+import time
 from datetime import date, timedelta
 
-import requests
 import pandas as pd
+import requests
 
 from config.settings import modeling_config, settings
 from pipeline.locations import LOCATIONS

@@ -15,7 +15,7 @@ Airflow restarts. One entry per alert_key, value = last send timestamp (ISO).
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -48,8 +48,8 @@ def _is_duplicate(alert_key: str, cooldown_hours: int) -> bool:
         last_sent = datetime.fromisoformat(last_sent_str)
         # Make timezone-aware if naive
         if last_sent.tzinfo is None:
-            last_sent = last_sent.replace(tzinfo=timezone.utc)
-        age = datetime.now(tz=timezone.utc) - last_sent
+            last_sent = last_sent.replace(tzinfo=UTC)
+        age = datetime.now(tz=UTC) - last_sent
         return age < timedelta(hours=cooldown_hours)
     except Exception:
         return False
@@ -57,7 +57,7 @@ def _is_duplicate(alert_key: str, cooldown_hours: int) -> bool:
 
 def _record_send(alert_key: str) -> None:
     state = _load_dedup()
-    state[alert_key] = datetime.now(tz=timezone.utc).isoformat()
+    state[alert_key] = datetime.now(tz=UTC).isoformat()
     _save_dedup(state)
 
 
@@ -76,6 +76,7 @@ def send_slack_alert(
         cooldown_hours: Dedup window in hours (default 24).
     """
     import requests
+
     from config.settings import settings
 
     if alert_key and _is_duplicate(alert_key, cooldown_hours):

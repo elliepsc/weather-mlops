@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from pipeline.database import DB_PATH, read_all, get_connection
+from pipeline.database import DB_PATH, get_connection
 from pipeline.mlflow_config import get_mlflow_tracking_uri
 
 app = FastAPI(
@@ -205,7 +205,6 @@ def get_mlflow_runs(n: int = Query(10, description="Number of most recent runs")
     Shows aggregate metrics per run (rain accuracy, temp MAE, etc.).
     """
     try:
-        import mlflow
         client = _get_mlflow_client()
         experiment = client.get_experiment_by_name("weather_australia")
         if not experiment:
@@ -258,7 +257,9 @@ def get_latest_mlflow_metrics():
 # ─── run ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import os, uvicorn
+    import os
+
+    import uvicorn
     port = int(os.getenv("API_PORT", 8083))
     host = os.getenv("API_HOST", "0.0.0.0")
     uvicorn.run("api.app:app", host=host, port=port, reload=True)

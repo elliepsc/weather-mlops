@@ -7,11 +7,14 @@ select = ["E", "W", "F", "I", "UP"]
 ignore = [
     "E501",   # line too long — handled by black
     "UP007",  # X | Y union syntax — keep Optional[] for clarity
+    "UP045",  # X | None — keep Optional[] consistent with UP007
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["F841"]   # unused variables are fine in test fixtures
-"dags/*"  = ["F401"]   # re-exports in DAG modules
+"tests/*"                  = ["F841"]         # unused variables are fine in test fixtures
+"dags/*"                   = ["F401", "E402"] # re-exports; sys.path insert before imports
+"api/*"                    = ["E402"]         # sys.path insert before imports
+"pipeline/run_pipeline.py" = ["E402"]         # sys.path insert before imports
 
 [tool.black]
 line-length = 100

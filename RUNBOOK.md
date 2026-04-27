@@ -16,7 +16,8 @@
 | Backfill initial (2008 → J-1) | ✅ `run_pipeline.py backfill` | ✅ `weather_backfill` (déclencher manuellement) |
 | Mise à jour quotidienne | ✅ `run_pipeline.py daily` | ✅ `weather_daily_ingestion` (automatique 6h UTC) |
 | Réentraînement hebdomadaire | ✅ `run_pipeline.py train` | ✅ `weather_weekly_train` (automatique lundi 2h) |
-| Monitoring qualité / drift | ✗ | ✅ `weather_daily_monitoring` (automatique 8h) |
+| Monitoring qualité / drift | ✗ | ✅ `weather_daily_monitoring` (automatique 9h UTC) |
+| Gap monitoring | ✗ | ✅ `weather_gap_monitor` (automatique) |
 | Export CSV | ✅ `run_pipeline.py export` | ✅ inclus dans chaque DAG |
 | Démarrer Airflow lui-même | ✅ obligatoire | ✗ |
 | Démarrer l'API FastAPI | ✅ obligatoire | ✗ |
@@ -85,6 +86,7 @@ AIRFLOW_ADMIN_PASSWORD=weather
 ```
 
 > Open-Meteo est gratuit et sans clé API. Aucune variable secrète requise pour le fonctionnement de base.
+> Pour les alertes Slack, renseigner `SLACK_WEBHOOK_URL`.
 
 ---
 
@@ -99,9 +101,10 @@ python pipeline/run_pipeline.py backfill
 Étapes exécutées dans l'ordre :
 1. `init_db` — crée `data/weather.db` + tables + vue `v_weather_full`
 2. Télécharge 2008-01-01 → J-1 pour les 26 villes (Open-Meteo, 10 s entre villes)
-3. Entraîne les 6 modèles XGBoost (~10 min sur 173 k lignes)
-4. Génère ~173 k prédictions
-5. Exporte `data/output/weather_final.csv`
+3. Répare les éventuels trous (`repair_gaps`)
+4. Entraîne les 6 modèles XGBoost (~10 min sur 173 k lignes)
+5. Génère ~173 k prédictions
+6. Exporte `data/output/weather_final.csv`
 
 **Durée totale : ~15 minutes**
 
@@ -116,7 +119,7 @@ Trigger : manuel → "Trigger DAG w/ config"
 Config JSON :
 {
   "start_date": "2008-01-01",
-  "end_date":   "2026-04-21"
+  "end_date":   "2026-04-27"
 }
 ```
 
@@ -182,12 +185,13 @@ streamlit run streamlit_app/app.py
 ### 3.3 MLflow UI
 
 ```bash
+# WSL (repo sous /mnt/...)
 mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-mlops/mlflow/mlflow.db --port 5000
-# → http://localhost:5000
-# Expérience : weather_australia
-```
 
-Sous Windows natif ou Docker, utilise `sqlite:///mlflow/mlflow.db`.
+# Windows natif ou Docker
+mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db --port 5000
+# → http://localhost:5000  (expérience : weather_australia)
+```
 
 ### 3.4 Docker Compose — tous les services (API + Prometheus + Grafana + Airflow)
 
@@ -197,7 +201,7 @@ Sous Windows natif ou Docker, utilise `sqlite:///mlflow/mlflow.db`.
 docker compose up -d
 ```
 
-`-d` = détaché, sinon le terminal est bloqué indéfiniment.  
+`-d` = détaché, sinon le terminal est bloqué indéfiniment.
 Ne pas utiliser `--build` sauf si les Dockerfiles ont changé.
 
 | Service | URL | Identifiants |
@@ -206,6 +210,9 @@ Ne pas utiliser `--build` sauf si les Dockerfiles ont changé.
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 | Airflow UI | http://localhost:8083 | voir ci-dessous |
+
+> **Note port API :** en local (sans Docker), l'API tourne sur **8083** (variable `API_PORT` dans `.env`).
+> Dans Docker, le Dockerfile force le port **8003** et docker-compose mappe `8003:8003`.
 
 #### Identifiants Airflow (SimpleAuthManager — Airflow 3.x)
 
@@ -216,18 +223,17 @@ docker compose logs airflow-webserver | grep "Password for user"
 # Simple auth manager | Password for user 'admin': <mot_de_passe_généré>
 ```
 
-Pour fixer un mot de passe permanent, ajouter dans `airflow-webserver` **et** `airflow-scheduler` du `docker-compose.yaml` :
+Pour fixer un mot de passe permanent via le fichier de mots de passe :
 
-```yaml
-environment:
-  AIRFLOW__SIMPLE_AUTH_MANAGER__PASSWORDS: "admin:mon_mot_de_passe"
+```bash
+# Modifier config/simple_auth_manager_passwords.json
+# Format : {"users": [{"username": "admin", "password": "mon_mdp"}]}
+docker compose up -d --force-recreate airflow-webserver airflow-scheduler
 ```
-
-Puis `docker compose up -d --force-recreate airflow-webserver airflow-scheduler`.
 
 #### Après une modification du `docker-compose.yaml`
 
-Un simple `docker compose up -d` **ne recrée pas** les containers existants.  
+Un simple `docker compose up -d` **ne recrée pas** les containers existants.
 Si tu changes des volumes ou des variables d'environnement :
 
 ```bash
@@ -244,7 +250,7 @@ docker compose up -d --force-recreate
 |---|---|
 | `command: webserver` | `command: api-server` |
 | `airflow webserver` | `airflow api-server` |
-| `airflow users create` | idem, mais `--role Admin` → SimpleAuthManager |
+| `airflow db init` | `airflow db migrate` |
 
 Volumes **obligatoires** dans les 3 services Airflow (`airflow-init`, `airflow-webserver`, `airflow-scheduler`) :
 
@@ -276,17 +282,19 @@ docker compose exec airflow-scheduler airflow dags list-import-errors
 
 ## PARTIE 4 — Airflow (orchestration automatique)
 
-### 4.1 Installation Airflow
+### 4.1 Installation Airflow (mode standalone local / WSL)
 
 ```bash
 pip install apache-airflow
 ```
 
-### 4.2 Initialisation (une seule fois)
+### 4.2 Initialisation (une seule fois — Airflow 3.x)
 
 ```bash
-airflow db init
+# Migrer / initialiser la DB Airflow
+airflow db migrate
 
+# Créer l'utilisateur admin
 airflow users create \
   --username admin \
   --password weather \
@@ -298,9 +306,18 @@ airflow users create \
 
 ### 4.3 Démarrer Airflow
 
+**Option A — Standalone tout-en-un (mode dev)**
+
+```bash
+bash start_airflow.sh
+# UI : http://localhost:8083
+```
+
+**Option B — Webserver + scheduler séparés**
+
 ```bash
 # Terminal 1
-airflow webserver --port 8081   # port 8081 pour éviter conflit avec l'API FastAPI
+airflow api-server --port 8081   # port 8081 pour éviter conflit avec l'API FastAPI
 
 # Terminal 2
 airflow scheduler
@@ -308,37 +325,34 @@ airflow scheduler
 
 UI : http://localhost:8081 — identifiants : `admin / weather`
 
-### 4.3 bis — Redemarrer Airflow proprement via `start_airflow.sh`
-
-Si tu veux lancer Airflow depuis `~`, crée un symlink vers le script du repo. Comme ça,
-les modifications de `start_airflow.sh` sont prises en compte sans recopier le fichier.
+### 4.3 bis — Symlink vers `start_airflow.sh` (depuis `~`)
 
 ```bash
-# Arrete Airflow
+# Arrêter Airflow
 pkill -f "airflow standalone"
 
 # Une seule fois, depuis le repo
-cd /chemin/vers/weather-mlops
 ln -sfn "$(pwd)/start_airflow.sh" ~/start_airflow.sh
 
-# Relance
+# Relancer
 bash ~/start_airflow.sh
 ```
 
 ### 4.4 DAGs disponibles
 
-| DAG | Schedule | Déclenchement | Tâches |
+| DAG | Schedule | Déclenchement | Tâches principales |
 |---|---|---|---|
-| `weather_daily_ingestion` | `0 6 * * *` | Automatique | init_db → fetch J-1 → predict → export |
-| `weather_weekly_train` | `0 2 * * 1` | Automatique (lundi) | retrain → predict → export |
-| `weather_daily_monitoring` | `0 8 * * *` | Automatique | qualité → couverture → drift → métriques → retrain auto si dégradation |
-| `weather_backfill` | Manuel | Trigger UI avec config JSON | fetch historique → retrain → predict → export |
+| `weather_daily_ingestion` | `0 6 * * *` | Automatique | init_db → fetch J-1 → check qualité → predict → export |
+| `weather_weekly_train` | `0 2 * * 1` | Automatique (lundi) | snapshot baseline → retrain → compare baseline → rollback si dégradé sinon predict → export |
+| `weather_daily_monitoring` | `0 9 * * *` | Automatique | qualité → couverture → drift KS → métriques → décision 4 voies |
+| `weather_backfill` | Manuel | Trigger UI avec config JSON | fetch historique → repair gaps → retrain → predict → export |
+| `weather_gap_monitor` | Planifié | Automatique | détection et réparation des trous dans `weather_raw` |
 
 ### 4.5 Activer les DAGs
 
-Dans l'UI Airflow (http://localhost:8081) :
+Dans l'UI Airflow (http://localhost:8083) :
 1. Cliquer sur le toggle à gauche de chaque DAG pour l'activer
-2. Pour `weather_backfill` : cliquer **Trigger DAG ▶** → fournir le JSON de config si nécessaire
+2. Pour `weather_backfill` : cliquer **Trigger DAG ▶** → fournir le JSON de config
 
 ### 4.6 Vérifier l'exécution d'un DAG
 
@@ -398,6 +412,12 @@ conn.close()
 
 Le DAG `weather_weekly_train` s'exécute chaque lundi à 2h UTC.
 
+Il effectue une **validation baseline** avant mise en production :
+1. Snapshot des modèles actuels dans `models/baseline/`
+2. Réentraîne tous les modèles
+3. Compare les métriques : si `rain_accuracy` chute de > 2 pp **ou** `temp_mae` augmente de > 0.2°C → rollback automatique vers `models/baseline/`
+4. Si les métriques sont acceptables : génère les prédictions et exporte
+
 ### 6.2 Manuel
 
 ```bash
@@ -409,10 +429,10 @@ Durée : ~10 minutes sur 173 k lignes.
 ### 6.3 Comparer les métriques avant/après
 
 ```bash
-# Voir les runs MLflow
 python -c "
-import mlflow
-mlflow.set_tracking_uri('sqlite:////home/$USER/.weather-mlops/mlflow/mlflow.db')
+import mlflow, os
+uri = os.getenv('MLFLOW_TRACKING_URI', f'sqlite:////home/{os.getenv(\"USER\", \"user\")}/.weather-mlops/mlflow/mlflow.db')
+mlflow.set_tracking_uri(uri)
 client = mlflow.tracking.MlflowClient()
 exp = client.get_experiment_by_name('weather_australia')
 runs = client.search_runs(exp.experiment_id, order_by=['start_time DESC'], max_results=3)
@@ -434,21 +454,21 @@ with open('models/metrics.json') as f:
     for name, metrics in json.load(f).items():
         print(f'{name}:')
         for k, v in metrics.items():
-            print(f'  {k}: {round(v,4) if v else v}')
+            print(f'  {k}: {round(v,4) if isinstance(v, float) else v}')
         print()
 "
 ```
 
-Métriques de référence (entraînement sur 173 k lignes, 2008-2026) :
+Métriques de référence (entraînement sur ~173 800 lignes, 2008-2026) :
 
-| Modèle | Accuracy / MAE | F1 / R² | AUC | Seuil d'alerte |
+| Modèle | Accuracy / MAE | R² | AUC | Seuil d'alerte |
 |---|---|---|---|---|
-| `rain_tomorrow` | 77.4% | 0.651 | 0.856 | AUC < 0.80 |
-| `max_temp_tomorrow` | MAE 1.63°C | R² 0.908 | — | R² < 0.85 |
-| `weather_type_tomorrow` | 88.5% | F1_macro 0.833 | — | acc < 0.80 |
-| `heatwave_risk` | 97.2% | 0.752 | 0.996 | AUC < 0.95 |
-| `frost_risk` | 94.3% | 0.474 | 0.988 | AUC < 0.95 |
-| `storm_probability` | — | 0.0 | ⚠️ N/A | Problème connu |
+| `rain_tomorrow` | 77.0% | — | 0.852 | AUC < 0.80 |
+| `max_temp_tomorrow` | MAE 1.63°C | 0.907 | — | R² < 0.85 |
+| `weather_type_tomorrow` | 82.2% | — | — | acc < 0.80 |
+| `heatwave_risk` | — | — | 0.996 | AUC < 0.95 |
+| `frost_risk` | — | — | 0.989 | AUC < 0.95 |
+| `storm_probability` | — | — | 0.898 | AUC < 0.80 |
 
 ### 7.2 Feature importances
 
@@ -469,39 +489,36 @@ for f in sorted(os.listdir('models')):
 
 ### 7.3 Monitoring automatique — drift et accuracy
 
-Le DAG `weather_daily_monitoring` (08:00 UTC) effectue chaque jour :
+Le DAG `weather_daily_monitoring` (09:00 UTC) effectue chaque jour :
 
 1. **Qualité des données** — vérifie que ≥ 80 % des 26 villes ont leurs données J-1
 2. **Couverture des prédictions** — signale les villes dont les prédictions ne sont pas à jour
-3. **Détection de drift** — test KS entre les 30 derniers jours et les 30 jours précédents
+3. **Détection de drift** — test KS entre les 30 derniers jours et les 30 jours précédents sur 6 features (`max_temp`, `min_temp`, `humidity_3pm`, `pressure_3pm`, `rainfall`, `wind_gust_speed`)
 4. **Métriques modèle** — accuracy pluie et MAE température sur 30 jours glissants
-5. **Retrain automatique** si l'une des conditions est vraie :
+5. **Décision 4 voies** :
 
-| Condition | Seuil |
+| Décision | Condition |
 |---|---|
-| Drift KS détecté | p < 0.05 sur ≥ 1 feature |
-| Accuracy pluie | < 75% sur 30 jours |
+| `trigger_retrain` | Drift KS ≥ **4** features OU accuracy pluie < 75 % (cooldown respecté) |
+| `alert_only` | Drift KS ≥ **3** features (probable saisonnalité, ne justifie pas un retrain) |
+| `alert_insufficient_data` | < 30 lignes disponibles pour calculer les métriques |
+| `no_action` | Modèle stable |
 
-En cas de déclenchement, `weather_weekly_train` est lancé automatiquement sans intervention manuelle.
+Le cooldown entre deux retrains automatiques est de **7 jours** (configurable dans `config/mlops.yaml` → `monitoring.retrain_cooldown_days`).
 
 **Lire les résultats :**
 ```bash
-cat ~/weather-mlops/data/monitoring/model_metrics.json   # accuracy + MAE
-cat ~/weather-mlops/data/monitoring/drift_report.json    # KS stat par feature
+cat data/monitoring/model_metrics.json   # accuracy + MAE
+cat data/monitoring/drift_report.json    # KS stat par feature
+cat data/monitoring/monitoring_decision.json  # décision retenue
 ```
 
 **Lancement manuel :**
 ```bash
-cd ~ && airflow dags trigger weather_daily_monitoring
+airflow dags trigger weather_daily_monitoring
 ```
 
 **Dans l'UI :** tâche `trigger_retrain` verte = retrain lancé / `no_action` verte = modèle stable.
-
-### 7.4 Note — storm_probability
-
-Ce modèle retourne AUC=0 / F1=0 car les codes WMO 95-99 (orage) sont quasi absents dans ERA5-Land. Ce n'est pas un bug de code mais une limitation de la source de données. Options :
-- Élargir le label storm aux codes WMO 80-84 (averses fortes) dans `process_weather.py`
-- Accepter la limitation et ignorer cette prédiction dans les analyses
 
 ---
 
@@ -532,41 +549,41 @@ Mis à jour automatiquement par chaque run `daily`, `train` ou `export`.
 ## PARTIE 9 — Tests
 
 ```bash
-pytest tests/ -v
+python -m pytest tests/ -q
 ```
 
-59 tests couvrant :
+60 tests couvrant :
 - Feature engineering (`test_preprocess.py`)
 - Mapping enrichi Open-Meteo (`test_fetch_weather.py`)
 - Entraînement et persistance modèles (`test_xgboost_model.py`)
 - Configuration MLflow (`test_mlflow_config.py`)
-- Configuration modèle (`test_modeling_config.py`)
-- Branching monitoring (`test_monitoring_branch.py`)
-- Gate et rollback du train DAG (`test_train_dag.py`)
+- Configuration modèle YAML (`test_modeling_config.py`)
+- Branching monitoring 4 voies (`test_monitoring_branch.py`)
+- Gate baseline et rollback du train DAG (`test_train_dag.py`)
 - Idempotence du daily ingestion et reprise incrémentale du backfill (`test_ingestion_backfill_flow.py`)
 
-Résultat attendu : `59 passed`
+Résultat attendu : `60 passed`
 
 ---
 
 ## PARTIE 10 — Procédures de récupération
 
-### 10.1 Villes manquantes (après rate limit)
+### 10.1 Villes manquantes (après rate limit Open-Meteo)
 
 ```bash
-# Identifier les villes avec données NASA POWER incorrectes (pression < 990 hPa)
+# Identifier les villes en retard
 python -c "
 import sqlite3
 conn = sqlite3.connect('data/weather.db')
 rows = conn.execute('''
-    SELECT city, ROUND(AVG(pressure_9am),1) as avg_p
+    SELECT city, MAX(date) as latest, COUNT(*) as n
     FROM weather_raw
     GROUP BY city
-    HAVING avg_p < 990
-    ORDER BY avg_p
+    ORDER BY latest ASC
+    LIMIT 10
 ''').fetchall()
 for r in rows:
-    print(f'  {r[0]:<15} {r[1]} hPa  <- données NASA POWER incorrectes')
+    print(f'  {r[0]:<15} {r[1]}  ({r[2]} lignes)')
 conn.close()
 "
 
@@ -574,30 +591,53 @@ conn.close()
 python pipeline/run_pipeline.py backfill
 ```
 
-### 10.2 Reconstruire la base de zéro
+### 10.2 Réparer un intervalle spécifique
+
+```bash
+python pipeline/run_pipeline.py repair --start-date 2026-01-01 --end-date 2026-04-27
+```
+
+### 10.3 Reconstruire la base de zéro
 
 ```bash
 rm data/weather.db
 python pipeline/run_pipeline.py backfill
 ```
 
-### 10.3 Régénérer les prédictions sans réentraîner
+### 10.4 Régénérer les prédictions sans réentraîner
 
 ```bash
 python pipeline/run_pipeline.py predict
 ```
 
-### 10.4 Régénérer le CSV uniquement
+### 10.5 Régénérer le CSV uniquement
 
 ```bash
 python pipeline/run_pipeline.py export
 ```
 
-### 10.5 Forcer le re-téléchargement de toutes les villes
+### 10.6 Forcer le re-téléchargement de toutes les villes
 
 ```bash
 python pipeline/run_pipeline.py backfill --force
 # Attention : efface et re-télécharge toutes les données (~15 min)
+```
+
+### 10.7 Rollback manuel des modèles
+
+```bash
+# Restaurer le baseline manuellement si le train DAG n'a pas rollbacké automatiquement
+cp models/baseline/*.pkl models/
+cp models/baseline/metrics.json models/
+python pipeline/run_pipeline.py predict
+```
+
+### 10.8 Réinitialiser la DB Airflow (Docker)
+
+```bash
+docker compose down -v   # supprime aussi le volume PostgreSQL
+docker compose up -d
+# Les DAGs seront rechargés automatiquement ; les historiques d'exécution sont perdus
 ```
 
 ---
@@ -611,22 +651,20 @@ import sqlite3
 conn = sqlite3.connect('data/weather.db')
 r = conn.execute('SELECT COUNT(*), COUNT(DISTINCT city), MIN(date), MAX(date) FROM weather_raw').fetchone()
 p = conn.execute('SELECT COUNT(*), COUNT(DISTINCT city) FROM weather_predictions').fetchone()
-bad_press = conn.execute('SELECT COUNT(*) FROM weather_raw WHERE pressure_9am < 990').fetchone()[0]
 print('DB brutes  :', r[0], 'lignes |', r[2], '->', r[3], '| villes:', r[1])
 print('Prédictions:', p[0], 'lignes | villes:', p[1])
-print('Pression incorrecte (NASA):', bad_press, 'lignes')
 conn.close()
 "
 
 # 2. Modèles
 python -c "
 import os, json
-pkls = [f for f in os.listdir('models') if f.endswith('.pkl') and 'encoder' not in f and 'mappings' not in f]
+pkls = [f for f in os.listdir('models') if f.endswith('.pkl') and 'mappings' not in f]
 print('Modèles :', len(pkls), '/ 6')
 with open('models/metrics.json') as f:
     m = json.load(f)
-print('rain AUC  :', m['rain_tomorrow']['auc_roc'])
-print('temp R²   :', m['max_temp_tomorrow']['r2'])
+print('rain AUC  :', m.get('rain_tomorrow', {}).get('auc_roc', 'N/A'))
+print('temp R²   :', m.get('max_temp_tomorrow', {}).get('r2', 'N/A'))
 "
 
 # 3. CSV
@@ -639,7 +677,7 @@ print('CSV       :', rows, 'lignes')
 curl -s http://localhost:8083/health
 
 # 5. Tests
-pytest tests/ -q
+python -m pytest tests/ -q
 ```
 
 ---
@@ -652,27 +690,28 @@ INSTALLATION (une fois)
           |
           v
 BACKFILL (une fois, CLI ou DAG manuel)
-    fetch 2008-2026 → train 6 modèles → predict → export CSV
+    fetch 2008-2026 → repair gaps → train 6 modèles → predict → export CSV
           |
           v
 SERVICES (démarrer manuellement ou via gestionnaire de processus)
-    python api/app.py          → :8083  (FastAPI)
+    python api/app.py          → :8083  (FastAPI, local)
     streamlit run app.py       → :8501  (Dashboard)
     mlflow ui                  → :5000  (Tracking)
-    docker compose up          → :9090/:3000 (Prometheus/Grafana)
-    airflow webserver+scheduler→ :8081  (Orchestrateur)
+    docker compose up          → :8003/:9090/:3000/:8083 (API Docker/Prometheus/Grafana/Airflow)
+    bash start_airflow.sh      → :8083  (Orchestrateur, mode dev)
           |
           v
 CYCLE QUOTIDIEN (Airflow automatique)
     06:00 UTC — weather_daily_ingestion
-        fetch J-1 → predict → export
-    08:00 UTC — weather_daily_monitoring
-        qualité → drift → métriques → alerte si problème
+        fetch J-1 → check qualité (≥ 21/26 villes) → predict → export
+    09:00 UTC — weather_daily_monitoring
+        qualité → drift KS → métriques 30j → décision 4 voies
           |
           v
 CYCLE HEBDOMADAIRE (Airflow automatique)
     Lundi 02:00 UTC — weather_weekly_train
-        retrain 6 modèles → predict → export → MLflow log
+        snapshot baseline → retrain 6 modèles → compare baseline
+        → rollback si dégradé sinon predict → export → MLflow log
           |
           v
 CONSOMMATION

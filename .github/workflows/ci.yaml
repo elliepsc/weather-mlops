@@ -67,6 +67,12 @@ jobs:
           print("Config files valid")
           EOF
 
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format check (black)
+        run: black --check .
+
   tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -81,7 +87,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt httpx
 
       - name: Run tests
         run: pytest tests/ -q --tb=short

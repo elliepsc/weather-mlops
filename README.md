@@ -25,7 +25,7 @@ data/weather.db (SQLite)
     |
     +-- data/output/weather_final.csv  (vue v_weather_full exportée)
     |
-    +-- api/app.py                   --> FastAPI :8083
+    +-- api/app.py                   --> FastAPI :8083 (local) / :8003 (Docker)
              |
              +-- streamlit_app/app.py      dashboard interactif
              +-- Power BI Web connector
@@ -40,9 +40,9 @@ data/weather.db (SQLite)
 | **SQLite** | Base locale `data/weather.db`. Tables `weather_raw` + `weather_predictions` + vue `v_weather_full`. |
 | **XGBoost** | 6 modèles sauvegardés dans `models/`. Paramètres dans `config/modeling.yaml`. |
 | **MLflow** | Tracking local SQLite. Sous WSL avec repo sur `/mnt/...`, le backend bascule automatiquement vers `~/.weather-mlops/mlflow`. |
-| **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8003. |
+| **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8083 (local) ou 8003 (Docker). |
 | **Streamlit** | Dashboard local connecté à l'API. |
-| **Airflow** | Orchestration : ingestion quotidienne, réentraînement hebdomadaire, monitoring, backfill. |
+| **Airflow** | Orchestration : ingestion quotidienne, réentraînement hebdomadaire, monitoring, backfill, gap monitoring. |
 | **Prometheus/Grafana** | Monitoring API via Docker Compose. |
 
 ---
@@ -76,6 +76,15 @@ data/weather.db (SQLite)
 | `cloudcover` (horaire 9h/15h) | `cloud_9am`, `cloud_3pm` | % → oktas (0-8) |
 | `windspeed_10m` (horaire 9h/15h) | `wind_speed_9am`, `wind_speed_3pm` | km/h |
 
+**Champs enrichis (stockés, pas encore features modèles) :**
+
+| Variable Open-Meteo | Colonne DB | Notes |
+|---|---|---|
+| `rain_sum` | `rain_sum` | mm (pluie liquide uniquement) |
+| `precipitation_hours` | `precipitation_hours` | heures de précipitation |
+| `dew_point_2m` (horaire 9h/15h) | `dew_point_9am`, `dew_point_3pm` | °C |
+| `surface_pressure` (horaire 9h/15h) | `surface_pressure_9am`, `surface_pressure_3pm` | hPa (niveau station) |
+
 ### Qualité des données vs BOM
 
 Les données Open-Meteo correspondent bien aux stations BOM (mesures terrain) :
@@ -90,8 +99,6 @@ Les données Open-Meteo correspondent bien aux stations BOM (mesures terrain) :
 
 > **Note :** Le biais de température est structurel (grille 9 km² vs station ponctuelle). Il est cohérent sur toute la période 2008-2026, donc n'impacte pas la qualité du modèle ML qui apprend les patterns Open-Meteo de bout en bout.
 
-> **Pourquoi pas NASA POWER ?** NASA POWER utilise ERA5 brut à 50 km (vs ERA5-Land 9 km pour Open-Meteo). Il renvoie la pression de surface (non corrigée MSL), pas de données horaires, et des rafales sous-estimées de 10-28 km/h. Incompatible avec ce projet station-to-station.
-
 ---
 
 ## Données
@@ -101,7 +108,7 @@ Les données Open-Meteo correspondent bien aux stations BOM (mesures terrain) :
 - **Période** : 2008-01-01 → hier (J-1)
 - **Villes** : 26 villes australiennes
 - **Lignes** : ~173 800 (26 × ~6 686 jours)
-- **Colonnes brutes** : 27 (météo) + 8 (prédictions) = 35 au total dans `weather_final.csv`
+- **Colonnes brutes** : 35 (météo de base + champs enrichis) + 8 (prédictions) dans `weather_final.csv`
 
 ### Villes couvertes (26)
 
@@ -125,24 +132,22 @@ Les données Open-Meteo correspondent bien aux stations BOM (mesures terrain) :
 | `rain_tomorrow` | Binaire 0/1 | XGBoost classification | Pluie demain (seuil : >1 mm) |
 | `rain_tomorrow_proba` | Probabilité 0-1 | XGBoost classification | Probabilité de pluie |
 | `max_temp_tomorrow` | Régression | XGBoost régression | Température max prévue demain (°C) |
-| `weather_type_tomorrow` | Multi-classe | XGBoost multiclass | `Sunny`, `Cloudy`, `Rainy` |
+| `weather_type_tomorrow` | Multi-classe | XGBoost multiclass | `Sunny`, `Cloudy`, `Rainy`, `Stormy` |
 | `comfort_score` | Score 0-100 | Formule | Température 18-24°C idéale, pénalités humidité/vent/pluie |
 | `heatwave_risk` | Probabilité 0-1 | XGBoost classification | Risque canicule (≥35°C deux jours consécutifs) |
 | `frost_risk` | Probabilité 0-1 | XGBoost classification | Risque gel (min_temp ≤ 2°C) |
-| `storm_probability` | Probabilité 0-1 | XGBoost classification | Probabilité d'orage (codes WMO 95-99) |
+| `storm_probability` | Probabilité 0-1 | XGBoost classification | Probabilité d'orage (codes WMO 95-99 ou pluie > 10mm + rafales > 50 km/h) |
 
-### Métriques des modèles (entraînement sur 173 800 lignes, 2008-2026)
+### Métriques des modèles (entraînement sur ~173 800 lignes, 2008-2026)
 
-| Modèle | Accuracy / MAE | F1 / R² | AUC-ROC | Notes |
-|---|---|---|---|---|
-| `rain_tomorrow` | 78.4% | 0.677 | **0.868** | 29.1% de jours de pluie |
-| `max_temp_tomorrow` | MAE 1.60°C | R² **0.912** | — | Erreur moyenne ±2°C |
-| `weather_type_tomorrow` | 99.99% | F1_macro 0.556 | — | Classes déséquilibrées |
-| `heatwave_risk` | 97.4% | 0.772 | **0.996** | 4.5% positifs |
-| `frost_risk` | 94.0% | 0.506 | **0.988** | 3.1% positifs |
-| `storm_probability` | 100% | 0.0 | — | Aucun orage en test (événement très rare) |
-
-> **Note storm_probability :** AUC non calculable car 0% de positifs dans le jeu de test. Le modèle nécessite soit plus de données (étendre la période), soit une redéfinition du label storm (codes WMO plus larges).
+| Modèle | Accuracy / MAE | R² | AUC-ROC |
+|---|---|---|---|
+| `rain_tomorrow` | 77.0% | — | **0.852** |
+| `max_temp_tomorrow` | MAE 1.63°C | **0.907** | — |
+| `weather_type_tomorrow` | 82.2% | — | — |
+| `heatwave_risk` | — | — | **0.996** |
+| `frost_risk` | — | — | **0.989** |
+| `storm_probability` | — | — | **0.898** |
 
 ---
 
@@ -158,7 +163,7 @@ Les données Open-Meteo correspondent bien aux stations BOM (mesures terrain) :
   - `temp_anomaly` = max_temp - max_temp_rolling7 (anomalie thermique)
   - `consec_hot_days` = cumul de jours chauds (détection canicule)
   - `comfort_score` = formule basée sur temp, humidité, vent, soleil
-- **Labels cibles** (décalés J+1) : `rain_tomorrow`, `max_temp_tomorrow`, `heatwave_risk`, `frost_risk`, `storm_label`
+- **Labels cibles** (décalés J+1 par ville) : `rain_tomorrow`, `max_temp_tomorrow`, `weather_type_tomorrow`, `heatwave_risk`, `frost_risk`, `storm_label`
 
 ---
 
@@ -170,9 +175,12 @@ weather-mlops/
 │   └── app.py                    # FastAPI — 9 endpoints + Prometheus
 ├── dags/
 │   ├── ingestion_dag.py          # Ingestion quotidienne (06:00 UTC)
-│   ├── train_dag.py              # Réentraînement hebdomadaire (lundi 02:00)
-│   ├── monitoring_dag.py         # Qualité, couverture, drift, métriques
-│   └── backfill_dag.py           # Backfill manuel paramétrable
+│   ├── train_dag.py              # Réentraînement hebdomadaire (lundi 02:00) + baseline gate
+│   ├── monitoring_dag.py         # Qualité, couverture, drift, métriques (09:00 UTC)
+│   ├── backfill_dag.py           # Backfill manuel paramétrable
+│   ├── gap_monitor_dag.py        # Détection et réparation des trous de données
+│   ├── _airflow_compat.py        # Couche de compatibilité Airflow 3.x pour les tests
+│   └── _notifications.py         # Helpers alertes Slack
 ├── pipeline/
 │   ├── locations.py              # 26 villes (lat, lon, timezone, state)
 │   ├── fetch_weather.py          # Appels Open-Meteo (archive + forecast)
@@ -180,6 +188,7 @@ weather-mlops/
 │   ├── process_weather.py        # Feature engineering + labels
 │   ├── train_models.py           # Entraînement XGBoost + MLflow
 │   ├── predict.py                # Génération des prédictions
+│   ├── mlflow_config.py          # Résolution URI MLflow (Windows / WSL / Docker)
 │   └── run_pipeline.py           # CLI d'orchestration
 ├── streamlit_app/
 │   ├── app.py                    # Dashboard Streamlit
@@ -188,6 +197,8 @@ weather-mlops/
 │   ├── test_preprocess.py
 │   ├── test_xgboost_model.py
 │   ├── test_mlflow_config.py
+│   ├── test_fetch_weather.py
+│   ├── test_modeling_config.py
 │   ├── test_monitoring_branch.py
 │   ├── test_ingestion_backfill_flow.py
 │   └── test_train_dag.py
@@ -201,13 +212,16 @@ weather-mlops/
 │   └── output/
 │       └── weather_final.csv     # Vue complète exportée (~174 000 lignes)
 ├── models/                       # Modèles .pkl + metrics.json + feature importances
+│   └── baseline/                 # Snapshot du dernier train validé (gate de rollback)
 ├── mlflow/                       # Tracking MLflow local (Windows / Docker)
 ├── config/
 │   ├── mlops.yaml               # Seuils MLOps, gating, cooldowns
 │   ├── modeling.yaml            # Hyperparamètres XGBoost, features, labels
 │   └── settings.py              # Chargement typé des configs
-├── docker-compose.yaml           # API + Prometheus + Grafana
-├── Dockerfile                    # Image Python 3.11 slim pour l'API
+├── docker-compose.yaml           # API + Prometheus + Grafana + Airflow (PostgreSQL)
+├── Dockerfile                    # Image Python 3.11 slim pour l'API (port 8003)
+├── Dockerfile.airflow            # Image apache/airflow:3.0.0 + dépendances pipeline
+├── start_airflow.sh              # Lanceur Airflow standalone (mode dev / WSL)
 └── requirements.txt
 ```
 
@@ -218,7 +232,7 @@ weather-mlops/
 **Prérequis :**
 - Python 3.10+
 - Git
-- Docker Desktop (optionnel, pour Prometheus/Grafana)
+- Docker Desktop (optionnel, pour Prometheus/Grafana/Airflow)
 - Apache Airflow (optionnel, pour l'orchestration planifiée)
 
 ```bash
@@ -253,11 +267,11 @@ Le point d'entrée est `pipeline/run_pipeline.py`.
 | `daily` | Ingestion J-1 + prédictions + export (tâche Airflow quotidienne) |
 | `train` | Réentraînement complet + prédictions + export (tâche Airflow hebdomadaire) |
 | `predict` | Régénération des prédictions avec les modèles existants (sans réentraîner) |
-| `repair --start-date ... --end-date ...` | Répare explicitement les dates manquantes ou incomplètes sur un intervalle |
+| `repair --start-date ... --end-date ...` | Répare les dates manquantes ou incomplètes sur un intervalle |
 | `export` | Export de `v_weather_full` vers `data/output/weather_final.csv` |
 
 ```bash
-# Premier lancement complet (~4 min, 26 villes, 18 ans)
+# Premier lancement complet (~15 min, 26 villes, 18 ans)
 python pipeline/run_pipeline.py backfill
 
 # Mise à jour quotidienne
@@ -278,15 +292,13 @@ python pipeline/run_pipeline.py export
 L'API gratuite Open-Meteo impose une limite de taux. Le pipeline applique automatiquement :
 - **10 secondes de délai** entre chaque ville lors du backfill
 - **Retry exponentiel** en cas de 429 : 30 s → 60 s → 120 s (3 tentatives)
-- **Résumé** : le backfill complet prend ~4-5 minutes pour 26 villes
+- **Résumé** : le backfill complet prend ~15 minutes pour 26 villes (18 ans de données)
 
 En cas d'échec partiel (certaines villes en erreur), relancer sans `--force` pour ne re-télécharger que les villes manquantes :
 
 ```bash
 python pipeline/run_pipeline.py backfill
 ```
-
-Le backfill relance aussi une phase `repair_gaps` qui scanne l'intervalle demandé et rejoue les dates manquantes ou incomplètes avant le retrain.
 
 ---
 
@@ -316,6 +328,10 @@ Données brutes Open-Meteo, une ligne par (date, ville).
 | temp_9am / 3pm | REAL | °C |
 | rain_today | INTEGER | 1 si rainfall > 1 mm |
 | weather_code | INTEGER | Code WMO |
+| rain_sum | REAL | mm (pluie liquide uniquement) |
+| precipitation_hours | REAL | heures de précipitation |
+| dew_point_9am / 3pm | REAL | °C (point de rosée) |
+| surface_pressure_9am / 3pm | REAL | hPa (pression station, pas MSL) |
 
 ### Table `weather_predictions`
 
@@ -330,10 +346,13 @@ Prédictions générées par les 6 modèles, une ligne par (date, ville).
 ## API FastAPI
 
 ```bash
+# Local (port 8083 par défaut)
 python api/app.py
 ```
 
-URL locale : `http://localhost:8083`
+URL locale : `http://localhost:8083` — Swagger : `http://localhost:8083/docs`
+
+Via Docker Compose, l'API tourne sur le port **8003**.
 
 | Endpoint | Description |
 |---|---|
@@ -388,11 +407,14 @@ Régénéré automatiquement par `backfill`, `daily`, `train` et `export`.
 ## MLflow
 
 ```bash
+# WSL (repo sous /mnt/...)
 mlflow ui --backend-store-uri sqlite:////home/$USER/.weather-mlops/mlflow/mlflow.db --port 5000
+
+# Windows natif ou Docker
+mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db --port 5000
 ```
 
 URL locale : `http://localhost:5000`
-Sous Windows natif ou Docker, garde `sqlite:///mlflow/mlflow.db`.
 
 Chaque entraînement crée un run parent (stats dataset) avec des runs enfants par modèle (params, métriques, artefacts).
 L'expérience par défaut est `weather_australia` (définie dans `config/modeling.yaml`).
@@ -403,48 +425,64 @@ L'expérience par défaut est `weather_australia` (définie dans `config/modelin
 
 Les DAGs sont dans `dags/`.
 
-| DAG | Schedule | Tâches |
+| DAG | Schedule | Tâches principales |
 |---|---|---|
-| `weather_daily_ingestion` | `0 6 * * *` | init DB → ingestion J-1 → prédictions → export |
-| `weather_weekly_train` | `0 2 * * 1` | réentraînement → prédictions → export |
-| `weather_daily_monitoring` | `0 8 * * *` | qualité, couverture, drift, métriques, alertes |
-| `weather_backfill` | Manuel | backfill paramétrable → entraînement → prédictions → export |
+| `weather_daily_ingestion` | `0 6 * * *` | init DB → fetch J-1 → check qualité → prédictions → export |
+| `weather_weekly_train` | `0 2 * * 1` | snapshot baseline → retrain → compare baseline → rollback si dégradé sinon prédictions → export |
+| `weather_daily_monitoring` | `0 9 * * *` | qualité → couverture → drift KS → métriques → décision 4 voies → retrain auto si nécessaire |
+| `weather_backfill` | Manuel | fetch historique → repair gaps → retrain → prédictions → export |
+| `weather_gap_monitor` | Planifié | détection et réparation des trous dans `weather_raw` |
+
+### Logique de monitoring (4 voies)
+
+Le DAG `weather_daily_monitoring` prend une décision parmi 4 branches :
+
+| Décision | Condition |
+|---|---|
+| `trigger_retrain` | Drift KS ≥ 4 features OU accuracy pluie < 75 % (et cooldown expiré) |
+| `alert_only` | Drift KS ≥ 3 features (probable saisonnalité, pas suffisant pour retraîner) |
+| `alert_insufficient_data` | < 30 lignes disponibles pour calculer les métriques |
+| `no_action` | Modèle stable |
+
+Le cooldown est de **7 jours** entre deux retrains automatiques (configurable dans `config/mlops.yaml`).
+
+### Baseline validation (train DAG)
+
+Le DAG `weather_weekly_train` valide le nouveau modèle avant de le mettre en production :
+- Si `rain_accuracy` chute de plus de 2 pp **ou** `temp_mae` augmente de plus de 0.2°C → rollback automatique vers `models/baseline/`
+- Seuils dans `config/mlops.yaml` → `training.baseline_tolerance`
 
 ```bash
-# Installation (depuis le home Linux pour éviter les problèmes WSL/NTFS)
-cd ~ && pip install apache-airflow --no-cache-dir
+# Lancement standalone local (mode dev)
+bash start_airflow.sh
 
-# Lancement tout-en-un (webserver + scheduler + DB init automatique)
-# Port 8083 réservé à Airflow ; FastAPI tourne sur 8003
-AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8083 airflow standalone
+# UI Airflow : http://localhost:8083
 ```
-
-L'UI est accessible sur `localhost:8083`. Le mot de passe admin est affiché au premier démarrage dans les logs (`standalone | Login with username: admin  password: ...`).
 
 ---
 
 ## Monitoring Docker
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 | Service | URL | Notes |
 |---|---|---|
-| API FastAPI | http://localhost:8083 | |
+| API FastAPI | http://localhost:8003 | Port 8003 dans Docker (8083 en local) |
 | Prometheus | http://localhost:9090 | Scrape `/metrics` toutes les 15 s |
 | Grafana | http://localhost:3000 | Identifiants : admin / admin |
+| Airflow UI | http://localhost:8083 | Identifiants dans les logs au 1er démarrage |
 
 ---
 
 ## Tests
 
 ```bash
-pytest tests
+python -m pytest tests/ -q
 ```
 
-Couvrent le feature engineering, les helpers de training et la persistance des modèles.
-Couvrent aussi la config MLflow, la logique de branching/gating des DAGs Airflow, l'idempotence du daily ingestion et la reprise incrémentale du backfill.
+60 tests couvrant le feature engineering, les appels Open-Meteo enrichis, l'entraînement et la persistance des modèles, la config MLflow, la configuration YAML, la logique de branching du DAG monitoring, la gate baseline et le rollback du DAG train, l'idempotence de l'ingestion quotidienne et la reprise incrémentale du backfill.
 
 ---
 
@@ -456,6 +494,7 @@ data/output/weather_final.csv
 data/monitoring/*.json
 models/*.pkl
 models/metrics.json
+models/baseline/
 mlflow/mlflow.db
 ~/.weather-mlops/mlflow/mlflow.db   # créé automatiquement sous WSL sur /mnt/...
 logs/pipeline.log

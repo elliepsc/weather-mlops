@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP"]
+ignore = [
+    "E501",   # line too long — handled by black
+    "UP007",  # X | Y union syntax — keep Optional[] for clarity
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F841"]   # unused variables are fine in test fixtures
+"dags/*"  = ["F401"]   # re-exports in DAG modules
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

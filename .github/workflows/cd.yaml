@@ -29,5 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: docker compose config
         run: docker compose config --quiet

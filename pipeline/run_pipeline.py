@@ -39,6 +39,7 @@ from pipeline.locations import LOCATIONS
 from pipeline.predict import generate_predictions
 from pipeline.process_weather import add_features
 
+(ROOT / "logs").mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",

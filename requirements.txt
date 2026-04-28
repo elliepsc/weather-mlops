@@ -1,34 +1,38 @@
 # Core data
-pandas>=2.0.0
-numpy>=1.24.0
-scipy>=1.11.0
+pandas==2.1.4
+numpy==1.26.4
+scipy==1.14.1
 
 # ML
-xgboost>=2.0.0
-scikit-learn>=1.3.0
+xgboost==3.2.0
+scikit-learn==1.5.2
 
 # Experiment tracking
-mlflow>=2.10.0
+mlflow==3.11.1
 
 # API
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-prometheus-fastapi-instrumentator>=6.1.0
+fastapi==0.136.0
+uvicorn[standard]==0.45.0
+prometheus-fastapi-instrumentator==7.1.0
 
 # HTTP client (Open-Meteo)
-requests>=2.31.0
+requests==2.32.3
 
 # Airflow (install separately — heavyweight, not included in pip install -r)
 # On WSL: cd ~ && pip install apache-airflow --no-cache-dir
-# On Linux/macOS: pip install apache-airflow>=2.9.0
+# On Linux/macOS: pip install apache-airflow==3.0.0
 
 # Dev / testing
-pytest>=7.4.0
-httpx>=0.27.0
-ruff>=0.5.0
-black>=24.4.0
+pytest==9.0.3
+httpx==0.28.1
+ruff==0.15.12
+black==24.4.2
 
 # Config management
-pydantic>=2.5
-pydantic-settings>=2.1
-PyYAML>=6.0
+pydantic==2.13.3
+pydantic-settings==2.14.0
+PyYAML==6.0.3
+
+# Airflow image compatibility
+cffi==1.17.1
+cryptography==44.0.3

@@ -19,11 +19,12 @@ services:
 
   # ── Prometheus ───────────────────────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -34,7 +35,7 @@ services:
 
   # ── Grafana ──────────────────────────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.2.0
     ports:
       - "3000:3000"
     environment:
@@ -43,8 +44,8 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -54,7 +55,7 @@ services:
   # SQLite (utilisé par standalone en dev) ne supporte pas la concurrence
   # entre webserver, scheduler et workers.
   airflow-db:
-    image: postgres:15
+    image: postgres:15.7
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -181,5 +182,6 @@ services:
 
 volumes:
   grafana_data:
+  prometheus_data:
   airflow_db_data:   # données PostgreSQL Airflow (persistées entre les restarts)
   airflow_logs:      # logs des tâches Airflow

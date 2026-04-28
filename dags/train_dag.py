@@ -12,7 +12,7 @@ import json
 import logging
 import shutil
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -63,7 +63,7 @@ default_args = {
 def _copy_model_artifacts(src_dir: Path, dst_dir: Path) -> list[str]:
     copied = []
     dst_dir.mkdir(parents=True, exist_ok=True)
-    for path in src_dir.iterdir():
+    for path in sorted(src_dir.iterdir()):
         if not path.is_file():
             continue
         if path.suffix not in {".pkl", ".json"}:
@@ -190,7 +190,7 @@ def write_last_retrain(**context):
     LAST_RETRAIN_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "last_retrain": context["ds"],
-        "written_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "written_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "source": "weather_weekly_train",
     }
     LAST_RETRAIN_PATH.write_text(json.dumps(payload, indent=2))
@@ -203,6 +203,7 @@ with DAG(
     schedule="0 2 * * 1",
     start_date=datetime(2026, 4, 16),
     catchup=False,
+    max_active_runs=1,
     default_args=default_args,
     tags=["weather", "training", "weekly"],
 ) as dag:

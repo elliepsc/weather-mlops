@@ -1,9 +1,9 @@
 FROM apache/airflow:3.0.0
 
-# Installe les dépendances du projet dans l'image Airflow
-# (xgboost, scipy, mlflow, etc. ne sont pas dans l'image de base)
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+# Install only the dependencies needed by DAG tasks. The API requirements pin
+# newer FastAPI/Uvicorn versions, which are not compatible with Airflow 3.0.0.
+COPY requirements-airflow.txt /tmp/requirements-airflow.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-airflow.txt
 
-# Le code pipeline est monté en volume au runtime (voir docker-compose.yaml)
-# PYTHONPATH=/opt/airflow permet d'importer pipeline.xxx depuis les DAGs
+# Pipeline code is mounted as a volume at runtime (see docker-compose.yaml).
+# PYTHONPATH=/opt/airflow allows imports such as pipeline.xxx from DAGs.

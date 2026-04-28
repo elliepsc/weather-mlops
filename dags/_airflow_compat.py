@@ -11,6 +11,7 @@ try:
     from airflow.providers.standard.operators.python import (
         BranchPythonOperator,
         PythonOperator,
+        ShortCircuitOperator,
     )
     from airflow.providers.standard.operators.trigger_dagrun import (
         TriggerDagRunOperator,
@@ -45,6 +46,9 @@ except ModuleNotFoundError:
         pass
 
     class BranchPythonOperator(_DummyOperator):
+        pass
+
+    class ShortCircuitOperator(_DummyOperator):
         pass
 
     class EmptyOperator(_DummyOperator):

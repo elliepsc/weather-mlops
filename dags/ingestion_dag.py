@@ -7,7 +7,7 @@ Fixes applied:
 
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -41,7 +41,7 @@ def _target_date_from_context(context):
         dag_run = context.get("dag_run")
         reference = getattr(dag_run, "logical_date", None) or getattr(dag_run, "run_after", None)
         if reference is None:
-            reference = datetime.utcnow()
+            reference = datetime.now(UTC)
     return (reference - timedelta(days=1)).date().isoformat()
 
 

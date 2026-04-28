@@ -1,0 +1,25 @@
+# Dependencies installed on top of apache/airflow:3.0.0.
+# Keep FastAPI pinned to the version shipped with Airflow 3.0.0; newer
+# FastAPI releases break Airflow's cadwyn integration at import time.
+fastapi==0.115.12
+
+# Core data
+pandas==2.1.4
+numpy==1.26.4
+scipy==1.14.1
+
+# ML
+xgboost==3.2.0
+scikit-learn==1.5.2
+
+# Experiment tracking used by DAG training tasks
+mlflow==3.11.1
+
+# HTTP client and config management
+requests==2.32.3
+pydantic-settings==2.14.0
+PyYAML==6.0.3
+
+# Airflow image compatibility
+cffi==1.17.1
+cryptography==44.0.3

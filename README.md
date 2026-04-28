@@ -202,11 +202,12 @@ weather-mlops/
 │   ├── test_monitoring_branch.py
 │   ├── test_ingestion_backfill_flow.py
 │   └── test_train_dag.py
-├── prometheus/
-│   └── prometheus.yml
-├── grafana/
-│   ├── dashboards/
-│   └── provisioning/
+├── monitoring/
+│   ├── prometheus/
+│   │   └── prometheus.yml
+│   └── grafana/
+│       ├── dashboards/
+│       └── provisioning/
 ├── data/
 │   ├── weather.db                # SQLite (weather_raw + weather_predictions)
 │   └── output/

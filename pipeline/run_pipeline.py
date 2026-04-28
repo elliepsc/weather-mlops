@@ -266,6 +266,7 @@ def backfill_and_repair_date_range(
     end_date: str,
     *,
     force: bool = False,
+    repair_gaps: bool = True,
     delay_seconds: float = 10.0,
 ) -> dict:
     """Run backfill resume logic, then repair internal gaps explicitly."""
@@ -275,11 +276,24 @@ def backfill_and_repair_date_range(
         force=force,
         delay_seconds=delay_seconds,
     )
-    repair_summary = repair_gaps_in_range(
-        start_date,
-        end_date,
-        delay_seconds=delay_seconds,
-    )
+    _skip_repair = not repair_gaps or (not force and backfill_summary["stored_rows"] == 0)
+    if _skip_repair:
+        reason = "repair_gaps=False" if not repair_gaps else "no new rows stored"
+        logger.info("Gap repair skipped (%s).", reason)
+        repair_summary = {
+            "status": "skipped",
+            "stored_rows": 0,
+            "initial_gap_counts": {},
+            "repaired_ranges": [],
+            "failed_ranges": {},
+            "remaining_gap_counts": {},
+        }
+    else:
+        repair_summary = repair_gaps_in_range(
+            start_date,
+            end_date,
+            delay_seconds=delay_seconds,
+        )
     return {
         "start_date": start_date,
         "end_date": end_date,

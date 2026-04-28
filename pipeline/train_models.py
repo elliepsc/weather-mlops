@@ -15,7 +15,7 @@ Models trained:
 import json
 import logging
 import pickle
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import mlflow.xgboost
@@ -133,7 +133,6 @@ def _train_binary(
         **_get_xgb_params(name),
         "scale_pos_weight": scale_pos_weight,
         "eval_metric": "logloss",
-        "use_label_encoder": False,
     }
     model = XGBClassifier(**params)
     model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
@@ -150,7 +149,7 @@ def _train_binary(
 
     try:
         with mlflow.start_run(run_name=name, nested=True, parent_run_id=parent_run_id):
-            mlflow.log_params({k: v for k, v in params.items() if k != "use_label_encoder"})
+            mlflow.log_params(params)
             mlflow.log_metrics({k: v for k, v in metrics.items() if v is not None})
             mlflow.xgboost.log_model(model, name=name, registered_model_name=f"weather_{name}")
             _log_feature_importance(model, X_tr.columns.tolist(), name)
@@ -201,7 +200,6 @@ def _train_multiclass(
         "objective": "multi:softmax",
         "num_class": len(le.classes_),
         "eval_metric": "mlogloss",
-        "use_label_encoder": False,
     }
     model = XGBClassifier(**params)
     model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
@@ -219,9 +217,7 @@ def _train_multiclass(
 
     try:
         with mlflow.start_run(run_name=name, nested=True, parent_run_id=parent_run_id):
-            mlflow.log_params(
-                {k: v for k, v in params.items() if k not in ("use_label_encoder", "num_class")}
-            )
+            mlflow.log_params({k: v for k, v in params.items() if k != "num_class"})
             mlflow.log_params({"classes": list(le.classes_)})
             mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, float)})
             mlflow.xgboost.log_model(model, name=name, registered_model_name=f"weather_{name}")
@@ -277,7 +273,7 @@ def train_all(df: pd.DataFrame) -> dict:
     X, df_enc = X[mask], df_enc[mask]
     logger.info("Training dataset: %d rows × %d features", len(X), X.shape[1])
 
-    run_name = f"train_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+    run_name = f"train_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     all_metrics = {}
     tcfg = _get_training_config()
     ts, rs = tcfg["test_size"], tcfg["random_state"]

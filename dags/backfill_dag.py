@@ -90,7 +90,9 @@ def run_backfill_with_config(**context):
     force = bool(conf.get("force", False))
     repair_gaps = bool(conf.get("repair_gaps", True))
 
-    logger.info("Backfill requested: %s -> %s (force=%s, repair_gaps=%s)", start, end, force, repair_gaps)
+    logger.info(
+        "Backfill requested: %s -> %s (force=%s, repair_gaps=%s)", start, end, force, repair_gaps
+    )
 
     init_db()
     summary = backfill_and_repair_date_range(

@@ -293,7 +293,8 @@ def test_upsert_weather_raw_keeps_existing_values_when_refetch_has_nulls(tmp_pat
 def test_init_db_migrates_new_open_meteo_columns_and_refreshes_view(tmp_path):
     db_path = tmp_path / "weather.db"
     with sqlite3.connect(db_path) as conn:
-        conn.executescript("""
+        conn.executescript(
+            """
             CREATE TABLE weather_raw (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
@@ -335,7 +336,8 @@ def test_init_db_migrates_new_open_meteo_columns_and_refreshes_view(tmp_path):
             SELECT r.date, r.city, r.rainfall, p.predicted_at
             FROM weather_raw r
             LEFT JOIN weather_predictions p ON r.date = p.date AND r.city = p.city;
-            """)
+            """
+        )
 
     init_db(db_path)
 

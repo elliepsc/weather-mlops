@@ -145,7 +145,8 @@ def _ensure_weather_prediction_columns(conn: sqlite3.Connection):
 def _refresh_weather_full_view(conn: sqlite3.Connection):
     raw_columns_sql = ",\n                ".join(f"r.{column}" for column in RAW_VIEW_COLUMNS)
     conn.execute("DROP VIEW IF EXISTS v_weather_full")
-    conn.execute(f"""
+    conn.execute(
+        f"""
         CREATE VIEW v_weather_full AS
         SELECT
                 {raw_columns_sql},
@@ -160,12 +161,14 @@ def _refresh_weather_full_view(conn: sqlite3.Connection):
                 p.predicted_at
         FROM weather_raw r
         LEFT JOIN weather_predictions p ON r.date = p.date AND r.city = p.city
-        """)
+        """
+    )
 
 
 def init_db(db_path: Path = DB_PATH):
     with get_connection(db_path) as conn:
-        conn.executescript("""
+        conn.executescript(
+            """
             CREATE TABLE IF NOT EXISTS weather_raw (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 date            TEXT    NOT NULL,
@@ -223,7 +226,8 @@ def init_db(db_path: Path = DB_PATH):
                 predicted_at         TEXT,
                 UNIQUE(date, city)
             );
-        """)
+        """
+        )
         _ensure_weather_raw_columns(conn)
         _ensure_weather_prediction_columns(conn)
         _refresh_weather_full_view(conn)
@@ -261,7 +265,8 @@ def upsert_predictions(df: pd.DataFrame, db_path: Path = DB_PATH):
     """Insert or replace prediction rows (unique on date+city)."""
     with get_connection(db_path) as conn:
         df.to_sql("pred_staging", conn, if_exists="replace", index=False)
-        conn.execute("""
+        conn.execute(
+            """
             INSERT OR REPLACE INTO weather_predictions
                 (date, city, rain_tomorrow, rain_tomorrow_proba, max_temp_tomorrow,
                  weather_type_tomorrow, comfort_score, heatwave_risk,
@@ -270,7 +275,8 @@ def upsert_predictions(df: pd.DataFrame, db_path: Path = DB_PATH):
                    weather_type_tomorrow, comfort_score, heatwave_risk,
                    frost_risk, storm_probability, predicted_at
             FROM pred_staging
-        """)
+        """
+        )
         conn.execute("DROP TABLE IF EXISTS pred_staging")
 
 

@@ -23,18 +23,21 @@ def test_db(tmp_path):
     init_db(db)
 
     with sqlite3.connect(str(db)) as conn:
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO weather_raw
                 (date, city, state, max_temp, min_temp, rainfall, rain_today)
             VALUES
                 ('2025-01-01', 'Sydney',    'NSW', 28.5, 18.0, 0.0, 0),
                 ('2025-01-01', 'Melbourne', 'VIC', 22.0, 14.0, 2.4, 1),
                 ('2025-01-02', 'Sydney',    'NSW', 30.1, 19.5, 0.0, 0)
-            """)
+            """
+        )
         # Predictions for ALL three raw rows so pandas infers consistent dtypes
         # (mixed NULL/non-NULL prediction cols across rows triggers NaN in float64
         # columns, which json.dumps rejects).
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO weather_predictions
                 (date, city, rain_tomorrow, rain_tomorrow_proba,
                  max_temp_tomorrow, weather_type_tomorrow, comfort_score,
@@ -46,7 +49,8 @@ def test_db(tmp_path):
                  0.0,  0.1,  0.55, '2025-01-01T08:00:00'),
                 ('2025-01-02', 'Sydney',    0, 0.09, 31.0, 'Sunny', 78.0,
                  0.06, 0.0,  0.05, '2025-01-02T08:00:00')
-            """)
+            """
+        )
     return db
 
 

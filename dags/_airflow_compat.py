@@ -16,6 +16,7 @@ try:
     from airflow.providers.standard.operators.trigger_dagrun import (
         TriggerDagRunOperator,
     )
+    from airflow.sensors.external_task import ExternalTaskSensor
 except ModuleNotFoundError:
 
     class DAG:
@@ -55,4 +56,7 @@ except ModuleNotFoundError:
         pass
 
     class TriggerDagRunOperator(_DummyOperator):
+        pass
+
+    class ExternalTaskSensor(_DummyOperator):
         pass

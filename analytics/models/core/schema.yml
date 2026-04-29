@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: dim_cities
+    description: >
+      One row per city with geographic metadata and observation range.
+      Derived from weather_raw — no hardcoded city list.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+      - name: state
+      - name: latitude
+      - name: longitude
+      - name: first_observed_date
+      - name: last_observed_date
+      - name: total_records

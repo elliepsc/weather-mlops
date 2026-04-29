@@ -1,0 +1,48 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Tables loaded into DuckDB by analytics/scripts/load_sources.py from
+      SQLite (weather_raw, weather_predictions) and JSON monitoring files.
+      For BigQuery migration: replace this loader; source table names stay identical.
+    schema: main
+    tables:
+      - name: src_weather_raw
+        description: Raw daily weather observations per city, mirrored from SQLite.
+        columns:
+          - name: date
+            description: Observation date (YYYY-MM-DD)
+          - name: city
+            description: City name
+
+      - name: src_weather_predictions
+        description: Next-day ML predictions per city, mirrored from SQLite.
+        columns:
+          - name: date
+            description: Prediction reference date (predictions are for date+1)
+          - name: city
+
+      - name: src_model_metrics_history
+        description: >
+          All lines from model_metrics_history.jsonl. May contain multiple
+          rows per date (intraday re-runs). Staging deduplicates by date.
+        columns:
+          - name: date
+          - name: row_num
+            description: Line order in the JSONL — used to pick the last run per day.
+
+      - name: src_monitoring_decisions
+        description: >
+          One row per monitoring run date, accumulated by load_sources.py
+          from the single monitoring_decision.json file.
+
+      - name: src_drift_reports
+        description: >
+          Long-format drift stats (one row per date × feature), accumulated
+          from drift_report.json by load_sources.py.
+
+      - name: src_retrain_events
+        description: >
+          One row per retrain event, accumulated from last_retrain.json
+          by load_sources.py.

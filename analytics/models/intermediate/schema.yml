@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: int_actuals_vs_predictions
+    description: >
+      Core join: predictions (date X) joined to actuals (date X+1).
+      Grain = city × prediction_date. Pre-computes rain_correct and
+      temp_abs_error for downstream aggregation.
+    columns:
+      - name: prediction_date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+      - name: actual_date
+        tests: [not_null]
+
+  - name: int_model_performance_daily
+    description: >
+      City × date grain with 7d and 30d rolling accuracy/MAE.
+      Filtered to rows where actuals are available (has_actuals = true).
+
+  - name: int_data_completeness_daily
+    description: >
+      One row per date. expected_cities is the max complete-city count seen
+      in the last 90 days — self-calibrates when new cities are added.
+    columns:
+      - name: date
+        tests: [not_null, unique]
+
+  - name: int_retrain_events
+    description: >
+      Retrain events enriched with same-date monitoring decisions and metrics.
+      Foundation for all retraining history analysis.
+
+  - name: int_weather_features_stats
+    description: >
+      Monthly feature statistics per city — averages, stddev, min/max.
+      Useful to contextualise whether detected drift is seasonal.
+
+  - name: int_gap_to_retrain_impact
+    description: >
+      Retrain events + 7-day pre-retrain data quality + LEAD() for next
+      retrain. Answers whether gap-preceded retrains produce unstable models.

@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: mart_model_performance_overview
+    description: >
+      Monthly global performance across all cities. One row per month.
+      Primary table for an executive MLOps dashboard.
+    columns:
+      - name: month
+        tests: [not_null, unique]
+
+  - name: mart_model_performance_by_city
+    description: >
+      Monthly performance per city with geographic metadata.
+      Surfaces per-city degradation hidden by global averages.
+    columns:
+      - name: month
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_forecast_vs_actual_timeline
+    description: >
+      Rolling 90-day time-series of predictions vs actuals per city.
+      Includes 7d/30d rolling accuracy for Power BI line charts.
+      Window controlled by var('forecast_timeline_days').
+
+  - name: mart_mlops_health
+    description: >
+      Daily ops summary for the last 30 days: completeness, monitoring
+      decisions, model metrics, and days since last retrain.
+      Window controlled by var('mlops_health_days').
+    columns:
+      - name: date
+        tests: [not_null, unique]
+
+  - name: mart_retraining_history
+    description: >
+      Audit trail of retrain events with before/after accuracy deltas and
+      data-gap context. Key table for validating the backfill → retrain
+      architecture stability.
+    columns:
+      - name: retrain_date
+        tests: [not_null, unique]

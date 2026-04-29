@@ -31,9 +31,9 @@ data/raw.dvc
 
 
 # ── Modèles ML (générés par le pipeline) ─────────────────────────────────────
-models/
-models/*.pkl
-models/metrics.json
+/models/
+/models/*.pkl
+/models/metrics.json
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
@@ -71,9 +71,6 @@ docker-compose.override.yml
 Thumbs.db
 
 # ── Autres ───────────────────────────────────────────────────────────────────
-AIRFLOW.md
-CLAUDE.md
-ANALYTICS.md
 config/simple_auth_manager_passwords.json
 
 # ── Dbt ───────────────────────────────────────────────────────────────────

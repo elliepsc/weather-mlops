@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: stg_weather_raw
+    description: >
+      Typed and cleaned daily weather observations. date is cast to DATE;
+      rain_today is cast to BOOLEAN. One row per city × date.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: stg_weather_predictions
+    description: >
+      Next-day predictions renamed with pred_ prefix to avoid confusion
+      with actuals in downstream joins. date = reference date; actuals
+      are in weather_raw for date+1.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: stg_model_metrics_history
+    description: >
+      One row per date, last recorded run. Deduplicates the JSONL which
+      may contain multiple entries per day from intraday monitoring runs.
+    columns:
+      - name: date
+        tests: [not_null, unique]
+
+  - name: stg_monitoring_decisions
+    description: >
+      One row per monitoring run date. action is one of: trigger_retrain,
+      alert_only, alert_insufficient_data, no_action.
+    columns:
+      - name: date
+        tests: [not_null, unique]
+      - name: action
+        tests:
+          - accepted_values:
+              values: [trigger_retrain, alert_only, alert_insufficient_data, no_action]
+
+  - name: stg_drift_reports
+    description: Long-format drift stats — one row per date × feature.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: feature_name
+        tests: [not_null]
+
+  - name: stg_retrain_events
+    description: One row per retrain event date.
+    columns:
+      - name: retrain_date
+        tests: [not_null, unique]

@@ -73,4 +73,12 @@ Thumbs.db
 # ── Autres ───────────────────────────────────────────────────────────────────
 AIRFLOW.md
 CLAUDE.md
+ANALYTICS.md
 config/simple_auth_manager_passwords.json
+
+# ── Dbt ───────────────────────────────────────────────────────────────────
+analytics/target/
+analytics/dbt_packages/
+analytics/logs/
+analytics/*.duckdb
+analytics/profiles.yml

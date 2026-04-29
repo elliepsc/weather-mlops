@@ -1,0 +1,36 @@
+name: weather_mlops_analytics
+version: "1.0.0"
+config-version: 2
+
+profile: weather_mlops_analytics
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  weather_mlops_analytics:
+    staging:
+      +materialized: view
+      +schema: staging
+    core:
+      +materialized: table
+      +schema: core
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
+
+vars:
+  # Lookback windows
+  forecast_timeline_days: 90
+  mlops_health_days: 30
+  completeness_baseline_days: 90

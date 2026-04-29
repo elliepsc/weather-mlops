@@ -50,7 +50,9 @@ FROM dates d
 LEFT JOIN {{ ref('int_data_completeness_daily') }} c
     ON c.date = d.date
 LEFT JOIN {{ ref('stg_monitoring_decisions') }} m
-    ON m.date = d.date
+    -- The monitoring DAG writes date = run_date (e.g. 2026-04-29),
+    -- but it analyses data through run_date - 1 (= d.date).
+    ON m.date = {{ dbt.dateadd('day', 1, 'd.date') }}
 LEFT JOIN last_retrain_per_date lr
     ON lr.date = d.date
 ORDER BY d.date DESC

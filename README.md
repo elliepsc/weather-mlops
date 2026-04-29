@@ -26,10 +26,20 @@ data/weather.db (SQLite)
     +-- data/output/weather_final.csv  (vue v_weather_full exportée)
     |
     +-- api/app.py                   --> FastAPI :8083 (local) / :8003 (Docker)
+    |        |
+    |        +-- streamlit_app/app.py      dashboard interactif
+    |        +-- Prometheus /metrics
+    |
+    +-- analytics/scripts/load_sources.py  --> SQLite + JSON → DuckDB
              |
-             +-- streamlit_app/app.py      dashboard interactif
-             +-- Power BI Web connector
-             +-- Prometheus /metrics
+             v
+         data/analytics.duckdb
+             |
+             v
+         dbt run (analytics/models/)
+             |
+             +-- main_marts.*  → data/powerbi/*.csv  → Power BI Import
+             +-- main_marts.*  → ODBC driver          → Power BI Live
 ```
 
 **Composants :**
@@ -44,6 +54,9 @@ data/weather.db (SQLite)
 | **Streamlit** | Dashboard local connecté à l'API. |
 | **Airflow** | Orchestration : ingestion quotidienne, réentraînement hebdomadaire, monitoring, backfill, gap monitoring. |
 | **Prometheus/Grafana** | Monitoring API via Docker Compose. |
+| **DuckDB + dbt** | Couche analytique dans `analytics/`. `load_sources.py` charge SQLite → DuckDB, `dbt run` construit 5 marts Power BI. Adapter BigQuery prêt. |
+| **DBeaver** | SQL client GUI (connexion native DuckDB v23+). Installation séparée : https://dbeaver.io |
+| **Power BI** | Connexion via ODBC (live) ou import CSV (`data/powerbi/*.csv`). Voir `ANALYTICS.md`. |
 
 ---
 
@@ -208,8 +221,28 @@ weather-mlops/
 │   └── grafana/
 │       ├── dashboards/
 │       └── provisioning/
+├── analytics/
+│   ├── dbt_project.yml           # Config dbt — staging=views, marts=tables
+│   ├── profiles.yml              # DuckDB (défaut) + BigQuery (target bigquery)
+│   ├── packages.yml              # dbt_utils >= 1.0
+│   ├── macros/
+│   │   └── datediff_days.sql     # Macro cross-adapter DuckDB / BigQuery
+│   ├── models/
+│   │   ├── staging/              # Typage + renommage 1:1 (vues)
+│   │   ├── core/                 # dim_cities (table)
+│   │   ├── intermediate/         # Jointures + calculs partagés (tables)
+│   │   └── marts/                # Tables finales Power BI (tables)
+│   └── scripts/
+│       ├── load_sources.py       # SQLite + JSON monitoring → DuckDB
+│       ├── export_powerbi.py     # DuckDB marts → data/powerbi/*.csv
+│       ├── setup_odbc_dsn.ps1    # Enregistre DSN Windows pour Power BI ODBC (Admin)
+│       └── powerbi_datasource.py # Blocs Python pour Power BI → Get Data → Python
+├── notebooks/
+│   └── 01_exploration.ipynb      # Exploration DuckDB : qualité, perf, villes, drift
 ├── data/
 │   ├── weather.db                # SQLite (weather_raw + weather_predictions)
+│   ├── analytics.duckdb          # DuckDB analytics (généré par load_sources.py)
+│   ├── powerbi/                  # CSV exports pour Power BI (générés par export_powerbi.py)
 │   └── output/
 │       └── weather_final.csv     # Vue complète exportée (~174 000 lignes)
 ├── models/                       # Modèles .pkl + metrics.json + feature importances
@@ -235,6 +268,8 @@ weather-mlops/
 - Git
 - Docker Desktop (optionnel, pour Prometheus/Grafana/Airflow)
 - Apache Airflow (optionnel, pour l'orchestration planifiée)
+- DBeaver (optionnel, SQL GUI pour DuckDB) : https://dbeaver.io
+- DuckDB ODBC driver (optionnel, connexion live Power BI) : https://duckdb.org/docs/api/odbc/overview
 
 ```bash
 git clone https://github.com/elliepsc/meteo.git weather-mlops
@@ -386,16 +421,74 @@ Affiche : dernières prédictions par ville, tendances historiques, métriques d
 
 ---
 
-## Power BI
+## Analytics — dbt + DuckDB
 
-**Option recommandée — connecteur Web :**
+La couche analytique transforme les données SQLite brutes en marts Power BI.
+Documentation complète : [ANALYTICS.md](ANALYTICS.md)
+
+### Démarrage rapide
+
+```bash
+# Installer les dépendances analytics
+make analytics-install
+
+# Pipeline complet : SQLite → DuckDB → dbt → CSV Power BI
+make analytics-all
+```
+
+### Explorer les données
+
+```bash
+# CLI DuckDB
+duckdb data/analytics.duckdb
+> SHOW SCHEMAS;
+> SELECT * FROM main_marts.mart_mlops_health LIMIT 10;
+
+# DBeaver : New Connection → DuckDB → path: data/analytics.duckdb
+```
+
+### Marts disponibles
+
+| Mart | Grain | Contenu |
+|---|---|---|
+| `mart_model_performance_overview` | mois | Accuracy + MAE globaux |
+| `mart_model_performance_by_city` | ville × mois | Dégradation par ville |
+| `mart_forecast_vs_actual_timeline` | ville × jour (90j) | Prédictions vs réel |
+| `mart_mlops_health` | jour (30j) | Complétude + décisions ops |
+| `mart_retraining_history` | événement retrain | Audit avant/après retrain |
+
+### Connexion Power BI
+
+**Option A — Import CSV (recommandé) :**
+```bash
+make analytics-export
+# → data/powerbi/*.csv (un fichier par mart)
+```
+Dans Power BI Desktop : **Obtenir les données → Texte/CSV**
+
+**Option B — Connexion live ODBC :**
+1. Installer DuckDB ODBC driver : https://duckdb.org/docs/api/odbc/overview
+2. Créer DSN → `data/analytics.duckdb`
+3. Power BI : **Obtenir les données → ODBC** → Import mode
+
+**Option C — API FastAPI (données brutes) :**
+```text
+http://localhost:8083/api/weather
+http://localhost:8083/api/export/csv
+```
+
+---
+
+## Power BI (données brutes via API)
+
+**Connecteur Web :**
 
 1. Ouvrir Power BI Desktop
 2. **Obtenir les données > Web**
 3. URL : `http://localhost:8083/api/weather` ou `.../api/weather/latest`
 4. Dans Power Query, développer le champ `data`
 
-**Option CSV :**
+**CSV brut :**
 
 ```text
 data/output/weather_final.csv
@@ -492,6 +585,8 @@ python -m pytest tests/ -q
 ```text
 data/weather.db
 data/output/weather_final.csv
+data/analytics.duckdb          # régénéré par analytics/scripts/load_sources.py
+data/powerbi/*.csv             # régénéré par analytics/scripts/export_powerbi.py
 data/monitoring/*.json
 models/*.pkl
 models/metrics.json
@@ -499,6 +594,8 @@ models/baseline/
 mlflow/mlflow.db
 ~/.weather-mlops/mlflow/mlflow.db   # créé automatiquement sous WSL sur /mnt/...
 logs/pipeline.log
+analytics/target/              # SQL compilé auto-généré par dbt
+analytics/dbt_packages/        # dépendances dbt (équivalent node_modules)
 ```
 
 ---

@@ -3,7 +3,7 @@
 
 WITH monthly AS (
     SELECT
-        {{ dbt.date_trunc('month', 'prediction_date') }}    AS month,
+        CAST({{ dbt.date_trunc('month', 'prediction_date') }} AS DATE) AS month,
         COUNT(*)                                            AS n_city_days,
         COUNT(DISTINCT prediction_date)                     AS n_days,
         COUNT(DISTINCT city)                                AS n_cities,
@@ -21,7 +21,7 @@ WITH monthly AS (
         )                                                   AS pct_with_actuals
 
     FROM {{ ref('int_actuals_vs_predictions') }}
-    GROUP BY {{ dbt.date_trunc('month', 'prediction_date') }}
+    GROUP BY CAST({{ dbt.date_trunc('month', 'prediction_date') }} AS DATE)
 )
 
 SELECT *

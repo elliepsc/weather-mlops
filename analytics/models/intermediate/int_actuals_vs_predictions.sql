@@ -14,7 +14,7 @@ SELECT
     p.date                                              AS prediction_date,
     p.city,
     -- Actuals live one day ahead of the prediction reference date
-    {{ dbt.dateadd('day', 1, 'p.date') }}               AS actual_date,
+    CAST({{ dbt.dateadd('day', 1, 'p.date') }} AS DATE) AS actual_date,
 
     -- Predictions
     p.pred_rain_tomorrow,

@@ -22,6 +22,8 @@ Ingestion.ipynb
 
 # ── Données générées (ne pas versionner les gros fichiers) ───────────────────
 data/weather.db
+data/analytics.duckdb
+data/powerbi/
 data/output/
 data/raw/weatherAUS.csv
 data/processed/

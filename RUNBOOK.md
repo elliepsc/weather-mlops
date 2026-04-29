@@ -156,7 +156,119 @@ Résultats attendus :
 
 ---
 
-## PARTIE 3 — Démarrer les services
+## PARTIE 3 — Analytics (dbt + DuckDB)
+
+La couche analytics transforme les données SQLite brutes en tables Power BI via dbt + DuckDB.
+Voir `ANALYTICS.md` pour l'architecture complète.
+
+### 3.1 Installation (première fois)
+
+```bash
+pip install dbt-core==1.11.8 dbt-duckdb==1.10.1 duckdb==1.5.2
+# ou via Make :
+make analytics-install
+```
+
+**Outils externes (GUI, installation séparée) :**
+- **DBeaver** (SQL client) : https://dbeaver.io — connection native DuckDB depuis v23
+- **DuckDB ODBC driver** (Power BI live) : https://duckdb.org/docs/api/odbc/overview
+
+### 3.2 Pipeline analytics complet
+
+```bash
+# Étape 1 — charger SQLite + fichiers JSON monitoring → DuckDB
+python analytics/scripts/load_sources.py
+
+# Étape 2 — installer les packages dbt (dbt_utils) et construire les modèles
+cd analytics && dbt deps && dbt run
+
+# Étape 3 — exporter les marts en CSV pour Power BI
+python analytics/scripts/export_powerbi.py
+
+# Tout en une commande via Make :
+make analytics-all
+```
+
+### 3.3 Explorer les tables dans DuckDB
+
+**CLI DuckDB :**
+```bash
+duckdb data/analytics.duckdb
+```
+```sql
+SHOW SCHEMAS;
+-- main_staging, main_core, main_intermediate, main_marts
+
+SELECT * FROM main_marts.mart_mlops_health LIMIT 10;
+SELECT * FROM main_marts.mart_model_performance_by_city ORDER BY month DESC;
+SELECT * FROM main_marts.mart_forecast_vs_actual_timeline WHERE city = 'Sydney' LIMIT 20;
+```
+
+**DBeaver (GUI) :**
+1. New Connection → **DuckDB** (support natif v23+)
+2. Path : `<repo>/data/analytics.duckdb`
+3. Schémas disponibles après `dbt run` :
+   - `main_staging` — vues de staging (typage 1:1)
+   - `main_core` — `dim_cities`
+   - `main_intermediate` — jointures et calculs partagés
+   - `main_marts` — tables finales Power BI
+
+### 3.4 Connexion Power BI
+
+**Option A — Import CSV (le plus simple) :**
+```bash
+make analytics-export
+# → génère data/powerbi/*.csv (un fichier par mart)
+```
+Dans Power BI Desktop : **Obtenir les données → Texte/CSV** → sélectionner le fichier.
+
+Tables disponibles :
+| Fichier CSV | Grain | Contenu |
+|---|---|---|
+| `mart_model_performance_overview.csv` | mois | Accuracy + MAE globaux |
+| `mart_model_performance_by_city.csv` | ville × mois | Dégradation par ville |
+| `mart_forecast_vs_actual_timeline.csv` | ville × jour (90j) | Prédictions vs réel |
+| `mart_mlops_health.csv` | jour (30j) | Complétude + décisions ops |
+| `mart_retraining_history.csv` | événement retrain | Audit avant/après retrain |
+
+**Option B — Connexion live via ODBC :**
+1. Télécharger et installer le DuckDB ODBC driver (lien ci-dessus)
+2. Créer un DSN système pointant sur `data/analytics.duckdb`
+3. Power BI Desktop : **Obtenir les données → ODBC** → sélectionner le DSN
+4. Mode Import (DirectQuery DuckDB local non recommandé)
+5. Tables dans le schéma `main_marts`
+
+**Option C — Via l'API FastAPI (données brutes, sans agrégations dbt) :**
+```text
+http://localhost:8083/api/weather        → toutes les données
+http://localhost:8083/api/export/csv     → weather_final.csv
+```
+
+### 3.5 Exploration interactive — notebooks Jupyter
+
+```bash
+pip install jupyter matplotlib seaborn
+jupyter notebook notebooks/01_exploration.ipynb
+```
+
+Le notebook `notebooks/01_exploration.ipynb` couvre :
+- Audit qualité (NULLs, volumétrie, plages de dates)
+- Tendances de performance modèle + saisonnalité
+- Classement des villes par accuracy/MAE
+- Distribution des erreurs de prédiction
+- MLOps health (complétude, décisions, retrains)
+
+### 3.6 Schéma de régénération
+
+À relancer après chaque ingestion quotidienne pour mettre à jour les marts Power BI :
+```bash
+make analytics-all
+# = load_sources.py + dbt run + export_powerbi.py (~30 secondes)
+```
+
+---
+
+## PARTIE 4 — Démarrer les services
 
 ### 3.1 API FastAPI (obligatoire pour Streamlit et Power BI)
 

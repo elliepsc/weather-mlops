@@ -3,7 +3,7 @@
 
 WITH by_city AS (
     SELECT
-        {{ dbt.date_trunc('month', 'prediction_date') }}    AS month,
+        CAST({{ dbt.date_trunc('month', 'prediction_date') }} AS DATE) AS month,
         city,
         COUNT(*)                                            AS n_days,
 
@@ -16,7 +16,7 @@ WITH by_city AS (
         MAX(temp_mae_30d)                                   AS temp_mae_30d_eom
 
     FROM {{ ref('int_model_performance_daily') }}
-    GROUP BY {{ dbt.date_trunc('month', 'prediction_date') }}, city
+    GROUP BY CAST({{ dbt.date_trunc('month', 'prediction_date') }} AS DATE), city
 )
 
 SELECT

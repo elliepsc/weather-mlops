@@ -60,7 +60,8 @@ def load_monitoring_decisions(duck: duckdb.DuckDBPyConnection) -> None:
         return
 
     data = json.loads(path.read_text())
-    duck.execute("""
+    duck.execute(
+        """
         CREATE TABLE IF NOT EXISTS src_monitoring_decisions (
             date                DATE PRIMARY KEY,
             action              TEXT,
@@ -74,24 +75,28 @@ def load_monitoring_decisions(duck: duckdb.DuckDBPyConnection) -> None:
             rain_accuracy_30d   DOUBLE,
             temp_mae_30d        DOUBLE
         )
-    """)
+    """
+    )
 
-    duck.execute("""
+    duck.execute(
+        """
         INSERT INTO src_monitoring_decisions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (date) DO NOTHING
-    """, [
-        data["date"],
-        data.get("action"),
-        data.get("reason"),
-        data.get("n_drifted", 0),
-        json.dumps(data.get("drifted_features", [])),
-        bool(data.get("low_accuracy", False)),
-        bool(data.get("high_mae", False)),
-        bool(data.get("heavy_drift", False)),
-        bool(data.get("mild_drift", False)),
-        data.get("rain_accuracy_30d"),
-        data.get("temp_mae_30d"),
-    ])
+    """,
+        [
+            data["date"],
+            data.get("action"),
+            data.get("reason"),
+            data.get("n_drifted", 0),
+            json.dumps(data.get("drifted_features", [])),
+            bool(data.get("low_accuracy", False)),
+            bool(data.get("high_mae", False)),
+            bool(data.get("heavy_drift", False)),
+            bool(data.get("mild_drift", False)),
+            data.get("rain_accuracy_30d"),
+            data.get("temp_mae_30d"),
+        ],
+    )
     print(f"  src_monitoring_decisions: upserted {data['date']}")
 
 
@@ -119,7 +124,8 @@ def load_drift_reports(duck: duckdb.DuckDBPyConnection) -> None:
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"]).dt.date
 
-    duck.execute("""
+    duck.execute(
+        """
         CREATE TABLE IF NOT EXISTS src_drift_reports (
             date            DATE,
             feature_name    TEXT,
@@ -128,13 +134,17 @@ def load_drift_reports(duck: duckdb.DuckDBPyConnection) -> None:
             drifted         BOOLEAN,
             PRIMARY KEY (date, feature_name)
         )
-    """)
+    """
+    )
 
     for row in rows:
-        duck.execute("""
+        duck.execute(
+            """
             INSERT INTO src_drift_reports VALUES (?, ?, ?, ?, ?)
             ON CONFLICT (date, feature_name) DO NOTHING
-        """, [row["date"], row["feature_name"], row["ks_stat"], row["p_value"], row["drifted"]])
+        """,
+            [row["date"], row["feature_name"], row["ks_stat"], row["p_value"], row["drifted"]],
+        )
 
     print(f"  src_drift_reports: upserted {len(rows)} features for {run_date}")
 
@@ -145,18 +155,23 @@ def load_retrain_events(duck: duckdb.DuckDBPyConnection) -> None:
         return
 
     data = json.loads(path.read_text())
-    duck.execute("""
+    duck.execute(
+        """
         CREATE TABLE IF NOT EXISTS src_retrain_events (
             retrain_date    DATE PRIMARY KEY,
             written_at      TEXT,
             source          TEXT
         )
-    """)
+    """
+    )
 
-    duck.execute("""
+    duck.execute(
+        """
         INSERT INTO src_retrain_events VALUES (?, ?, ?)
         ON CONFLICT (retrain_date) DO NOTHING
-    """, [data["last_retrain"], data.get("written_at"), data.get("source")])
+    """,
+        [data["last_retrain"], data.get("written_at"), data.get("source")],
+    )
 
     print(f"  src_retrain_events: upserted {data['last_retrain']}")
 

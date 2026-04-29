@@ -15,6 +15,7 @@ ignore = [
 "dags/*"                   = ["F401", "E402"] # re-exports; sys.path insert before imports
 "api/*"                    = ["E402"]         # sys.path insert before imports
 "pipeline/run_pipeline.py" = ["E402"]         # sys.path insert before imports
+"notebooks/*"              = ["E402", "I001"] # warnings.filterwarnings before imports is intentional
 
 [tool.black]
 line-length = 100

@@ -17,8 +17,8 @@ Each block reads directly from analytics.duckdb (no CSV needed).
 """
 
 from pathlib import Path
+
 import duckdb
-import pandas as pd
 
 # Adjust this path if running Power BI on Windows (not WSL)
 DB_PATH = str(Path(__file__).parent.parent.parent / "data" / "analytics.duckdb")

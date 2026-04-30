@@ -1,18 +1,18 @@
 """
-Export all mart tables from DuckDB analytics.duckdb → data/powerbi/*.csv
+Export all mart tables from DuckDB analytics.duckdb → data/analytics/*.csv
 
 Run after dbt run:
     python analytics/scripts/export_powerbi.py
 
 Output files (one per mart, ready to import in Power BI):
-    data/powerbi/mart_model_performance_overview.csv
-    data/powerbi/mart_model_performance_by_city.csv
-    data/powerbi/mart_forecast_vs_actual_timeline.csv
-    data/powerbi/mart_mlops_health.csv
-    data/powerbi/mart_retraining_history.csv
+    data/analytics/mart_model_performance_overview.csv
+    data/analytics/mart_model_performance_by_city.csv
+    data/analytics/mart_forecast_vs_actual_timeline.csv
+    data/analytics/mart_mlops_health.csv
+    data/analytics/mart_retraining_history.csv
 
 Power BI connection (after export):
-    Get Data → Text/CSV → select any file in data/powerbi/
+    Get Data → Text/CSV → select any file in data/analytics/
 
 Power BI ODBC connection (live, no export needed):
     1. Install DuckDB ODBC driver: https://duckdb.org/docs/api/odbc/overview
@@ -23,13 +23,16 @@ Power BI ODBC connection (live, no export needed):
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import duckdb
 
+logger = logging.getLogger(__name__)
+
 ROOT = Path(__file__).parent.parent.parent
 DUCKDB_PATH = ROOT / "data" / "analytics.duckdb"
-OUTPUT_DIR = ROOT / "data" / "powerbi"
+OUTPUT_DIR = ROOT / "data" / "analytics"
 
 MARTS = [
     "mart_model_performance_overview",
@@ -53,17 +56,36 @@ def main() -> None:
     with duckdb.connect(str(DUCKDB_PATH), read_only=True) as duck:
         for mart in MARTS:
             out = OUTPUT_DIR / f"{mart}.csv"
-            duck.execute(
-                f"""
-                COPY (SELECT * FROM main_marts.{mart})
-                TO '{out.as_posix()}'
-                (HEADER, DELIMITER ',')
-            """
-            )
-            row_count = duck.execute(f"SELECT COUNT(*) FROM main_marts.{mart}").fetchone()[0]
-            print(f"  {mart}: {row_count:,} rows → {out.name}")
+            out_tmp = OUTPUT_DIR / f"{mart}.csv.tmp"
+            try:
+                duck.execute(
+                    f"""
+                    COPY (SELECT * FROM main_marts.{mart})
+                    TO '{out_tmp.as_posix()}'
+                    (HEADER, DELIMITER ',')
+                """
+                )
+                row_count = duck.execute(f"SELECT COUNT(*) FROM main_marts.{mart}").fetchone()[0]
+                out_tmp.replace(out)
+                logger.info(
+                    "exported %s: %d rows, %.1f KB → %s",
+                    mart,
+                    row_count,
+                    out.stat().st_size / 1024,
+                    out.name,
+                )
+                print(f"  {mart}: {row_count:,} rows -> {out.name}")
+            except Exception:
+                if out_tmp.exists():
+                    out_tmp.unlink()
+                raise
 
-    print(f"\nDone. Import in Power BI: Get Data → Text/CSV → {OUTPUT_DIR}")
+    for mart in MARTS:
+        out = OUTPUT_DIR / f"{mart}.csv"
+        if not out.exists() or out.stat().st_size == 0:
+            raise RuntimeError(f"Export validation failed: {out} missing or empty")
+
+    print(f"\nDone. Import in Power BI: Get Data -> Text/CSV -> {OUTPUT_DIR}")
     print("Or connect live via ODBC: see https://duckdb.org/docs/api/odbc/overview")
 
 

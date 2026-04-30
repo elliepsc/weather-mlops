@@ -23,7 +23,7 @@ Ingestion.ipynb
 # ── Données générées (ne pas versionner les gros fichiers) ───────────────────
 data/weather.db
 data/analytics.duckdb
-data/powerbi/
+data/analytics/
 data/output/
 data/raw/weatherAUS.csv
 data/processed/
@@ -74,6 +74,7 @@ Thumbs.db
 
 # ── Autres ───────────────────────────────────────────────────────────────────
 config/simple_auth_manager_passwords.json
+/weather-mlops
 
 # ── Dbt ───────────────────────────────────────────────────────────────────
 analytics/target/

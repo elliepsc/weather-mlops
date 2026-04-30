@@ -218,7 +218,7 @@ SELECT * FROM main_marts.mart_forecast_vs_actual_timeline WHERE city = 'Sydney' 
 **Option A — Import CSV (le plus simple) :**
 ```bash
 make analytics-export
-# → génère data/powerbi/*.csv (un fichier par mart)
+# → génère data/analytics/*.csv (un fichier par mart)
 ```
 Dans Power BI Desktop : **Obtenir les données → Texte/CSV** → sélectionner le fichier.
 

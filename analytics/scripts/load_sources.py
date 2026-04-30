@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -176,7 +178,58 @@ def load_retrain_events(duck: duckdb.DuckDBPyConnection) -> None:
     print(f"  src_retrain_events: upserted {data['last_retrain']}")
 
 
-def main() -> None:
+def write_pipeline_run(
+    duck: duckdb.DuckDBPyConnection,
+    data_date: str,
+    dag_id: str,
+    execution_date: str,
+    rows_weather_raw: int,
+    rows_weather_predictions: int,
+    monitoring_decision_loaded: bool,
+    drift_report_loaded: bool,
+    retrain_event_loaded: bool,
+) -> None:
+    duck.execute(
+        """
+        CREATE TABLE IF NOT EXISTS src_pipeline_runs (
+            run_id                          TEXT PRIMARY KEY,
+            dag_id                          TEXT,
+            data_date                       DATE,
+            execution_date                  TEXT,
+            sqlite_rows_weather_raw         INTEGER,
+            sqlite_rows_weather_predictions INTEGER,
+            monitoring_decision_loaded      BOOLEAN,
+            drift_report_loaded             BOOLEAN,
+            retrain_event_loaded            BOOLEAN,
+            loaded_at                       TIMESTAMP DEFAULT now()
+        )
+        """
+    )
+    duck.execute(
+        """
+        INSERT INTO src_pipeline_runs (
+            run_id, dag_id, data_date, execution_date,
+            sqlite_rows_weather_raw, sqlite_rows_weather_predictions,
+            monitoring_decision_loaded, drift_report_loaded, retrain_event_loaded
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (run_id) DO NOTHING
+        """,
+        [
+            str(uuid.uuid4()),
+            dag_id,
+            data_date,
+            execution_date,
+            rows_weather_raw,
+            rows_weather_predictions,
+            monitoring_decision_loaded,
+            drift_report_loaded,
+            retrain_event_loaded,
+        ],
+    )
+    print(f"  src_pipeline_runs: recorded run for {data_date}")
+
+
+def main(dag_id: str = "manual", execution_date: str | None = None) -> None:
     if not SQLITE_PATH.exists():
         raise FileNotFoundError(f"SQLite database not found: {SQLITE_PATH}")
 
@@ -185,10 +238,28 @@ def main() -> None:
 
     with duckdb.connect(str(DUCKDB_PATH)) as duck:
         load_weather_tables(duck)
+        rows_weather_raw = duck.execute("SELECT COUNT(*) FROM src_weather_raw").fetchone()[0]
+        rows_weather_predictions = duck.execute(
+            "SELECT COUNT(*) FROM src_weather_predictions"
+        ).fetchone()[0]
+
         load_model_metrics_history(duck)
         load_monitoring_decisions(duck)
         load_drift_reports(duck)
         load_retrain_events(duck)
+
+        data_date = (execution_date or datetime.now().isoformat())[:10]
+        write_pipeline_run(
+            duck=duck,
+            data_date=data_date,
+            dag_id=dag_id,
+            execution_date=execution_date or datetime.now().isoformat(),
+            rows_weather_raw=rows_weather_raw,
+            rows_weather_predictions=rows_weather_predictions,
+            monitoring_decision_loaded=(MONITORING_DIR / "monitoring_decision.json").exists(),
+            drift_report_loaded=(MONITORING_DIR / "drift_report.json").exists(),
+            retrain_event_loaded=(MONITORING_DIR / "last_retrain.json").exists(),
+        )
 
     print("Done. Run: cd analytics && dbt run")
 

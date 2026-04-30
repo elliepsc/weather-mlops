@@ -32,7 +32,7 @@ help:
 	@echo "  analytics-load      Sync SQLite + JSON monitoring files → DuckDB"
 	@echo "  analytics-run       Load sources + dbt deps + dbt run (full pipeline)"
 	@echo "  analytics-test      Run dbt schema/data tests"
-	@echo "  analytics-export    Export all mart tables as CSV → data/powerbi/"
+	@echo "  analytics-export    Export all mart tables as CSV → data/analytics/"
 	@echo "  analytics-docs      Generate + serve dbt docs at http://localhost:8080"
 	@echo "  analytics-all       analytics-run + analytics-export (end-to-end)"
 	@echo "  analytics-odbc      Print instructions to set up ODBC DSN for Power BI"

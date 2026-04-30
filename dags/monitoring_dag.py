@@ -487,6 +487,7 @@ with DAG(
     schedule="0 9 * * *",
     start_date=datetime(2026, 4, 22),
     catchup=False,
+    max_active_runs=1,
     default_args=default_args,
     tags=["weather", "monitoring", "daily"],
 ) as dag:

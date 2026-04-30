@@ -38,7 +38,7 @@ data/weather.db (SQLite)
              v
          dbt run (analytics/models/)
              |
-             +-- main_marts.*  → data/powerbi/*.csv  → Power BI Import
+             +-- main_marts.*  → data/analytics/*.csv → Power BI Import
              +-- main_marts.*  → ODBC driver          → Power BI Live
 ```
 
@@ -56,7 +56,7 @@ data/weather.db (SQLite)
 | **Prometheus/Grafana** | Monitoring API via Docker Compose. |
 | **DuckDB + dbt** | Couche analytique dans `analytics/`. `load_sources.py` charge SQLite → DuckDB, `dbt run` construit 5 marts Power BI. Adapter BigQuery prêt. |
 | **DBeaver** | SQL client GUI (connexion native DuckDB v23+). Installation séparée : https://dbeaver.io |
-| **Power BI** | Connexion via ODBC (live) ou import CSV (`data/powerbi/*.csv`). Voir `ANALYTICS.md`. |
+| **Power BI** | Connexion via ODBC (live) ou import CSV (`data/analytics/*.csv`). Voir `ANALYTICS.md`. |
 
 ---
 
@@ -234,7 +234,7 @@ weather-mlops/
 │   │   └── marts/                # Tables finales Power BI (tables)
 │   └── scripts/
 │       ├── load_sources.py       # SQLite + JSON monitoring → DuckDB
-│       ├── export_powerbi.py     # DuckDB marts → data/powerbi/*.csv
+│       ├── export_powerbi.py     # DuckDB marts → data/analytics/*.csv
 │       ├── setup_odbc_dsn.ps1    # Enregistre DSN Windows pour Power BI ODBC (Admin)
 │       └── powerbi_datasource.py # Blocs Python pour Power BI → Get Data → Python
 ├── notebooks/
@@ -462,7 +462,7 @@ duckdb data/analytics.duckdb
 **Option A — Import CSV (recommandé) :**
 ```bash
 make analytics-export
-# → data/powerbi/*.csv (un fichier par mart)
+# → data/analytics/*.csv (un fichier par mart)
 ```
 Dans Power BI Desktop : **Obtenir les données → Texte/CSV**
 
@@ -586,7 +586,7 @@ python -m pytest tests/ -q
 data/weather.db
 data/output/weather_final.csv
 data/analytics.duckdb          # régénéré par analytics/scripts/load_sources.py
-data/powerbi/*.csv             # régénéré par analytics/scripts/export_powerbi.py
+data/analytics/*.csv           # régénéré par analytics/scripts/export_powerbi.py
 data/monitoring/*.json
 models/*.pkl
 models/metrics.json

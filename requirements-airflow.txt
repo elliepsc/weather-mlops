@@ -20,6 +20,11 @@ requests==2.32.3
 pydantic-settings==2.14.0
 PyYAML==6.0.3
 
+# Analytics (dbt + DuckDB) — same pins as Makefile analytics-install
+duckdb==1.5.2
+dbt-core==1.11.8
+dbt-duckdb==1.10.1
+
 # Airflow image compatibility
 cffi==1.17.1
 cryptography==44.0.3

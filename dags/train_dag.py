@@ -187,14 +187,20 @@ def step_export(**context):
 
 def write_last_retrain(**context):
     """Persist cooldown only after a successful retrain and prediction refresh."""
+    dag_run = context.get("dag_run")
+    conf = getattr(dag_run, "conf", None) or {}
+    source = conf.get("source", "weather_weekly_train")
+
     LAST_RETRAIN_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "last_retrain": context["ds"],
         "written_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "source": "weather_weekly_train",
+        "source": source,
     }
     LAST_RETRAIN_PATH.write_text(json.dumps(payload, indent=2))
-    logger.info("Recorded successful retrain cooldown: %s", payload["last_retrain"])
+    logger.info(
+        "Recorded successful retrain cooldown: %s (source=%s)", payload["last_retrain"], source
+    )
 
 
 with DAG(

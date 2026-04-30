@@ -12,8 +12,8 @@ WITH daily AS (
         p.rain_correct,
         p.temp_abs_error,
         p.has_actuals,
-        d.au_season,
-        d.au_season_code,
+        d.season_southern       AS season,
+        d.season_code_southern  AS season_code,
         d.year
 
     FROM {{ ref('int_actuals_vs_predictions') }} p
@@ -23,8 +23,8 @@ WITH daily AS (
 
 by_season_year AS (
     SELECT
-        au_season,
-        au_season_code,
+        season,
+        season_code,
         year,
 
         COUNT(*)                                                AS n_city_days,
@@ -39,14 +39,14 @@ by_season_year AS (
         ROUND(MAX(temp_abs_error), 3)                           AS temp_max_error
 
     FROM daily
-    GROUP BY au_season, au_season_code, year
+    GROUP BY season, season_code, year
 ),
 
 -- All-years aggregate per season for a stable baseline
 by_season_all AS (
     SELECT
-        au_season,
-        au_season_code,
+        season,
+        season_code,
         NULL::INTEGER                                           AS year,
 
         COUNT(*)                                                AS n_city_days,
@@ -61,10 +61,10 @@ by_season_all AS (
         ROUND(MAX(temp_abs_error), 3)                           AS temp_max_error
 
     FROM daily
-    GROUP BY au_season, au_season_code
+    GROUP BY season, season_code
 )
 
 SELECT * FROM by_season_year
 UNION ALL
 SELECT * FROM by_season_all
-ORDER BY au_season, year NULLS LAST
+ORDER BY season, year NULLS LAST

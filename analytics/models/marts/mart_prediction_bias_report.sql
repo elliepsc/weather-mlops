@@ -27,7 +27,7 @@ city_season AS (
         state,
         latitude,
         longitude,
-        au_season,
+        season,
 
         SUM(n_days)                                 AS n_days_total,
 
@@ -65,7 +65,7 @@ city_season AS (
         END                                         AS temp_bias_direction
 
     FROM with_geo
-    GROUP BY city, state, latitude, longitude, au_season
+    GROUP BY city, state, latitude, longitude, season
 )
 
 SELECT
@@ -74,4 +74,4 @@ SELECT
     rain_false_negative_pct > 20    AS high_rain_miss_rate,
     temp_mae > 3.0                  AS high_temp_error
 FROM city_season
-ORDER BY ABS(temp_mean_bias) DESC, city, au_season
+ORDER BY ABS(temp_mean_bias) DESC, city, season

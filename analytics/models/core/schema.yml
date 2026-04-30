@@ -5,6 +5,7 @@ models:
     description: >
       One row per city with geographic metadata and observation range.
       Derived from weather_raw — no hardcoded city list.
+      Superseded by dim_geography for multi-country use; kept for backward compat.
     columns:
       - name: city
         tests: [not_null, unique]
@@ -14,3 +15,71 @@ models:
       - name: first_observed_date
       - name: last_observed_date
       - name: total_records
+
+  - name: dim_date
+    description: >
+      Calendar dimension built from the actual date range in stg_weather_raw.
+      Provides both hemisphere season labels so the model works for AU (Southern)
+      and future FR/ES cities (Northern) without any code change.
+      Use season_southern for Australian cities, season_northern for European ones.
+      Join via dim_geography.hemisphere to pick the right column dynamically.
+    columns:
+      - name: date
+        tests: [not_null, unique]
+      - name: season_southern
+        tests:
+          - not_null
+          - accepted_values:
+              values: [Summer, Autumn, Winter, Spring]
+      - name: season_code_southern
+        tests:
+          - not_null
+          - accepted_values:
+              values: [DJF, MAM, JJA, SON]
+      - name: season_northern
+        tests:
+          - not_null
+          - accepted_values:
+              values: [Summer, Autumn, Winter, Spring]
+      - name: season_code_northern
+        tests:
+          - not_null
+          - accepted_values:
+              values: [DJF, MAM, JJA, SON]
+
+  - name: dim_geography
+    description: >
+      Geographic hierarchy with country, continent, hemisphere and Köppen climate
+      group (derived from int_weather_features_stats — not hardcoded).
+      Single source of truth for all geographic metadata.
+      country_code follows ISO 3166-1 alpha-2. When FR/ES cities are added,
+      extend via a seed CSV (city, country_code, region) joined here.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+      - name: country_code
+        tests: [not_null]
+      - name: hemisphere
+        tests:
+          - not_null
+          - accepted_values:
+              values: [Southern, Northern]
+      - name: koppen_group
+        tests:
+          - accepted_values:
+              values: ['Tropical (A)', 'Arid (B)', 'Temperate (C)', 'Continental (D)', 'Unknown']
+
+  - name: dim_weather_code
+    description: >
+      WMO weather code lookup (ISO 4677 / Open-Meteo convention).
+      Maps integer weather_code to human-readable description, category,
+      and severity_tier (0=clear → 3=heavy/storm). Used in extreme-event
+      analysis and downstream dashboards.
+    columns:
+      - name: weather_code
+        tests: [not_null, unique]
+      - name: severity_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1, 2, 3]

@@ -10,7 +10,7 @@
 WITH drift AS (
     SELECT
         d.*,
-        dd.au_season,
+        dd.season_southern  AS season,
         dd.year,
         dd.month
     FROM {{ ref('stg_drift_reports') }} d
@@ -23,14 +23,14 @@ monthly_per_feature AS (
         feature_name,
         year,
         month,
-        au_season,
+        season,
         COUNT(*)                                        AS days_monitored,
         SUM(CASE WHEN drifted THEN 1 ELSE 0 END)       AS drift_days,
         ROUND(AVG(ks_stat), 4)                          AS mean_ks_stat,
         ROUND(MAX(ks_stat), 4)                          AS max_ks_stat,
         ROUND(AVG(p_value), 4)                          AS mean_p_value
     FROM drift
-    GROUP BY feature_name, year, month, au_season
+    GROUP BY feature_name, year, month, season
 ),
 
 -- Overall summary from the pre-aggregated intermediate
@@ -57,7 +57,7 @@ SELECT
     m.feature_name,
     m.year,
     m.month,
-    m.au_season,
+    m.season,
     m.days_monitored,
     m.drift_days,
     -- Monthly drift rate for time-series chart

@@ -34,7 +34,7 @@ perf AS (
         p.pred_frost_risk,
         p.pred_storm_probability,
         p.has_actuals,
-        d.au_season
+        d.season_southern   AS season
 
     FROM {{ ref('int_actuals_vs_predictions') }} p
     LEFT JOIN {{ ref('dim_date') }} d ON d.date = p.prediction_date
@@ -60,7 +60,7 @@ joined AS (
 
 -- Unpivot by event type for easier slicing in Power BI
 by_heatwave AS (
-    SELECT 'Heatwave' AS event_type, city, au_season,
+    SELECT 'Heatwave' AS event_type, city, season,
            COUNT(*)                             AS n_event_days,
            ROUND(AVG(CAST(rain_correct AS DOUBLE)), 4) AS rain_accuracy,
            ROUND(AVG(temp_abs_error), 3)        AS temp_mae,
@@ -69,40 +69,40 @@ by_heatwave AS (
                                                AS risk_flag_rate,
            ROUND(AVG(pred_heatwave_risk), 4)   AS mean_predicted_risk
     FROM joined WHERE is_heatwave_day
-    GROUP BY city, au_season
+    GROUP BY city, season
 ),
 
 by_frost AS (
-    SELECT 'Frost' AS event_type, city, au_season,
+    SELECT 'Frost' AS event_type, city, season,
            COUNT(*) AS n_event_days,
            ROUND(AVG(CAST(rain_correct AS DOUBLE)), 4) AS rain_accuracy,
            ROUND(AVG(temp_abs_error), 3) AS temp_mae,
            ROUND(AVG(CASE WHEN pred_frost_risk >= 0.5 THEN 1.0 ELSE 0.0 END), 4) AS risk_flag_rate,
            ROUND(AVG(pred_frost_risk), 4) AS mean_predicted_risk
     FROM joined WHERE is_frost_day
-    GROUP BY city, au_season
+    GROUP BY city, season
 ),
 
 by_storm AS (
-    SELECT 'Storm' AS event_type, city, au_season,
+    SELECT 'Storm' AS event_type, city, season,
            COUNT(*) AS n_event_days,
            ROUND(AVG(CAST(rain_correct AS DOUBLE)), 4) AS rain_accuracy,
            ROUND(AVG(temp_abs_error), 3) AS temp_mae,
            ROUND(AVG(CASE WHEN pred_storm_probability >= 0.5 THEN 1.0 ELSE 0.0 END), 4) AS risk_flag_rate,
            ROUND(AVG(pred_storm_probability), 4) AS mean_predicted_risk
     FROM joined WHERE is_storm_day
-    GROUP BY city, au_season
+    GROUP BY city, season
 ),
 
 by_heavy_rain AS (
-    SELECT 'Heavy rain' AS event_type, city, au_season,
+    SELECT 'Heavy rain' AS event_type, city, season,
            COUNT(*) AS n_event_days,
            ROUND(AVG(CAST(rain_correct AS DOUBLE)), 4) AS rain_accuracy,
            ROUND(AVG(temp_abs_error), 3) AS temp_mae,
            ROUND(AVG(pred_rain_proba), 4) AS risk_flag_rate,
            ROUND(AVG(pred_rain_proba), 4) AS mean_predicted_risk
     FROM joined WHERE is_heavy_rain_day
-    GROUP BY city, au_season
+    GROUP BY city, season
 ),
 
 -- Global baseline for comparison
@@ -110,14 +110,14 @@ baseline AS (
     SELECT
         'Baseline (all days)' AS event_type,
         city,
-        au_season,
+        season,
         COUNT(*)                                AS n_event_days,
         ROUND(AVG(CAST(rain_correct AS DOUBLE)), 4) AS rain_accuracy,
         ROUND(AVG(temp_abs_error), 3)           AS temp_mae,
         NULL::DOUBLE                            AS risk_flag_rate,
         NULL::DOUBLE                            AS mean_predicted_risk
     FROM joined
-    GROUP BY city, au_season
+    GROUP BY city, season
 )
 
 SELECT * FROM by_heatwave
@@ -125,4 +125,4 @@ UNION ALL SELECT * FROM by_frost
 UNION ALL SELECT * FROM by_storm
 UNION ALL SELECT * FROM by_heavy_rain
 UNION ALL SELECT * FROM baseline
-ORDER BY event_type, city, au_season
+ORDER BY event_type, city, season

@@ -15,7 +15,7 @@ WITH base AS (
         p.city,
         p.pred_rain_proba,
         p.actual_rain,
-        d.au_season,
+        d.season_southern   AS season,
         d.year,
         d.month
 
@@ -41,7 +41,7 @@ SELECT
     prob_bucket_low,
     prob_bucket_high,
     prob_bucket_mid,
-    au_season,
+    season,
 
     COUNT(*)                                AS n_predictions,
     AVG(pred_rain_proba)                    AS mean_predicted_proba,
@@ -73,5 +73,5 @@ SELECT
     END                                     AS underconfident
 
 FROM bucketed
-GROUP BY prob_bucket_low, prob_bucket_high, prob_bucket_mid, au_season
-ORDER BY prob_bucket_low, au_season
+GROUP BY prob_bucket_low, prob_bucket_high, prob_bucket_mid, season
+ORDER BY prob_bucket_low, season

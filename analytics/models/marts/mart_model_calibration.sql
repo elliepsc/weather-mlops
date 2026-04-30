@@ -12,7 +12,7 @@ WITH global_calibration AS (
         prob_bucket_low,
         prob_bucket_high,
         prob_bucket_mid,
-        'All seasons'                   AS au_season,
+        'All seasons'                   AS season,
         SUM(n_predictions)              AS n_predictions,
         -- Weighted averages across seasons
         ROUND(
@@ -37,7 +37,7 @@ seasonal_calibration AS (
         prob_bucket_low,
         prob_bucket_high,
         prob_bucket_mid,
-        au_season,
+        season,
         n_predictions,
         ROUND(mean_predicted_proba, 4)  AS mean_predicted_proba,
         ROUND(observed_rain_rate, 4)    AS observed_rain_rate,
@@ -61,4 +61,4 @@ SELECT
         ELSE 'Calibrated'
     END                                                     AS calibration_verdict
 FROM combined
-ORDER BY au_season, prob_bucket_low
+ORDER BY season, prob_bucket_low

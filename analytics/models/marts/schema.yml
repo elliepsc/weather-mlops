@@ -1,6 +1,8 @@
 version: 2
 
 models:
+  # ── Modèles originaux ─────────────────────────────────────────────────────
+
   - name: mart_model_performance_overview
     description: >
       Monthly global performance across all cities. One row per month.
@@ -41,4 +43,95 @@ models:
       architecture stability.
     columns:
       - name: retrain_date
+        tests: [not_null, unique]
+
+  # ── Nouveaux modèles ──────────────────────────────────────────────────────
+
+  - name: mart_model_calibration
+    description: >
+      Reliability diagram data for rain probability predictions, globally and
+      per season. Exposes whether pred_rain_proba is well-calibrated
+      (calibration_error ≈ 0) or systematically over/underconfident.
+      Power BI: scatter x=mean_predicted_proba, y=observed_rain_rate, ref line y=x.
+      A positive calibration_error means the model is overconfident.
+      season = season_southern alias for AU; 'All seasons' for global aggregate.
+    columns:
+      - name: prob_bucket_low
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+
+  - name: mart_prediction_bias_report
+    description: >
+      Temperature and rain prediction bias by city × season.
+      Surfaces systematic over/underestimation hidden by MAE-only reporting.
+      Includes false positive and false negative rain rates for each segment.
+      Decision use-case: adjust alert thresholds for cities with persistent bias.
+      season = season_southern alias (from int_prediction_bias_by_city).
+    columns:
+      - name: city
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+
+  - name: mart_extreme_events_performance
+    description: >
+      Model accuracy on actual extreme weather days (Heatwave, Frost, Storm,
+      Heavy rain) vs. baseline (all days). Includes risk_flag_rate.
+      season = season_southern alias. Answers: "Does the model perform
+      worse when stakes are highest?"
+    columns:
+      - name: event_type
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_feature_drift_summary
+    description: >
+      Monthly drift rates per feature, enriched with global ranking from
+      int_feature_drift_ranking. Primary table for the feature drift
+      leaderboard dashboard. Shows drift_tier, drift_accelerating, and
+      monthly time-series for trend analysis.
+      season = season_southern alias.
+    columns:
+      - name: feature_name
+        tests: [not_null]
+
+  - name: mart_data_freshness_by_city
+    description: >
+      Operational freshness dashboard: one row per city with staleness tier,
+      SLA breach flag (configurable via var freshness_sla_days, default 3),
+      and internal completeness. Primary table for data engineering alerting.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+      - name: freshness_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Current', 'Yesterday', 'Stale (2-3d)', 'Stale (4-7d)', 'Critical (>7d)']
+
+  - name: mart_seasonal_performance
+    description: >
+      Global model performance (rain accuracy, temp MAE, P90 MAE) broken down
+      by season × year, plus an all-years aggregate per season.
+      season = season_southern (Australian meteorological seasons).
+      Identifies seasonal degradation not visible in mart_model_performance_overview
+      which aggregates by calendar month only.
+    columns:
+      - name: season
+        tests: [not_null]
+
+  - name: mart_climate_anomaly_vs_drift
+    description: >
+      Drift explainability: correlates detected feature drift with weather anomaly
+      scores across all cities on the same date.
+      drift_explainability_label classifies each drift event as:
+        "Drift on normal weather" → model degradation likely, retrain
+        "Drift during anomalous weather" → investigate before retraining
+        "No drift despite anomalous weather" → model robust
+        "No drift, normal weather" → baseline
+      Key table for validating retraining decisions operationally.
+    columns:
+      - name: date
         tests: [not_null, unique]

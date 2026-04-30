@@ -15,7 +15,7 @@ WITH base AS (
         p.actual_rain,
         p.rain_correct,
         p.temp_abs_error,
-        d.au_season,
+        d.season_southern   AS season,
         d.year,
         d.month
 
@@ -27,7 +27,7 @@ WITH base AS (
 
 SELECT
     city,
-    au_season,
+    season,
     year,
 
     COUNT(*)                                            AS n_days,
@@ -71,5 +71,5 @@ SELECT
     END                                                         AS temp_bias_direction
 
 FROM base
-GROUP BY city, au_season, year
-ORDER BY city, year, au_season
+GROUP BY city, season, year
+ORDER BY city, year, season

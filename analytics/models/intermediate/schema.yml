@@ -1,6 +1,8 @@
 version: 2
 
 models:
+  # ── Modèles originaux ─────────────────────────────────────────────────────
+
   - name: int_actuals_vs_predictions
     description: >
       Core join: predictions (date X) joined to actuals (date X+1).
@@ -23,6 +25,7 @@ models:
     description: >
       One row per date. expected_cities is the max complete-city count seen
       in the last 90 days — self-calibrates when new cities are added.
+      Tracks GLOBAL completeness; use int_data_freshness_by_city for per-city detail.
     columns:
       - name: date
         tests: [not_null, unique]
@@ -36,8 +39,90 @@ models:
     description: >
       Monthly feature statistics per city — averages, stddev, min/max.
       Useful to contextualise whether detected drift is seasonal.
+      Also used by dim_geography to derive the Köppen climate group.
 
   - name: int_gap_to_retrain_impact
     description: >
       Retrain events + 7-day pre-retrain data quality + LEAD() for next
       retrain. Answers whether gap-preceded retrains produce unstable models.
+
+  # ── Nouveaux modèles ──────────────────────────────────────────────────────
+
+  - name: int_prediction_calibration
+    description: >
+      Calibration analysis for pred_rain_proba. Groups predictions into 10
+      probability buckets and computes observed_rain_rate, calibration_error,
+      and Brier score per bucket × season (season = season_southern alias).
+      A well-calibrated model has calibration_error ≈ 0 across all buckets.
+      Feeds mart_model_calibration.
+    columns:
+      - name: prob_bucket_low
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+
+  - name: int_prediction_bias_by_city
+    description: >
+      Signed prediction errors (mean bias, RMSE, P90 MAE) per city × season × year.
+      Temperature bias: positive = model overestimates max_temp.
+      Rain bias: false positive rate and false negative rate.
+      season = season_southern alias. Complements int_model_performance_daily
+      which only computes unsigned MAE.
+    columns:
+      - name: city
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+
+  - name: int_extreme_events_actual
+    description: >
+      Flags actual extreme weather events from stg_weather_raw using BoM thresholds:
+        Heatwave  ≥ 35°C max_temp
+        Frost     < 2°C min_temp
+        Storm     wind_gust ≥ 90 km/h OR weather_code IN (95,96,99)
+        Heavy rain ≥ 25 mm/day
+      One row per city × date. All rows returned; consumers filter on flags.
+      Grain matches stg_weather_raw. Feeds mart_extreme_events_performance.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: int_feature_drift_ranking
+    description: >
+      Aggregated drift statistics per feature across the full monitoring history.
+      Computes drift_frequency_pct, mean/max KS-stat, drift_tier (Chronic /
+      Frequent / Occasional / Rare), and drift_accelerating flag.
+      Feeds mart_feature_drift_summary.
+    columns:
+      - name: feature_name
+        tests: [not_null, unique]
+      - name: drift_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: [Chronic, Frequent, Occasional, Rare]
+
+  - name: int_data_freshness_by_city
+    description: >
+      Per-city data freshness: last_observed_date, days_since_last_update,
+      internal_completeness_pct (% of date range covered), is_stale flag.
+      Complements int_data_completeness_daily (global) with city-level detail.
+      Grain: one row per city.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+
+  - name: int_weather_anomaly_score
+    description: >
+      Z-score anomaly detection per city × date for key features
+      (max_temp, min_temp, rainfall, wind_gust, humidity_3pm, pressure_3pm)
+      relative to the historical monthly baseline in int_weather_features_stats.
+      Feeds mart_climate_anomaly_vs_drift for drift explainability.
+      CAVEAT: stddev computed over all years including recent — see inline note.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]

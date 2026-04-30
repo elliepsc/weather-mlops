@@ -72,17 +72,21 @@ default_args = {
 
 # ── Gate ──────────────────────────────────────────────────────────────────────
 
+
 def _check_mode(**kwargs):
     """Branch vers les sensors (schedule normal) ou bypass direct (debug manuel)."""
     dag_run = kwargs.get("dag_run")
     skip = dag_run and dag_run.conf and dag_run.conf.get("skip_sensors", False)
     if skip:
-        logger.info("skip_sensors=True — bypass ExternalTaskSensors, passage direct à validate_sources")
+        logger.info(
+            "skip_sensors=True — bypass ExternalTaskSensors, passage direct à validate_sources"
+        )
         return "validate_sources"
     return ["wait_for_ingestion", "wait_for_monitoring"]
 
 
 # ── Validation ────────────────────────────────────────────────────────────────
+
 
 def _validate_sources(**kwargs):
     """Vérifie que les fichiers sources sont présents et datés du bon jour avant dbt."""
@@ -116,6 +120,7 @@ def _validate_sources(**kwargs):
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 
+
 def _load_sources(**kwargs):
     from analytics.scripts.load_sources import main
 
@@ -125,6 +130,7 @@ def _load_sources(**kwargs):
 
 
 # ── dbt ───────────────────────────────────────────────────────────────────────
+
 
 def _dbt_run(**kwargs):
     result = subprocess.run(
@@ -153,6 +159,7 @@ def _dbt_test(**kwargs):
 
 
 # ── Export ────────────────────────────────────────────────────────────────────
+
 
 def _export_analytics(**kwargs):
     from analytics.scripts.export_powerbi import main as export_main

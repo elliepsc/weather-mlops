@@ -1,0 +1,3 @@
+# À générer depuis Power BI Desktop.
+# Le dossier definition/ contiendra les pages, visuels et mesures DAX
+# générés automatiquement lors de l'enregistrement au format .pbip.

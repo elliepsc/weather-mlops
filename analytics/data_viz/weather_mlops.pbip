@@ -1,0 +1,3 @@
+# À générer depuis Power BI Desktop.
+# Ouvrir Power BI Desktop → Fichier → Enregistrer sous → format .pbip (Power BI Project)
+# Choisir ce dossier comme emplacement. Le fichier sera généré automatiquement.

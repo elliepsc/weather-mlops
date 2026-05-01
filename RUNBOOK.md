@@ -238,7 +238,42 @@ Tables disponibles :
 4. Mode Import (DirectQuery DuckDB local non recommandé)
 5. Tables dans le schéma `main_marts`
 
-**Option C — Via l'API FastAPI (données brutes, sans agrégations dbt) :**
+**Option C — Via URL raw GitHub (recommandé Power BI Desktop distant) :**
+
+Le DAG `weather_dbt_analytics` pousse automatiquement les `mart_*.csv` sur GitHub
+après chaque export. Power BI Desktop peut les lire directement sans dépendance locale.
+
+URLs brutes (à coller dans Power BI → Obtenir les données → Web) :
+```
+https://raw.githubusercontent.com/elliepsc/weather-mlops/main/data/analytics/mart_model_performance_overview.csv
+https://raw.githubusercontent.com/elliepsc/weather-mlops/main/data/analytics/mart_model_performance_by_city.csv
+https://raw.githubusercontent.com/elliepsc/weather-mlops/main/data/analytics/mart_forecast_vs_actual_timeline.csv
+https://raw.githubusercontent.com/elliepsc/weather-mlops/main/data/analytics/mart_mlops_health.csv
+https://raw.githubusercontent.com/elliepsc/weather-mlops/main/data/analytics/mart_retraining_history.csv
+```
+
+Voir `analytics/data_viz/template.pq` pour les requêtes Power Query M prêtes à l'emploi
+et `analytics/data_viz/SOURCES.md` pour le schéma de chaque mart.
+
+**Prérequis — variable `GH_TOKEN` :**
+
+Le push automatique nécessite un Personal Access Token GitHub avec permission
+`Contents: read & write` sur ce dépôt.
+
+1. Créer le token : [github.com/settings/tokens](https://github.com/settings/tokens)
+   → "Fine-grained tokens" → Repository : `weather-mlops` → Contents : Read & Write
+2. Copier le token (visible une seule fois)
+3. L'ajouter au `.env` local :
+   ```env
+   GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+   ```
+4. L'ajouter comme variable Airflow (pour que le DAG y accède en production) :
+   Airflow UI → **Admin → Variables → +** → Key : `GH_TOKEN`, Value : `ghp_xxx...`
+
+> Sans `GH_TOKEN`, la tâche `git_push_analytics` lève une `RuntimeError` et le DAG échoue.
+> L'export CSV local (`t_export`) réussit toujours avant cette tâche.
+
+**Option D — Via l'API FastAPI (données brutes, sans agrégations dbt) :**
 ```text
 http://localhost:8083/api/weather        → toutes les données
 http://localhost:8083/api/export/csv     → weather_final.csv

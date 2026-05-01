@@ -29,6 +29,7 @@ Pour une passe locale complète préférer : make analytics-all
 
 import json
 import logging
+import os
 import subprocess
 import sys
 from datetime import date, datetime, timedelta
@@ -167,6 +168,108 @@ def _export_analytics(**kwargs):
     export_main()
 
 
+# ── Git push ──────────────────────────────────────────────────────────────────
+
+
+def _git_push_analytics(**kwargs):
+    """Commit et push les mart_*.csv de data/analytics/ vers GitHub."""
+    ds = kwargs.get("ds") or date.today().isoformat()
+
+    # Token : variable Airflow GH_TOKEN > variable d'env
+    try:
+        from airflow.models import Variable
+
+        gh_token = Variable.get("GH_TOKEN", default_var=None)
+    except Exception:
+        gh_token = None
+    if not gh_token:
+        gh_token = os.environ.get("GH_TOKEN", "")
+    if not gh_token:
+        raise RuntimeError(
+            "GH_TOKEN introuvable. Définir la variable Airflow GH_TOKEN "
+            "ou la variable d'environnement GH_TOKEN."
+        )
+
+    analytics_dir = ROOT / "data" / "analytics"
+    patterns = list(analytics_dir.glob("mart_*.csv"))
+
+    # Vérifier s'il y a des changements sur les mart_*.csv
+    diff_check = subprocess.run(
+        ["git", "diff", "--quiet", "--"] + [str(p) for p in patterns],
+        cwd=str(ROOT),
+        capture_output=True,
+    )
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "--"]
+        + [str(p) for p in patterns],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    has_untracked = bool(untracked.stdout.strip())
+
+    if diff_check.returncode == 0 and not has_untracked:
+        logger.info("git push analytics skipped — aucun changement dans mart_*.csv")
+        return
+
+    # Stage uniquement les mart_*.csv
+    subprocess.run(
+        ["git", "add", "--"] + [str(p) for p in patterns],
+        cwd=str(ROOT),
+        check=True,
+    )
+
+    commit_msg = f"chore: update analytics exports [skip ci] - {ds}"
+    subprocess.run(
+        ["git", "commit", "-m", commit_msg],
+        cwd=str(ROOT),
+        check=True,
+    )
+
+    # Récupérer l'URL remote et injecter le token
+    remote_url = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    if remote_url.startswith("https://"):
+        # https://github.com/user/repo.git → https://<token>@github.com/user/repo.git
+        authed_url = remote_url.replace("https://", f"https://{gh_token}@", 1)
+    else:
+        authed_url = remote_url
+
+    push_result = subprocess.run(
+        ["git", "push", authed_url, "HEAD:main"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if push_result.returncode != 0:
+        logger.error(push_result.stderr)
+        raise RuntimeError(f"git push failed (exit {push_result.returncode})")
+
+    sha = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    for p in sorted(patterns):
+        size_kb = p.stat().st_size / 1024 if p.exists() else 0
+        logger.info("pushed %s (%.1f KB)", p.name, size_kb)
+
+    logger.info(
+        "git push analytics done — %d fichiers, SHA=%s, date=%s",
+        len(patterns),
+        sha,
+        ds,
+    )
+
+
 # ── DAG ───────────────────────────────────────────────────────────────────────
 
 with DAG(
@@ -246,6 +349,13 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
+    t_git_push = PythonOperator(
+        task_id="git_push_analytics",
+        python_callable=_git_push_analytics,
+        retries=1,
+        execution_timeout=timedelta(minutes=5),
+    )
+
     # ── Dépendances ───────────────────────────────────────────────────────────
     #
     # Schedule normal :
@@ -256,7 +366,8 @@ with DAG(
     #
     # Suite commune :
     #   validate_sources → load_sources → dbt_run → dbt_test → export_analytics_csv
+    #   → git_push_analytics
 
     t_gate >> [t_wait_ing, t_wait_mon] >> t_validate
     t_gate >> t_validate
-    t_validate >> t_load >> t_run >> t_test >> t_export
+    t_validate >> t_load >> t_run >> t_test >> t_export >> t_git_push

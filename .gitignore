@@ -24,6 +24,8 @@ Ingestion.ipynb
 data/weather.db
 data/analytics.duckdb
 data/analytics/
+# Seuls les 5 exports Power BI sont trackés (poussés automatiquement par le DAG)
+!data/analytics/mart_*.csv
 data/output/
 data/raw/weatherAUS.csv
 data/processed/

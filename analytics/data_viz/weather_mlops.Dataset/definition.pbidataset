@@ -1,0 +1,7 @@
+# À générer depuis Power BI Desktop.
+# Ce fichier contiendra la définition du modèle de données (tables, relations, mesures DAX).
+# Il sera créé automatiquement lors de l'enregistrement au format .pbip.
+#
+# Phase 2 — Migration BigQuery :
+# Remplacer les sources Web.Contents (GitHub raw) par GoogleBigQuery.Database
+# dans les requêtes Power Query M. Voir analytics/data_viz/template.pq.

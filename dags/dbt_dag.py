@@ -203,7 +203,9 @@ def _git_push_analytics(**kwargs):
         csv_paths = [analytics_dir / name for name in MART_CSVS if (analytics_dir / name).exists()]
 
         if not csv_paths:
-            logger.warning("git push analytics skipped — aucun mart_*.csv trouvé dans %s", analytics_dir)
+            logger.warning(
+                "git push analytics skipped — aucun mart_*.csv trouvé dans %s", analytics_dir
+            )
             return
 
         # Stage uniquement les mart_*.csv connus
@@ -224,7 +226,9 @@ def _git_push_analytics(**kwargs):
             logger.info("git push analytics skipped — aucun changement dans les mart_*.csv")
             return
 
-        commit_msg = f"chore: update analytics exports [skip ci] - {now.strftime('%Y-%m-%d %H:%M')} UTC"
+        commit_msg = (
+            f"chore: update analytics exports [skip ci] - {now.strftime('%Y-%m-%d %H:%M')} UTC"
+        )
         subprocess.run(
             ["git", "commit", "-m", commit_msg],
             cwd=str(ROOT),
@@ -253,7 +257,9 @@ def _git_push_analytics(**kwargs):
             text=True,
         )
         if push_result.returncode != 0:
-            logger.error("git push failed (exit %d): %s", push_result.returncode, push_result.stderr)
+            logger.error(
+                "git push failed (exit %d): %s", push_result.returncode, push_result.stderr
+            )
             return
 
         sha = subprocess.run(

@@ -1,17 +1,19 @@
 """
-FastAPI — Weather data endpoint for Power BI.
+FastAPI — Weather data endpoint for Power BI and Streamlit.
 
 Endpoints:
   GET /api/weather              — full historical + predictions table (Power BI Web connector)
   GET /api/weather/latest       — latest date per city with predictions
   GET /api/weather/predictions  — predictions-only table
   GET /api/cities               — list of available cities
+  GET /api/analytics/{mart}     — DuckDB analytics mart (demo or production)
   GET /api/mlflow/runs          — last N MLflow training runs + metrics
   GET /api/mlflow/metrics       — latest metrics per model
   GET /api/export/csv           — download CSV file directly
   GET /health                   — health check
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +31,19 @@ from fastapi.responses import FileResponse, JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from pipeline.database import DB_PATH, get_connection
-from pipeline.mlflow_config import get_mlflow_tracking_uri
+
+# ─── DEMO_MODE ────────────────────────────────────────────────────────────────
+# Set DEMO_MODE=true on Render to serve pre-generated demo databases instead of
+# the production SQLite / DuckDB files that live outside the repo.
+
+DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("1", "true", "yes")
+
+_DEMO_DB = ROOT / "data" / "demo" / "weather_demo.db"
+_DEMO_ANALYTICS = ROOT / "data" / "demo" / "analytics_demo.duckdb"
+_PROD_ANALYTICS = ROOT / "data" / "analytics.duckdb"
+
+APP_DB_PATH: Path = _DEMO_DB if DEMO_MODE else DB_PATH
+ANALYTICS_DB_PATH: Path = _DEMO_ANALYTICS if DEMO_MODE else _PROD_ANALYTICS
 
 app = FastAPI(
     title="Weather Australia API",
@@ -60,7 +74,12 @@ def _df_to_records(df: pd.DataFrame) -> list[dict]:
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "db": str(DB_PATH), "db_exists": DB_PATH.exists()}
+    return {
+        "status": "ok",
+        "db": str(APP_DB_PATH),
+        "db_exists": APP_DB_PATH.exists(),
+        "demo_mode": DEMO_MODE,
+    }
 
 
 @app.get("/api/cities")
@@ -88,7 +107,7 @@ def get_weather(
     Power BI: Data → Web → paste this URL → JSON → expand 'data'.
     """
     try:
-        with get_connection() as conn:
+        with get_connection(APP_DB_PATH) as conn:
             query = "SELECT * FROM v_weather_full WHERE 1=1"
             params = []
             if city:
@@ -118,7 +137,7 @@ def get_weather(
 def get_latest(city: Optional[str] = Query(None)):
     """Latest available date per city with all predictions — ideal for a Power BI dashboard."""
     try:
-        with get_connection() as conn:
+        with get_connection(APP_DB_PATH) as conn:
             base = """
                 SELECT w.*
                 FROM v_weather_full w
@@ -152,7 +171,7 @@ def get_predictions(
 ):
     """Predictions-only table (lighter payload for Power BI dashboards)."""
     try:
-        with get_connection() as conn:
+        with get_connection(APP_DB_PATH) as conn:
             query = """
                 SELECT date, city,
                        rain_tomorrow, rain_tomorrow_proba,
@@ -198,10 +217,51 @@ def export_csv():
     )
 
 
+# ─── Analytics (DuckDB marts) ────────────────────────────────────────────────
+
+_ANALYTICS_MARTS = {
+    "forecast-timeline":    "mart_forecast_vs_actual_timeline",
+    "performance-overview": "mart_model_performance_overview",
+    "health":               "mart_mlops_health",
+    "performance-by-city":  "mart_model_performance_by_city",
+    "retraining-history":   "mart_retraining_history",
+}
+
+
+@app.get("/api/analytics/{mart}")
+def get_analytics_mart(mart: str):
+    """
+    Read one of the five DuckDB analytics marts.
+    Available slugs: forecast-timeline, performance-overview, health,
+                     performance-by-city, retraining-history.
+    """
+    if mart not in _ANALYTICS_MARTS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown mart '{mart}'. Available: {list(_ANALYTICS_MARTS)}",
+        )
+    if not ANALYTICS_DB_PATH.exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Analytics database not available. Run pipeline/generate_demo_dataset.py or dbt.",
+        )
+    try:
+        import duckdb
+
+        con = duckdb.connect(str(ANALYTICS_DB_PATH), read_only=True)
+        df = con.execute(f"SELECT * FROM {_ANALYTICS_MARTS[mart]}").df()
+        con.close()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return JSONResponse({"count": len(df), "data": _df_to_records(df)})
+
+
 # ─── MLflow endpoints ────────────────────────────────────────────────────────
 
 
 def _get_mlflow_client():
+    from pipeline.mlflow_config import get_mlflow_tracking_uri
     import mlflow
 
     uri = get_mlflow_tracking_uri(ROOT)
@@ -215,6 +275,8 @@ def get_mlflow_runs(n: int = Query(10, description="Number of most recent runs")
     Last N training runs from MLflow — useful for Streamlit or Power BI trend charts.
     Shows aggregate metrics per run (rain accuracy, temp MAE, etc.).
     """
+    if DEMO_MODE:
+        return JSONResponse({"count": 0, "runs": [], "message": "MLflow not available in demo mode."})
     try:
         client = _get_mlflow_client()
         experiment = client.get_experiment_by_name("weather_australia")
@@ -267,7 +329,17 @@ def get_mlflow_runs(n: int = Query(10, description="Number of most recent runs")
 def get_latest_mlflow_metrics():
     """
     Latest metrics from models/metrics.json — quick health check for Power BI.
+    In DEMO_MODE returns canned values matching the trained model benchmarks.
     """
+    if DEMO_MODE:
+        return JSONResponse({
+            "rain_tomorrow":         {"accuracy": 0.7699, "auc": 0.8518},
+            "max_temp_tomorrow":     {"mae": 1.628, "r2": 0.9068},
+            "weather_type_tomorrow": {"accuracy": 0.8216},
+            "heatwave_risk":         {"auc": 0.9963},
+            "frost_risk":            {"auc": 0.9891},
+            "storm_probability":     {"auc": 0.8980},
+        })
     metrics_path = ROOT / "models" / "metrics.json"
     if not metrics_path.exists():
         raise HTTPException(
@@ -281,8 +353,6 @@ def get_latest_mlflow_metrics():
 # ─── run ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import os
-
     import uvicorn
 
     port = int(os.getenv("API_PORT", 8083))

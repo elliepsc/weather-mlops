@@ -1,13 +1,22 @@
 """
 Streamlit demo — Weather Australia dashboard.
-Connects to the FastAPI backend at http://localhost:8083.
+Connects to the FastAPI backend.
+
+Set API_URL via environment variable or Streamlit secrets for cloud deployment:
+  export API_URL=https://your-api.onrender.com   (local override)
+  st.secrets["API_URL"] = "..."                  (Streamlit Community Cloud)
 """
+
+import os
 
 import pandas as pd
 import requests
 import streamlit as st
 
-API_URL = "http://localhost:8083"
+API_URL = (
+    st.secrets.get("API_URL", None)
+    or os.getenv("API_URL", "http://localhost:8083")
+).rstrip("/")
 
 st.set_page_config(page_title="Weather Australia", page_icon="🌦", layout="wide")
 st.title("Weather Australia — Live Dashboard")
@@ -62,7 +71,7 @@ except Exception:
     api_ok = False
 
 if not api_ok:
-    st.error(f"API unreachable at {API_URL} — start the server with: python api/app.py")
+    st.error(f"API unreachable at {API_URL} — set API_URL or start the server with: python api/app.py")
     st.stop()
 
 with st.sidebar:

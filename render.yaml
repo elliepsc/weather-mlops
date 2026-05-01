@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: weather-mlops-api
+    env: python
+    plan: free
+    region: oregon
+    # Install only the API dependencies (no MLflow / XGBoost / dbt in DEMO_MODE).
+    # generate_demo_dataset.py regenerates the SQLite + DuckDB files at build time;
+    # the committed copies in data/demo/ act as a fallback if the script fails.
+    buildCommand: >-
+      pip install -r api/requirements.txt &&
+      python pipeline/generate_demo_dataset.py
+    startCommand: uvicorn api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: PYTHONPATH
+        value: "."

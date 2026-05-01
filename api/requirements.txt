@@ -1,0 +1,14 @@
+# Minimal requirements for Render deployment (DEMO_MODE=true).
+# Heavy packages (xgboost, scikit-learn, mlflow, dbt, airflow) are excluded:
+# they are not needed when DEMO_MODE=true; mlflow endpoints return empty data.
+
+fastapi==0.136.0
+uvicorn[standard]==0.45.0
+prometheus-fastapi-instrumentator==7.1.0
+pandas==2.1.4
+numpy==1.26.4
+duckdb==1.5.2
+requests==2.32.3
+pydantic==2.13.3
+pydantic-settings==2.14.0
+PyYAML==6.0.3

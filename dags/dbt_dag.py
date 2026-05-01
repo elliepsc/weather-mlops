@@ -32,7 +32,7 @@ import logging
 import os
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -48,6 +48,7 @@ from dags._airflow_compat import (
     BranchPythonOperator,
     ExternalTaskSensor,
     PythonOperator,
+    TriggerRule,
 )
 
 logger = logging.getLogger(__name__)
@@ -171,103 +172,110 @@ def _export_analytics(**kwargs):
 # ── Git push ──────────────────────────────────────────────────────────────────
 
 
+MART_CSVS = [
+    "mart_forecast_vs_actual_timeline.csv",
+    "mart_model_performance_overview.csv",
+    "mart_model_performance_by_city.csv",
+    "mart_mlops_health.csv",
+    "mart_retraining_history.csv",
+]
+
+
 def _git_push_analytics(**kwargs):
-    """Commit et push les mart_*.csv de data/analytics/ vers GitHub."""
-    ds = kwargs.get("ds") or date.today().isoformat()
+    """Commit et push les mart_*.csv de data/analytics/ vers GitHub.
 
-    # Token : variable Airflow GH_TOKEN > variable d'env
+    Erreurs non bloquantes : la tâche logue et retourne sans lever d'exception
+    pour ne pas impacter le DAG quand le push échoue (réseau, token absent…).
+    """
+    now = datetime.now(timezone.utc)
+
     try:
-        from airflow.models import Variable
+        gh_token = os.getenv("GH_TOKEN", "")
 
-        gh_token = Variable.get("GH_TOKEN", default_var=None)
-    except Exception:
-        gh_token = None
-    if not gh_token:
-        gh_token = os.environ.get("GH_TOKEN", "")
-    if not gh_token:
-        raise RuntimeError(
-            "GH_TOKEN introuvable. Définir la variable Airflow GH_TOKEN "
-            "ou la variable d'environnement GH_TOKEN."
+        if not gh_token:
+            logger.warning(
+                "git push analytics skipped — GH_TOKEN absent "
+                "(définir dans .env ou variable Airflow GH_TOKEN)"
+            )
+            return
+
+        analytics_dir = ROOT / "data" / "analytics"
+        csv_paths = [analytics_dir / name for name in MART_CSVS if (analytics_dir / name).exists()]
+
+        if not csv_paths:
+            logger.warning("git push analytics skipped — aucun mart_*.csv trouvé dans %s", analytics_dir)
+            return
+
+        # Stage uniquement les mart_*.csv connus
+        subprocess.run(
+            ["git", "add", "--"] + [str(p) for p in csv_paths],
+            cwd=str(ROOT),
+            check=True,
+            capture_output=True,
         )
 
-    analytics_dir = ROOT / "data" / "analytics"
-    patterns = list(analytics_dir.glob("mart_*.csv"))
+        # Vérifier si le staging a produit des changements
+        cached_check = subprocess.run(
+            ["git", "diff", "--quiet", "--cached"],
+            cwd=str(ROOT),
+            capture_output=True,
+        )
+        if cached_check.returncode == 0:
+            logger.info("git push analytics skipped — aucun changement dans les mart_*.csv")
+            return
 
-    # Vérifier s'il y a des changements sur les mart_*.csv
-    diff_check = subprocess.run(
-        ["git", "diff", "--quiet", "--"] + [str(p) for p in patterns],
-        cwd=str(ROOT),
-        capture_output=True,
-    )
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "--"]
-        + [str(p) for p in patterns],
-        cwd=str(ROOT),
-        capture_output=True,
-        text=True,
-    )
-    has_untracked = bool(untracked.stdout.strip())
+        commit_msg = f"chore: update analytics exports [skip ci] - {now.strftime('%Y-%m-%d %H:%M')} UTC"
+        subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=str(ROOT),
+            check=True,
+            capture_output=True,
+        )
 
-    if diff_check.returncode == 0 and not has_untracked:
-        logger.info("git push analytics skipped — aucun changement dans mart_*.csv")
-        return
+        # Construire l'URL authentifiée (token injecté, jamais loggué)
+        remote_url = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
 
-    # Stage uniquement les mart_*.csv
-    subprocess.run(
-        ["git", "add", "--"] + [str(p) for p in patterns],
-        cwd=str(ROOT),
-        check=True,
-    )
+        if remote_url.startswith("https://"):
+            authed_url = remote_url.replace("https://", f"https://{gh_token}@", 1)
+        else:
+            authed_url = remote_url
 
-    commit_msg = f"chore: update analytics exports [skip ci] - {ds}"
-    subprocess.run(
-        ["git", "commit", "-m", commit_msg],
-        cwd=str(ROOT),
-        check=True,
-    )
+        push_result = subprocess.run(
+            ["git", "push", authed_url, "HEAD:main"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+        )
+        if push_result.returncode != 0:
+            logger.error("git push failed (exit %d): %s", push_result.returncode, push_result.stderr)
+            return
 
-    # Récupérer l'URL remote et injecter le token
-    remote_url = subprocess.run(
-        ["git", "remote", "get-url", "origin"],
-        cwd=str(ROOT),
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+        sha = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
 
-    if remote_url.startswith("https://"):
-        # https://github.com/user/repo.git → https://<token>@github.com/user/repo.git
-        authed_url = remote_url.replace("https://", f"https://{gh_token}@", 1)
-    else:
-        authed_url = remote_url
+        for p in csv_paths:
+            size_kb = p.stat().st_size / 1024
+            logger.info("  pushed %s (%.1f KB)", p.name, size_kb)
 
-    push_result = subprocess.run(
-        ["git", "push", authed_url, "HEAD:main"],
-        cwd=str(ROOT),
-        capture_output=True,
-        text=True,
-    )
-    if push_result.returncode != 0:
-        logger.error(push_result.stderr)
-        raise RuntimeError(f"git push failed (exit {push_result.returncode})")
+        logger.info(
+            "git push analytics done — %d fichiers, SHA=%s, timestamp=%s UTC",
+            len(csv_paths),
+            sha,
+            now.strftime("%Y-%m-%d %H:%M"),
+        )
 
-    sha = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
-        cwd=str(ROOT),
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-
-    for p in sorted(patterns):
-        size_kb = p.stat().st_size / 1024 if p.exists() else 0
-        logger.info("pushed %s (%.1f KB)", p.name, size_kb)
-
-    logger.info(
-        "git push analytics done — %d fichiers, SHA=%s, date=%s",
-        len(patterns),
-        sha,
-        ds,
-    )
+    except Exception as exc:
+        logger.error("git push analytics error (non-bloquant) : %s", exc)
 
 
 # ── DAG ───────────────────────────────────────────────────────────────────────
@@ -349,10 +357,13 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
+    # trigger_rule=ALL_DONE : s'exécute même si t_export a échoué,
+    # pour ne pas bloquer le DAG. La fonction logue les erreurs sans lever.
     t_git_push = PythonOperator(
         task_id="git_push_analytics",
         python_callable=_git_push_analytics,
-        retries=1,
+        trigger_rule=TriggerRule.ALL_DONE,
+        retries=0,
         execution_timeout=timedelta(minutes=5),
     )
 

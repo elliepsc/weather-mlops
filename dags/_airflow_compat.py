@@ -17,6 +17,7 @@ try:
         TriggerDagRunOperator,
     )
     from airflow.sensors.external_task import ExternalTaskSensor
+    from airflow.utils.trigger_rule import TriggerRule
 except ModuleNotFoundError:
 
     class DAG:
@@ -60,3 +61,9 @@ except ModuleNotFoundError:
 
     class ExternalTaskSensor(_DummyOperator):
         pass
+
+    class TriggerRule:
+        ALL_DONE = "all_done"
+        ALL_SUCCESS = "all_success"
+        ONE_FAILED = "one_failed"
+        NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"

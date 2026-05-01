@@ -25,7 +25,11 @@ data/weather.db
 data/analytics.duckdb
 data/analytics/
 # Seuls les 5 exports Power BI sont trackés (poussés automatiquement par le DAG)
-!data/analytics/mart_*.csv
+!data/analytics/mart_forecast_vs_actual_timeline.csv
+!data/analytics/mart_model_performance_overview.csv
+!data/analytics/mart_model_performance_by_city.csv
+!data/analytics/mart_mlops_health.csv
+!data/analytics/mart_retraining_history.csv
 data/output/
 data/raw/weatherAUS.csv
 data/processed/

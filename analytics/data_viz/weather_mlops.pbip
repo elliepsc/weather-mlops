@@ -1,3 +1,12 @@
-# À générer depuis Power BI Desktop.
-# Ouvrir Power BI Desktop → Fichier → Enregistrer sous → format .pbip (Power BI Project)
-# Choisir ce dossier comme emplacement. Le fichier sera généré automatiquement.
+{
+  "_comment": "Placeholder — sera écrasé à la première ouverture dans Power BI Desktop (Fichier → Enregistrer sous → format .pbip).",
+  "version": "1.0",
+  "artifacts": [
+    {
+      "report": {
+        "path": "weather_mlops.Report"
+      }
+    }
+  ],
+  "settings": {}
+}

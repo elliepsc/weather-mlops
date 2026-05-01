@@ -4,7 +4,9 @@ services:
   api:
     build: .
     ports:
-      - "8003:8003"
+      - "8000:8000"          # 8000 in Docker (local direct = 8001, Airflow = 8083)
+    environment:
+      API_PORT: "8000"       # Override .env so the container listens on 8000
     volumes:
       - ./data:/app/data
       - ./models:/app/models
@@ -12,7 +14,7 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

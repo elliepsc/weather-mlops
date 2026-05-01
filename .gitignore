@@ -70,6 +70,9 @@ mlruns/
 *.secret
 *.key
 
+# Streamlit secrets (le .example est tracké, pas le vrai fichier)
+streamlit_app/.streamlit/secrets.toml
+
 # ── Docker volumes ────────────────────────────────────────────────────────────
 grafana_data/
 

@@ -355,6 +355,6 @@ def get_latest_mlflow_metrics():
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("API_PORT", 8083))
+    port = int(os.getenv("API_PORT", 8001))  # 8001 local (8083 = Airflow)
     host = os.getenv("API_HOST", "0.0.0.0")
     uvicorn.run("api.app:app", host=host, port=port, reload=True)

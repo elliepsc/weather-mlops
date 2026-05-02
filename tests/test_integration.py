@@ -191,20 +191,17 @@ def test_mlflow_metrics_404_when_no_file(client):
 
 
 def test_mlflow_metrics_200_with_real_file(client, tmp_path, monkeypatch):
-    """Returns the metrics JSON when models/metrics.json is present."""
+    """Returns the metrics JSON when models/mlflow_latest.json is present."""
     import api.app as app_module
 
     metrics = {"rain_accuracy": 0.77, "temp_mae": 1.63}
-    metrics_file = tmp_path / "metrics.json"
-    metrics_file.write_text(json.dumps(metrics))
 
     # Point ROOT to tmp_path so the endpoint resolves the file correctly
     monkeypatch.setattr(app_module, "OUTPUT_CSV", tmp_path / "weather_final.csv")
-    # Patch the path resolution inside the endpoint
     orig_root = app_module.ROOT
     monkeypatch.setattr(app_module, "ROOT", tmp_path)
     (tmp_path / "models").mkdir(exist_ok=True)
-    (tmp_path / "models" / "metrics.json").write_text(json.dumps(metrics))
+    (tmp_path / "models" / "mlflow_latest.json").write_text(json.dumps(metrics))
 
     r = client.get("/api/mlflow/metrics")
     assert r.status_code == 200

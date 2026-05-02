@@ -52,6 +52,14 @@ monitoring:
   # Nombre minimum de lignes pour calculer les métriques (30d × 26 villes théorique).
   min_rows_for_metrics: 30
 
+  # Fenêtre courte pour l'alerte précoce (en jours).
+  # Alerte Slack uniquement — pas de retrain — si les métriques 7j passent sous ces seuils.
+  early_warning_window_days: 7
+  # Accuracy pluie sous 70% sur 7j → signal précoce (seuil retrain est 75% sur 30j).
+  rain_accuracy_early_warning_threshold: 0.70
+  # MAE temp au-dessus de 4°C sur 7j → signal précoce (seuil retrain est 3°C sur 30j).
+  temp_mae_early_warning_threshold: 4.0
+
 ingestion:
   # Nombre minimum de villes avec données J-1 pour valider l'ingestion.
   # 21/26 = ~80% de couverture. En dessous → prédictions bloquées.

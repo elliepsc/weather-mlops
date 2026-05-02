@@ -53,6 +53,9 @@ class MonitoringConfig(BaseModel):
     drift_window_days: int
     monitored_features: list[str]
     min_rows_for_metrics: int
+    early_warning_window_days: int
+    rain_accuracy_early_warning_threshold: float
+    temp_mae_early_warning_threshold: float
 
     @model_validator(mode="after")
     def alert_lt_retrain(self):

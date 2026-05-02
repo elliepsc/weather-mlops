@@ -274,6 +274,7 @@ def log_model_metrics(**context):
 
     today = date.fromisoformat(context["ds"])
     cutoff = (today - timedelta(days=M.drift_window_days)).isoformat()
+    cutoff_7d = (today - timedelta(days=M.early_warning_window_days)).isoformat()
     monitoring_dir = ROOT / "data" / "monitoring"
     monitoring_dir.mkdir(parents=True, exist_ok=True)
     history_path = monitoring_dir / "model_metrics_history.jsonl"
@@ -360,12 +361,39 @@ def log_model_metrics(**context):
     context["ti"].xcom_push(key="rain_accuracy_30d", value=metrics.get("rain_accuracy_30d"))
     context["ti"].xcom_push(key="temp_mae_30d", value=metrics.get("temp_mae_30d"))
 
+    # 7-day early-warning window — derived from the same df, no extra query.
+    df_7d = df[df["date"] >= cutoff_7d]
+    metrics_7d: dict = {}
+    rain_7d = df_7d.dropna(subset=["actual_rain_tomorrow", "rain_tomorrow"])
+    if not rain_7d.empty:
+        metrics_7d["rain_accuracy_7d"] = round(
+            accuracy_score(
+                rain_7d["actual_rain_tomorrow"].astype(int),
+                rain_7d["rain_tomorrow"].astype(int),
+            ),
+            4,
+        )
+    temp_7d = df_7d.dropna(subset=["actual_max_temp_tomorrow", "max_temp_tomorrow"])
+    if not temp_7d.empty:
+        metrics_7d["temp_mae_7d"] = round(
+            mean_absolute_error(
+                temp_7d["actual_max_temp_tomorrow"],
+                temp_7d["max_temp_tomorrow"],
+            ),
+            2,
+        )
+    logger.info("Model metrics (7d early-warning): %s", metrics_7d)
+    context["ti"].xcom_push(key="rain_accuracy_7d", value=metrics_7d.get("rain_accuracy_7d"))
+    context["ti"].xcom_push(key="temp_mae_7d", value=metrics_7d.get("temp_mae_7d"))
+
 
 def branch_on_monitoring_decision(**context):
     """Route monitoring to retrain, alert, insufficient data, or no action."""
     features = context["ti"].xcom_pull(task_ids="detect_drift", key="drifted_features") or []
     accuracy = context["ti"].xcom_pull(task_ids="log_model_metrics", key="rain_accuracy_30d")
     temp_mae = context["ti"].xcom_pull(task_ids="log_model_metrics", key="temp_mae_30d")
+    accuracy_7d = context["ti"].xcom_pull(task_ids="log_model_metrics", key="rain_accuracy_7d")
+    temp_mae_7d = context["ti"].xcom_pull(task_ids="log_model_metrics", key="temp_mae_7d")
     ds = context["ds"]
 
     n_drifted = len(features)
@@ -373,17 +401,25 @@ def branch_on_monitoring_decision(**context):
     high_mae = temp_mae is not None and temp_mae > M.temp_mae_threshold_celsius
     heavy_drift = n_drifted >= M.min_drift_features_retrain
     mild_drift = M.min_drift_features_alert <= n_drifted < M.min_drift_features_retrain
+    early_warning = (
+        accuracy_7d is not None and accuracy_7d < M.rain_accuracy_early_warning_threshold
+    ) or (
+        temp_mae_7d is not None and temp_mae_7d > M.temp_mae_early_warning_threshold
+    )
 
     decision_data = {
         "date": ds,
         "rain_accuracy_30d": accuracy,
         "temp_mae_30d": temp_mae,
+        "rain_accuracy_7d": accuracy_7d,
+        "temp_mae_7d": temp_mae_7d,
         "drifted_features": features,
         "n_drifted": n_drifted,
         "low_accuracy": low_accuracy,
         "high_mae": high_mae,
         "heavy_drift": heavy_drift,
         "mild_drift": mild_drift,
+        "early_warning": early_warning,
     }
 
     if accuracy is None and temp_mae is None:
@@ -437,6 +473,18 @@ def branch_on_monitoring_decision(**context):
         context["ti"].xcom_push(key="monitoring_action", value="alert_only")
         return "alert_only"
 
+    if early_warning:
+        logger.warning(
+            "EARLY WARNING - 7d metrics degrading: accuracy_7d=%s mae_7d=%s (30d still OK).",
+            accuracy_7d,
+            temp_mae_7d,
+        )
+        decision_data["action"] = "alert_only"
+        decision_data["reason"] = "early_warning_7d"
+        _write_decision(decision_data)
+        context["ti"].xcom_push(key="monitoring_action", value="alert_only")
+        return "alert_only"
+
     logger.info(
         "No action needed - accuracy=%.1f%% mae=%.2f drifted=%d",
         (accuracy or 0) * 100,
@@ -450,22 +498,65 @@ def branch_on_monitoring_decision(**context):
     return "no_action"
 
 
+def _format_drift_lines(drift_path: Path) -> str:
+    """Return a per-feature drift summary string, or empty string if unavailable."""
+    if not drift_path.exists():
+        return ""
+    try:
+        drift = json.loads(drift_path.read_text())
+    except Exception:
+        return ""
+    features = drift.get("features", {})
+    if not features:
+        return ""
+    lines = []
+    for feat, stats in features.items():
+        flag = ":red_circle:" if stats.get("drifted") else ":white_circle:"
+        lines.append(
+            f"  {flag} {feat}: KS={stats.get('ks_stat')} p={stats.get('p_value')}"
+        )
+    dqw = drift.get("data_quality_warning")
+    footer = (
+        f"\n  :warning: data quality warning — completeness "
+        f"recent={drift.get('completeness_recent_pct')}% "
+        f"baseline={drift.get('completeness_baseline_pct')}%"
+        if dqw
+        else ""
+    )
+    return "\n" + "\n".join(lines) + footer
+
+
 def send_alert(**context):
-    """Send Slack alert for mild drift or cooldown-blocked retrain."""
+    """Send Slack alert for mild drift, cooldown-blocked retrain, or early warning."""
     action = context["ti"].xcom_pull(
         task_ids="branch_on_monitoring_decision", key="monitoring_action"
     )
     out = ROOT / "data" / "monitoring" / "monitoring_decision.json"
     details = json.loads(out.read_text()) if out.exists() else {}
+    drift_lines = _format_drift_lines(ROOT / "data" / "monitoring" / "drift_report.json")
     ds = context["ds"]
+    reason = details.get("reason", "unknown")
 
-    message = (
-        f":warning: *weather-mlops monitoring alert* ({ds})\n"
-        f"Action: `{action}` | Reason: `{details.get('reason', 'unknown')}`\n"
-        f"accuracy={details.get('rain_accuracy_30d')} "
-        f"mae={details.get('temp_mae_30d')} "
-        f"drifted={details.get('drifted_features')}"
-    )
+    if reason == "early_warning_7d":
+        message = (
+            f":eyes: *weather-mlops early warning* ({ds})\n"
+            f"7-day metrics degrading — 30d still OK, watch closely.\n"
+            f"accuracy_7d={details.get('rain_accuracy_7d')} "
+            f"(30d={details.get('rain_accuracy_30d')}) | "
+            f"mae_7d={details.get('temp_mae_7d')} "
+            f"(30d={details.get('temp_mae_30d')})"
+            f"{drift_lines}"
+        )
+    else:
+        message = (
+            f":warning: *weather-mlops monitoring alert* ({ds})\n"
+            f"Action: `{action}` | Reason: `{reason}`\n"
+            f"accuracy_30d={details.get('rain_accuracy_30d')} "
+            f"mae_30d={details.get('temp_mae_30d')} | "
+            f"accuracy_7d={details.get('rain_accuracy_7d')} "
+            f"mae_7d={details.get('temp_mae_7d')}"
+            f"{drift_lines}"
+        )
     logger.warning("MONITORING ALERT: %s", message)
     _send_slack_alert(message, alert_key="monitoring_alert")
 

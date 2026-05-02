@@ -18,6 +18,8 @@ def make_context(
     accuracy: float | None,
     temp_mae: float | None,
     drifted_features: list[str],
+    accuracy_7d: float | None = None,
+    temp_mae_7d: float | None = None,
     ds: str = "2026-04-24",
 ) -> dict:
     ti = MagicMock()
@@ -27,6 +29,8 @@ def make_context(
             ("detect_drift", "drifted_features"): drifted_features,
             ("log_model_metrics", "rain_accuracy_30d"): accuracy,
             ("log_model_metrics", "temp_mae_30d"): temp_mae,
+            ("log_model_metrics", "rain_accuracy_7d"): accuracy_7d,
+            ("log_model_metrics", "temp_mae_7d"): temp_mae_7d,
         }
         return mapping.get((task_ids, key))
 
@@ -165,16 +169,62 @@ def test_decision_payload_schema(patched_io):
         "date",
         "rain_accuracy_30d",
         "temp_mae_30d",
+        "rain_accuracy_7d",
+        "temp_mae_7d",
         "drifted_features",
         "n_drifted",
         "low_accuracy",
         "high_mae",
         "heavy_drift",
         "mild_drift",
+        "early_warning",
         "action",
         "reason",
     }
     assert required_keys <= set(payload.keys())
+
+
+def test_early_warning_accuracy_routes_to_alert_only(patched_io):
+    """7d accuracy below threshold triggers alert even when 30d metrics are nominal."""
+    context = make_context(
+        accuracy=0.85, temp_mae=2.0, drifted_features=[], accuracy_7d=0.68
+    )
+
+    result = md.branch_on_monitoring_decision(**context)
+
+    assert result == "alert_only"
+    payload = get_decision_payload(patched_io["write_decision"])
+    assert payload["action"] == "alert_only"
+    assert payload["reason"] == "early_warning_7d"
+    assert payload["early_warning"] is True
+    assert_monitoring_action_pushed(context, "alert_only")
+
+
+def test_early_warning_mae_routes_to_alert_only(patched_io):
+    """7d MAE above threshold triggers alert even when 30d metrics are nominal."""
+    context = make_context(
+        accuracy=0.85, temp_mae=2.0, drifted_features=[], temp_mae_7d=4.5
+    )
+
+    result = md.branch_on_monitoring_decision(**context)
+
+    assert result == "alert_only"
+    payload = get_decision_payload(patched_io["write_decision"])
+    assert payload["action"] == "alert_only"
+    assert payload["reason"] == "early_warning_7d"
+    assert payload["early_warning"] is True
+    assert_monitoring_action_pushed(context, "alert_only")
+
+
+def test_early_warning_does_not_fire_when_30d_triggers_retrain(patched_io):
+    """Retrain path takes priority over early warning."""
+    context = make_context(
+        accuracy=0.70, temp_mae=2.0, drifted_features=[], accuracy_7d=0.68
+    )
+
+    result = md.branch_on_monitoring_decision(**context)
+
+    assert result == "trigger_retrain"
 
 
 def test_function_exists():

@@ -306,7 +306,7 @@ with tab2:
             else:
                 # ── KPIs ─────────────────────────────────────────────────────
                 if has_actuals:
-                    valid = df_bt[df_bt["has_actuals"] == True]
+                    valid = df_bt[df_bt["has_actuals"]]
                     mae = valid["temp_abs_error"].mean()
                     acc = valid["rain_correct"].mean()
                     m1, m2, m3 = st.columns(3)
@@ -341,7 +341,7 @@ with tab2:
 
                 # ── Distribution des erreurs ──────────────────────────────────
                 if has_actuals and "temp_abs_error" in df_bt.columns:
-                    valid2 = df_bt[df_bt["has_actuals"] == True].dropna(subset=["temp_abs_error"])
+                    valid2 = df_bt[df_bt["has_actuals"]].dropna(subset=["temp_abs_error"])
                     if not valid2.empty:
                         fig_err = px.histogram(
                             valid2, x="temp_abs_error", nbins=20,

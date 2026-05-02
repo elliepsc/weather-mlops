@@ -27,8 +27,7 @@ st.set_page_config(
 )
 
 API_URL: str = (
-    st.secrets.get("API_URL", None)
-    or os.getenv("API_URL", "http://localhost:8001")
+    st.secrets.get("API_URL", None) or os.getenv("API_URL", "http://localhost:8001")
 ).rstrip("/")
 
 
@@ -143,12 +142,14 @@ if not api_ok:
 
 # ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🌤 Prévisions actuelles",
-    "📊 Prédictions vs Réalisé",
-    "🎯 Performance modèle",
-    "⚙️ Pipeline & Architecture",
-])
+tab1, tab2, tab3, tab4 = st.tabs(
+    [
+        "🌤 Prévisions actuelles",
+        "📊 Prédictions vs Réalisé",
+        "🎯 Performance modèle",
+        "⚙️ Pipeline & Architecture",
+    ]
+)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Tab 1 — Prévisions actuelles
@@ -174,20 +175,15 @@ with tab1:
             fr = row.get("frost_risk")
 
             with c1:
-                st.metric("🌡 Temp max J+1",
-                          f"{max_t:.1f}°C" if pd.notna(max_t) else "—")
+                st.metric("🌡 Temp max J+1", f"{max_t:.1f}°C" if pd.notna(max_t) else "—")
             with c2:
-                st.metric("🌧 Prob. pluie",
-                          f"{rain_p:.0%}" if pd.notna(rain_p) else "—")
+                st.metric("🌧 Prob. pluie", f"{rain_p:.0%}" if pd.notna(rain_p) else "—")
             with c3:
-                st.metric("🌈 Type météo",
-                          str(row.get("weather_type_tomorrow") or "—"))
+                st.metric("🌈 Type météo", str(row.get("weather_type_tomorrow") or "—"))
             with c4:
-                st.metric("🔥 Canicule",
-                          f"{hw:.0%}" if pd.notna(hw) else "—")
+                st.metric("🔥 Canicule", f"{hw:.0%}" if pd.notna(hw) else "—")
             with c5:
-                st.metric("❄️ Gel",
-                          f"{fr:.0%}" if pd.notna(fr) else "—")
+                st.metric("❄️ Gel", f"{fr:.0%}" if pd.notna(fr) else "—")
 
             predicted_at = row.get("predicted_at")
             if predicted_at:
@@ -210,23 +206,27 @@ with tab1:
 
                     if selected_city:
                         fig = go.Figure()
-                        fig.add_trace(go.Scatter(
-                            x=df_week["date"],
-                            y=df_week["max_temp_tomorrow"],
-                            name="Temp max prévue J+1",
-                            mode="lines+markers",
-                            line=dict(color="#FF6B35", width=2),
-                            marker=dict(size=6),
-                        ))
-                        if "max_temp" in df_week.columns:
-                            fig.add_trace(go.Scatter(
+                        fig.add_trace(
+                            go.Scatter(
                                 x=df_week["date"],
-                                y=df_week["max_temp"],
-                                name="Temp max réelle (J)",
+                                y=df_week["max_temp_tomorrow"],
+                                name="Temp max prévue J+1",
                                 mode="lines+markers",
-                                line=dict(color="#004E89", width=2, dash="dot"),
+                                line=dict(color="#FF6B35", width=2),
                                 marker=dict(size=6),
-                            ))
+                            )
+                        )
+                        if "max_temp" in df_week.columns:
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=df_week["date"],
+                                    y=df_week["max_temp"],
+                                    name="Temp max réelle (J)",
+                                    mode="lines+markers",
+                                    line=dict(color="#004E89", width=2, dash="dot"),
+                                    marker=dict(size=6),
+                                )
+                            )
                         fig.update_layout(
                             title=f"Température 7 jours — {selected_city}",
                             xaxis_title="Date",
@@ -237,8 +237,10 @@ with tab1:
                         )
                     else:
                         pivot = df_week.pivot_table(
-                            index="date", columns="city",
-                            values="max_temp_tomorrow", aggfunc="mean",
+                            index="date",
+                            columns="city",
+                            values="max_temp_tomorrow",
+                            aggfunc="mean",
                         )
                         fig = px.line(
                             pivot,
@@ -253,11 +255,21 @@ with tab1:
 
             # ── Tableau détail ───────────────────────────────────────────────
             st.subheader("Détail" + (" par ville" if not selected_city else ""))
-            show_cols = [c for c in [
-                "city", "date", "max_temp_tomorrow", "rain_tomorrow_proba",
-                "weather_type_tomorrow", "comfort_score",
-                "heatwave_risk", "frost_risk", "storm_probability",
-            ] if c in df_latest.columns]
+            show_cols = [
+                c
+                for c in [
+                    "city",
+                    "date",
+                    "max_temp_tomorrow",
+                    "rain_tomorrow_proba",
+                    "weather_type_tomorrow",
+                    "comfort_score",
+                    "heatwave_risk",
+                    "frost_risk",
+                    "storm_probability",
+                ]
+                if c in df_latest.columns
+            ]
             st.dataframe(df_latest[show_cols], use_container_width=True, hide_index=True)
 
     except Exception as exc:
@@ -275,12 +287,12 @@ with tab2:
     with col_sel_city:
         bt_cities = cities or []
         city_bt: Optional[str] = (
-            st.selectbox("Ville", bt_cities, key="bt_city")
-            if bt_cities else None
+            st.selectbox("Ville", bt_cities, key="bt_city") if bt_cities else None
         )
     with col_sel_period:
-        period_label = st.selectbox("Période", ["7 jours", "30 jours", "90 jours"],
-                                    index=1, key="bt_period")
+        period_label = st.selectbox(
+            "Période", ["7 jours", "30 jours", "90 jours"], index=1, key="bt_period"
+        )
 
     n_days = {"7 jours": 7, "30 jours": 30, "90 jours": 90}[period_label]
 
@@ -320,20 +332,29 @@ with tab2:
                 # ── Courbe temp prévue vs réelle ─────────────────────────────
                 fig = go.Figure()
                 if "pred_max_temp_tomorrow" in df_bt.columns:
-                    fig.add_trace(go.Scatter(
-                        x=df_bt["date"], y=df_bt["pred_max_temp_tomorrow"],
-                        name="Temp prévue J+1", mode="lines+markers",
-                        line=dict(color="#FF6B35", width=2),
-                    ))
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df_bt["date"],
+                            y=df_bt["pred_max_temp_tomorrow"],
+                            name="Temp prévue J+1",
+                            mode="lines+markers",
+                            line=dict(color="#FF6B35", width=2),
+                        )
+                    )
                 if has_actuals and "actual_max_temp" in df_bt.columns:
-                    fig.add_trace(go.Scatter(
-                        x=df_bt["date"], y=df_bt["actual_max_temp"],
-                        name="Temp réelle J+1", mode="lines+markers",
-                        line=dict(color="#004E89", width=2, dash="dot"),
-                    ))
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df_bt["date"],
+                            y=df_bt["actual_max_temp"],
+                            name="Temp réelle J+1",
+                            mode="lines+markers",
+                            line=dict(color="#004E89", width=2, dash="dot"),
+                        )
+                    )
                 fig.update_layout(
                     title=f"Température prévue vs réelle — {city_bt or 'Toutes villes'} ({period_label})",
-                    xaxis_title="Date", yaxis_title="°C",
+                    xaxis_title="Date",
+                    yaxis_title="°C",
                     legend=dict(orientation="h", yanchor="bottom", y=1.02),
                     height=370,
                 )
@@ -344,7 +365,9 @@ with tab2:
                     valid2 = df_bt[df_bt["has_actuals"]].dropna(subset=["temp_abs_error"])
                     if not valid2.empty:
                         fig_err = px.histogram(
-                            valid2, x="temp_abs_error", nbins=20,
+                            valid2,
+                            x="temp_abs_error",
+                            nbins=20,
                             title="Distribution des erreurs de température",
                             labels={"temp_abs_error": "Erreur absolue (°C)"},
                             color_discrete_sequence=["#FF6B35"],
@@ -382,15 +405,30 @@ with tab2:
                 if city_bt:
                     df_c = df_raw[df_raw["city"] == city_bt]
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=df_c["date"], y=df_c["pred_temp"],
-                        name="Prévue", mode="lines+markers",
-                        line=dict(color="#FF6B35", width=2)))
-                    fig.add_trace(go.Scatter(x=df_c["date"], y=df_c["max_temp"],
-                        name="Réelle", mode="lines+markers",
-                        line=dict(color="#004E89", width=2, dash="dot")))
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df_c["date"],
+                            y=df_c["pred_temp"],
+                            name="Prévue",
+                            mode="lines+markers",
+                            line=dict(color="#FF6B35", width=2),
+                        )
+                    )
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df_c["date"],
+                            y=df_c["max_temp"],
+                            name="Réelle",
+                            mode="lines+markers",
+                            line=dict(color="#004E89", width=2, dash="dot"),
+                        )
+                    )
                     fig.update_layout(
                         title=f"Température — {city_bt} ({period_label})",
-                        xaxis_title="Date", yaxis_title="°C", height=370)
+                        xaxis_title="Date",
+                        yaxis_title="°C",
+                        height=370,
+                    )
                     st.plotly_chart(fig, use_container_width=True)
 
     except Exception as exc:
@@ -427,12 +465,12 @@ with tab3:
                 st.caption("  ·  ".join(caption_parts))
 
             label_map = {
-                "rain_tomorrow":         "🌧 Pluie",
-                "max_temp_tomorrow":     "🌡 Temp max",
+                "rain_tomorrow": "🌧 Pluie",
+                "max_temp_tomorrow": "🌡 Temp max",
                 "weather_type_tomorrow": "🌈 Type météo",
-                "heatwave_risk":         "🔥 Canicule",
-                "frost_risk":            "❄️ Gel",
-                "storm_probability":     "⛈ Orage",
+                "heatwave_risk": "🔥 Canicule",
+                "frost_risk": "❄️ Gel",
+                "storm_probability": "⛈ Orage",
             }
 
             # Prefer nested model_metrics (new format) — fall back to flat dict iteration
@@ -486,30 +524,33 @@ with tab3:
             df_overview = df_overview.sort_values("month")
 
             fig_perf = go.Figure()
-            fig_perf.add_trace(go.Scatter(
-                x=df_overview["month"],
-                y=df_overview["rain_accuracy"],
-                name="Accuracy pluie",
-                mode="lines+markers+text",
-                yaxis="y1",
-                line=dict(color="#004E89", width=2),
-                text=df_overview["rain_accuracy"].map(lambda v: f"{v:.2f}"),
-                textposition="top center",
-            ))
-            fig_perf.add_trace(go.Bar(
-                x=df_overview["month"],
-                y=df_overview["temp_mae"],
-                name="MAE Temp (°C)",
-                yaxis="y2",
-                opacity=0.45,
-                marker_color="#FF6B35",
-            ))
+            fig_perf.add_trace(
+                go.Scatter(
+                    x=df_overview["month"],
+                    y=df_overview["rain_accuracy"],
+                    name="Accuracy pluie",
+                    mode="lines+markers+text",
+                    yaxis="y1",
+                    line=dict(color="#004E89", width=2),
+                    text=df_overview["rain_accuracy"].map(lambda v: f"{v:.2f}"),
+                    textposition="top center",
+                )
+            )
+            fig_perf.add_trace(
+                go.Bar(
+                    x=df_overview["month"],
+                    y=df_overview["temp_mae"],
+                    name="MAE Temp (°C)",
+                    yaxis="y2",
+                    opacity=0.45,
+                    marker_color="#FF6B35",
+                )
+            )
             fig_perf.update_layout(
                 title="Accuracy pluie & MAE température par mois",
                 xaxis_title="Mois",
                 yaxis=dict(title="Accuracy pluie", range=[0, 1.05], tickformat=".0%"),
-                yaxis2=dict(title="MAE Temp (°C)", overlaying="y", side="right",
-                            range=[0, 5]),
+                yaxis2=dict(title="MAE Temp (°C)", overlaying="y", side="right", range=[0, 5]),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
                 height=360,
                 margin=dict(t=55),
@@ -528,13 +569,16 @@ with tab3:
 
             fig_city = px.bar(
                 df_last.sort_values("rain_accuracy", ascending=True),
-                x="rain_accuracy", y="city", orientation="h",
+                x="rain_accuracy",
+                y="city",
+                orientation="h",
                 color="temp_mae",
                 color_continuous_scale="RdYlGn_r",
                 title=f"Accuracy pluie par ville — {latest_month}",
                 labels={"rain_accuracy": "Accuracy pluie", "temp_mae": "MAE Temp (°C)"},
-                text=df_last.sort_values("rain_accuracy", ascending=True)["rain_accuracy"]
-                    .map(lambda v: f"{v:.2f}"),
+                text=df_last.sort_values("rain_accuracy", ascending=True)["rain_accuracy"].map(
+                    lambda v: f"{v:.2f}"
+                ),
             )
             fig_city.update_traces(textposition="outside")
             fig_city.update_layout(height=300, margin=dict(t=45))
@@ -552,11 +596,17 @@ with tab3:
                 st.warning("⚠️ **Dérive détectée** — `heavy_drift = True` sur la dernière fenêtre.")
 
             action = str(latest_h.get("monitoring_action", ""))
-            badge = {"trigger_retrain": "🔴", "alert_only": "🟡",
-                     "alert_insufficient_data": "🟠", "no_action": "🟢"}.get(action, "⚪")
+            badge = {
+                "trigger_retrain": "🔴",
+                "alert_only": "🟡",
+                "alert_insufficient_data": "🟠",
+                "no_action": "🟢",
+            }.get(action, "⚪")
             reason = latest_h.get("monitoring_reason", "")
-            st.markdown(f"**Dernière décision monitoring** : {badge} `{action}`"
-                        + (f" — {reason}" if reason else ""))
+            st.markdown(
+                f"**Dernière décision monitoring** : {badge} `{action}`"
+                + (f" — {reason}" if reason else "")
+            )
     except Exception as exc:
         st.warning(f"Statut monitoring indisponible : {exc}")
 
@@ -571,15 +621,18 @@ with tab4:
     with col_status:
         st.markdown("#### Statut du pipeline")
         if health:
-            st.json({
-                "status":    health.get("status"),
-                "demo_mode": health.get("demo_mode"),
-                "db":        health.get("db"),
-                "db_exists": health.get("db_exists"),
-            })
+            st.json(
+                {
+                    "status": health.get("status"),
+                    "demo_mode": health.get("demo_mode"),
+                    "db": health.get("db"),
+                    "db_exists": health.get("db_exists"),
+                }
+            )
 
         st.markdown("#### Technologies")
-        st.markdown("""
+        st.markdown(
+            """
 | Couche | Stack |
 |---|---|
 | Ingestion | Open-Meteo API |
@@ -591,7 +644,8 @@ with tab4:
 | API | FastAPI + Prometheus |
 | Dashboard | Streamlit + Plotly |
 | Déploiement | Docker / Render / Streamlit Cloud |
-        """)
+        """
+        )
 
         st.markdown("#### Liens")
         st.markdown("📂 [GitHub — weather-mlops](https://github.com/elliepsc/weather-mlops)")
@@ -604,7 +658,8 @@ with tab4:
 
     with col_arch:
         st.markdown("#### Architecture")
-        st.code("""
+        st.code(
+            """
   Open-Meteo API
        │
        ▼
@@ -637,7 +692,9 @@ with tab4:
                         │ 🎯 Performance         │
                         │ ⚙️  Pipeline            │
                         └───────────────────────┘
-""", language="text")
+""",
+            language="text",
+        )
 
         if demo_mode:
             st.info(
@@ -646,7 +703,8 @@ with tab4:
             )
         else:
             st.markdown("#### Ports")
-            st.markdown("""
+            st.markdown(
+                """
 | Service | Local | Docker |
 |---|---|---|
 | FastAPI | `:8001` | `:8000` |
@@ -654,4 +712,5 @@ with tab4:
 | Grafana | `:3000` | `:3000` |
 | Prometheus | `:9090` | `:9090` |
 | MLflow | `:5000` | — |
-            """)
+            """
+            )

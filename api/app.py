@@ -235,11 +235,11 @@ def export_csv():
 # ─── Analytics (DuckDB marts) ────────────────────────────────────────────────
 
 _ANALYTICS_MARTS = {
-    "forecast-timeline":    "mart_forecast_vs_actual_timeline",
+    "forecast-timeline": "mart_forecast_vs_actual_timeline",
     "performance-overview": "mart_model_performance_overview",
-    "health":               "mart_mlops_health",
-    "performance-by-city":  "mart_model_performance_by_city",
-    "retraining-history":   "mart_retraining_history",
+    "health": "mart_mlops_health",
+    "performance-by-city": "mart_model_performance_by_city",
+    "retraining-history": "mart_retraining_history",
 }
 
 
@@ -291,7 +291,9 @@ def get_mlflow_runs(n: int = Query(10, description="Number of most recent runs")
     Shows aggregate metrics per run (rain accuracy, temp MAE, etc.).
     """
     if DEMO_MODE:
-        return JSONResponse({"count": 0, "runs": [], "message": "MLflow not available in demo mode."})
+        return JSONResponse(
+            {"count": 0, "runs": [], "message": "MLflow not available in demo mode."}
+        )
     try:
         client = _get_mlflow_client()
         experiment = client.get_experiment_by_name("weather_australia")
@@ -363,36 +365,38 @@ def get_latest_mlflow_metrics():
 
     # ── DEMO_MODE hardcoded fallback (no mlflow_latest.json yet) ─────────────
     if DEMO_MODE:
-        return JSONResponse({
-            "source": "json_cache",
-            "exported_at": "2026-05-01T06:00:00Z",
-            "run_id": "demo_run_001",
-            "run_name": "train_20260501_060000",
-            "start_time": "2026-05-01T04:00:00Z",
-            "duration_seconds": 823,
-            "status": "FINISHED",
-            "model_version": "20260501_060000",
-            "metrics": {
-                "rain_accuracy": 0.7699,
-                "temp_mae": 1.628,
-                "temp_rmse": 2.31,
-                "rain_f1": 0.76,
-                "rain_precision": 0.78,
-                "rain_recall": 0.74,
-            },
-            "params": {"n_estimators": "200", "max_depth": "6", "learning_rate": "0.05"},
-            "tags": {"trigger": "scheduled", "cities_count": "26"},
-            "baseline_metrics": {"rain_accuracy": 0.75, "temp_mae": 1.89},
-            "delta_vs_baseline": {"rain_accuracy": 0.0199, "temp_mae": -0.262},
-            "model_metrics": {
-                "rain_tomorrow":         {"accuracy": 0.7699, "auc": 0.8518},
-                "max_temp_tomorrow":     {"mae": 1.628, "r2": 0.9068},
-                "weather_type_tomorrow": {"accuracy": 0.8216},
-                "heatwave_risk":         {"auc": 0.9963},
-                "frost_risk":            {"auc": 0.9891},
-                "storm_probability":     {"auc": 0.8980},
-            },
-        })
+        return JSONResponse(
+            {
+                "source": "json_cache",
+                "exported_at": "2026-05-01T06:00:00Z",
+                "run_id": "demo_run_001",
+                "run_name": "train_20260501_060000",
+                "start_time": "2026-05-01T04:00:00Z",
+                "duration_seconds": 823,
+                "status": "FINISHED",
+                "model_version": "20260501_060000",
+                "metrics": {
+                    "rain_accuracy": 0.7699,
+                    "temp_mae": 1.628,
+                    "temp_rmse": 2.31,
+                    "rain_f1": 0.76,
+                    "rain_precision": 0.78,
+                    "rain_recall": 0.74,
+                },
+                "params": {"n_estimators": "200", "max_depth": "6", "learning_rate": "0.05"},
+                "tags": {"trigger": "scheduled", "cities_count": "26"},
+                "baseline_metrics": {"rain_accuracy": 0.75, "temp_mae": 1.89},
+                "delta_vs_baseline": {"rain_accuracy": 0.0199, "temp_mae": -0.262},
+                "model_metrics": {
+                    "rain_tomorrow": {"accuracy": 0.7699, "auc": 0.8518},
+                    "max_temp_tomorrow": {"mae": 1.628, "r2": 0.9068},
+                    "weather_type_tomorrow": {"accuracy": 0.8216},
+                    "heatwave_risk": {"auc": 0.9963},
+                    "frost_risk": {"auc": 0.9891},
+                    "storm_probability": {"auc": 0.8980},
+                },
+            }
+        )
 
     # ── Case 2: live MLflow tracking server ───────────────────────────────────
     try:
@@ -409,8 +413,12 @@ def get_latest_mlflow_metrics():
                 run = runs[0]
                 info = run.info
                 _summary_keys = {
-                    "rain_accuracy", "temp_mae", "temp_rmse",
-                    "rain_f1", "rain_precision", "rain_recall",
+                    "rain_accuracy",
+                    "temp_mae",
+                    "temp_rmse",
+                    "rain_f1",
+                    "rain_precision",
+                    "rain_recall",
                 }
                 summary = {
                     k: round(v, 6) if isinstance(v, float) else v
@@ -419,45 +427,47 @@ def get_latest_mlflow_metrics():
                 }
                 metrics_path = ROOT / "models" / "metrics.json"
                 model_metrics = (
-                    json.loads(metrics_path.read_text())
-                    if metrics_path.exists()
-                    else None
+                    json.loads(metrics_path.read_text()) if metrics_path.exists() else None
                 )
-                return JSONResponse({
-                    "source": "mlflow_live",
-                    "exported_at": None,
-                    "run_id": info.run_id,
-                    "run_name": info.run_name or "",
-                    "start_time": info.start_time,
-                    "duration_seconds": (
-                        round((info.end_time - info.start_time) / 1000)
-                        if info.end_time else None
-                    ),
-                    "status": info.status,
-                    "model_version": info.run_name or info.run_id[:8],
-                    "metrics": summary,
-                    "params": dict(run.data.params),
-                    "tags": {
-                        k: v for k, v in run.data.tags.items()
-                        if not k.startswith("mlflow.")
-                    },
-                    "baseline_metrics": None,
-                    "delta_vs_baseline": None,
-                    "model_metrics": model_metrics,
-                })
+                return JSONResponse(
+                    {
+                        "source": "mlflow_live",
+                        "exported_at": None,
+                        "run_id": info.run_id,
+                        "run_name": info.run_name or "",
+                        "start_time": info.start_time,
+                        "duration_seconds": (
+                            round((info.end_time - info.start_time) / 1000)
+                            if info.end_time
+                            else None
+                        ),
+                        "status": info.status,
+                        "model_version": info.run_name or info.run_id[:8],
+                        "metrics": summary,
+                        "params": dict(run.data.params),
+                        "tags": {
+                            k: v for k, v in run.data.tags.items() if not k.startswith("mlflow.")
+                        },
+                        "baseline_metrics": None,
+                        "delta_vs_baseline": None,
+                        "model_metrics": model_metrics,
+                    }
+                )
     except Exception:
         pass
 
     # ── Case 3: nothing available ─────────────────────────────────────────────
-    return JSONResponse({
-        "source": "unavailable",
-        "status": "unavailable",
-        "message": "MLflow metrics not available. Run the training pipeline first.",
-        "metrics": {},
-        "model_metrics": None,
-        "baseline_metrics": None,
-        "delta_vs_baseline": None,
-    })
+    return JSONResponse(
+        {
+            "source": "unavailable",
+            "status": "unavailable",
+            "message": "MLflow metrics not available. Run the training pipeline first.",
+            "metrics": {},
+            "model_metrics": None,
+            "baseline_metrics": None,
+            "delta_vs_baseline": None,
+        }
+    )
 
 
 # ─── run ─────────────────────────────────────────────────────────────────────

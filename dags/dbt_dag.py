@@ -32,7 +32,7 @@ import logging
 import os
 import subprocess
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -187,7 +187,7 @@ def _git_push_analytics(**kwargs):
     Erreurs non bloquantes : la tâche logue et retourne sans lever d'exception
     pour ne pas impacter le DAG quand le push échoue (réseau, token absent…).
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     try:
         gh_token = os.getenv("GH_TOKEN", "")

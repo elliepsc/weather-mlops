@@ -1,0 +1,22 @@
+{
+  "min_temp": 0.471754,
+  "temp_9am": 0.131759,
+  "max_temp": 0.038037,
+  "temp_3pm": 0.03753,
+  "state": 0.026379,
+  "wind_dir_9am": 0.021714,
+  "min_temp_lag1": 0.018831,
+  "wind_dir_3pm": 0.018582,
+  "city": 0.015886,
+  "season": 0.012801,
+  "wind_gust_dir": 0.012761,
+  "cloud_3pm": 0.012202,
+  "temp_anomaly": 0.00995,
+  "max_temp_rolling7": 0.009605,
+  "pressure_tendency": 0.009521,
+  "wind_gust_speed": 0.009348,
+  "month": 0.009293,
+  "humidity_3pm": 0.008662,
+  "day_of_year": 0.008548,
+  "evaporation": 0.00853
+}

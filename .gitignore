@@ -46,9 +46,10 @@ data/demo/
 
 
 # ── Modèles ML (générés par le pipeline) ─────────────────────────────────────
-/models/
+# models/mlflow_latest.json is intentionally tracked — API fallback on Render.
 /models/*.pkl
 /models/metrics.json
+/models/baseline/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/

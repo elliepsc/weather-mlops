@@ -1,0 +1,22 @@
+{
+  "consec_hot_days": 0.64084,
+  "max_temp": 0.092619,
+  "max_temp_lag1": 0.083235,
+  "hot_day_lag2": 0.05467,
+  "max_temp_rolling7": 0.014289,
+  "max_temp_lag2": 0.011099,
+  "hot_day_lag1": 0.010824,
+  "temp_3pm": 0.010437,
+  "humidity_3pm": 0.007524,
+  "temp_anomaly": 0.006433,
+  "wind_gust_speed": 0.004245,
+  "wind_speed_3pm": 0.003552,
+  "humidity_9am": 0.003548,
+  "pressure_tendency": 0.003212,
+  "rainfall": 0.003172,
+  "pressure_3pm": 0.003141,
+  "cloud_9am": 0.003023,
+  "wind_gust_dir": 0.00284,
+  "pressure_9am": 0.002763,
+  "min_temp": 0.002475
+}

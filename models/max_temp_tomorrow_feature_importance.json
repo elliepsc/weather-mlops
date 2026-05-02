@@ -1,0 +1,22 @@
+{
+  "max_temp": 0.543305,
+  "max_temp_rolling7": 0.173687,
+  "consec_hot_days": 0.089701,
+  "max_temp_lag1": 0.048964,
+  "temp_3pm": 0.015954,
+  "rain_today": 0.012119,
+  "pressure_tendency": 0.009117,
+  "rainfall": 0.008684,
+  "temp_anomaly": 0.0086,
+  "wind_gust_speed": 0.008086,
+  "wind_gust_dir": 0.006889,
+  "evaporation": 0.006769,
+  "season": 0.00483,
+  "temp_9am": 0.004491,
+  "min_temp": 0.00437,
+  "max_temp_lag2": 0.004368,
+  "sunshine_hours": 0.004226,
+  "pressure_9am": 0.003916,
+  "pressure_3pm": 0.003892,
+  "day_of_year": 0.003412
+}

@@ -28,20 +28,66 @@ DUCKDB_PATH = DEMO_DIR / "analytics_demo.duckdb"
 RNG = np.random.default_rng(42)
 
 CITIES: dict[str, dict] = {
-    "Sydney":    {"state": "NSW", "lat": -33.87, "lon": 151.21,
-                  "base_max": 24.0, "base_min": 16.0, "rain_prob": 0.38},
-    "Melbourne": {"state": "VIC", "lat": -37.81, "lon": 144.96,
-                  "base_max": 20.0, "base_min": 11.0, "rain_prob": 0.34},
-    "Brisbane":  {"state": "QLD", "lat": -27.47, "lon": 153.02,
-                  "base_max": 29.0, "base_min": 19.0, "rain_prob": 0.43},
-    "Perth":     {"state": "WA",  "lat": -31.95, "lon": 115.86,
-                  "base_max": 27.0, "base_min": 16.0, "rain_prob": 0.19},
-    "Adelaide":  {"state": "SA",  "lat": -34.93, "lon": 138.60,
-                  "base_max": 23.0, "base_min": 13.0, "rain_prob": 0.24},
+    "Sydney": {
+        "state": "NSW",
+        "lat": -33.87,
+        "lon": 151.21,
+        "base_max": 24.0,
+        "base_min": 16.0,
+        "rain_prob": 0.38,
+    },
+    "Melbourne": {
+        "state": "VIC",
+        "lat": -37.81,
+        "lon": 144.96,
+        "base_max": 20.0,
+        "base_min": 11.0,
+        "rain_prob": 0.34,
+    },
+    "Brisbane": {
+        "state": "QLD",
+        "lat": -27.47,
+        "lon": 153.02,
+        "base_max": 29.0,
+        "base_min": 19.0,
+        "rain_prob": 0.43,
+    },
+    "Perth": {
+        "state": "WA",
+        "lat": -31.95,
+        "lon": 115.86,
+        "base_max": 27.0,
+        "base_min": 16.0,
+        "rain_prob": 0.19,
+    },
+    "Adelaide": {
+        "state": "SA",
+        "lat": -34.93,
+        "lon": 138.60,
+        "base_max": 23.0,
+        "base_min": 13.0,
+        "rain_prob": 0.24,
+    },
 }
 
-WIND_DIRS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-             "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+WIND_DIRS = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+]
 WEATHER_TYPES = ["Sunny", "Cloudy", "Rainy", "Stormy"]
 
 END_DATE = date(2026, 5, 1)
@@ -91,45 +137,61 @@ def generate_raw() -> pd.DataFrame:
             ws3 = round(float(RNG.uniform(8, 35)), 1)
             sunshine = round(float(RNG.uniform(6, 12) if not is_rainy else RNG.uniform(0, 4)), 1)
 
-            rows.append({
-                "date": d.isoformat(),
-                "city": city,
-                "state": c["state"],
-                "latitude": c["lat"],
-                "longitude": c["lon"],
-                "min_temp": min_t,
-                "max_temp": max_t,
-                "rainfall": rainfall,
-                "rain_sum": round(rainfall * float(RNG.uniform(0.9, 1.1)), 1),
-                "precipitation_hours": round(float(RNG.uniform(1, 6) if is_rainy else 0.0), 1),
-                "evaporation": round(float(RNG.uniform(3, 9) if not is_rainy else RNG.uniform(1, 4)), 1),
-                "sunshine_hours": sunshine,
-                "wind_gust_dir": str(RNG.choice(WIND_DIRS)),
-                "wind_gust_speed": round(ws3 * float(RNG.uniform(1.1, 1.5)), 1),
-                "wind_dir_9am": str(RNG.choice(WIND_DIRS)),
-                "wind_dir_3pm": str(RNG.choice(WIND_DIRS)),
-                "wind_speed_9am": ws9,
-                "wind_speed_3pm": ws3,
-                "humidity_9am": round(h9, 1),
-                "humidity_3pm": round(h3, 1),
-                "dew_point_9am": round(temp_9am - float(RNG.uniform(3, 12)), 1),
-                "dew_point_3pm": round(temp_3pm - float(RNG.uniform(5, 15)), 1),
-                "pressure_9am": p9,
-                "pressure_3pm": p3,
-                "surface_pressure_9am": round(p - abs(c["lat"]) * 0.1 + float(RNG.normal(0, 0.5)), 1),
-                "surface_pressure_3pm": round(p - abs(c["lat"]) * 0.1 - float(RNG.uniform(0, 2)), 1),
-                "cloud_9am": round(float(RNG.uniform(0, 4) if not is_rainy else RNG.uniform(4, 8)), 1),
-                "cloud_3pm": round(float(RNG.uniform(0, 5) if not is_rainy else RNG.uniform(5, 8)), 1),
-                "temp_9am": temp_9am,
-                "temp_3pm": temp_3pm,
-                "rain_today": int(is_rainy),
-                "weather_code": int(RNG.choice([61, 63, 80, 95])) if is_rainy else 0,
-                "shortwave_radiation_sum": round(sunshine * float(RNG.uniform(180, 220)), 1),
-                "vpd_9am": round(float(RNG.uniform(0.3, 1.5) if not is_rainy else RNG.uniform(0.1, 0.5)), 2),
-                "vpd_3pm": round(float(RNG.uniform(0.8, 2.5) if not is_rainy else RNG.uniform(0.2, 0.8)), 2),
-                "wind_speed_100m_9am": round(ws9 * float(RNG.uniform(1.3, 1.8)), 1),
-                "wind_speed_100m_3pm": round(ws3 * float(RNG.uniform(1.3, 1.8)), 1),
-            })
+            rows.append(
+                {
+                    "date": d.isoformat(),
+                    "city": city,
+                    "state": c["state"],
+                    "latitude": c["lat"],
+                    "longitude": c["lon"],
+                    "min_temp": min_t,
+                    "max_temp": max_t,
+                    "rainfall": rainfall,
+                    "rain_sum": round(rainfall * float(RNG.uniform(0.9, 1.1)), 1),
+                    "precipitation_hours": round(float(RNG.uniform(1, 6) if is_rainy else 0.0), 1),
+                    "evaporation": round(
+                        float(RNG.uniform(3, 9) if not is_rainy else RNG.uniform(1, 4)), 1
+                    ),
+                    "sunshine_hours": sunshine,
+                    "wind_gust_dir": str(RNG.choice(WIND_DIRS)),
+                    "wind_gust_speed": round(ws3 * float(RNG.uniform(1.1, 1.5)), 1),
+                    "wind_dir_9am": str(RNG.choice(WIND_DIRS)),
+                    "wind_dir_3pm": str(RNG.choice(WIND_DIRS)),
+                    "wind_speed_9am": ws9,
+                    "wind_speed_3pm": ws3,
+                    "humidity_9am": round(h9, 1),
+                    "humidity_3pm": round(h3, 1),
+                    "dew_point_9am": round(temp_9am - float(RNG.uniform(3, 12)), 1),
+                    "dew_point_3pm": round(temp_3pm - float(RNG.uniform(5, 15)), 1),
+                    "pressure_9am": p9,
+                    "pressure_3pm": p3,
+                    "surface_pressure_9am": round(
+                        p - abs(c["lat"]) * 0.1 + float(RNG.normal(0, 0.5)), 1
+                    ),
+                    "surface_pressure_3pm": round(
+                        p - abs(c["lat"]) * 0.1 - float(RNG.uniform(0, 2)), 1
+                    ),
+                    "cloud_9am": round(
+                        float(RNG.uniform(0, 4) if not is_rainy else RNG.uniform(4, 8)), 1
+                    ),
+                    "cloud_3pm": round(
+                        float(RNG.uniform(0, 5) if not is_rainy else RNG.uniform(5, 8)), 1
+                    ),
+                    "temp_9am": temp_9am,
+                    "temp_3pm": temp_3pm,
+                    "rain_today": int(is_rainy),
+                    "weather_code": int(RNG.choice([61, 63, 80, 95])) if is_rainy else 0,
+                    "shortwave_radiation_sum": round(sunshine * float(RNG.uniform(180, 220)), 1),
+                    "vpd_9am": round(
+                        float(RNG.uniform(0.3, 1.5) if not is_rainy else RNG.uniform(0.1, 0.5)), 2
+                    ),
+                    "vpd_3pm": round(
+                        float(RNG.uniform(0.8, 2.5) if not is_rainy else RNG.uniform(0.2, 0.8)), 2
+                    ),
+                    "wind_speed_100m_9am": round(ws9 * float(RNG.uniform(1.3, 1.8)), 1),
+                    "wind_speed_100m_3pm": round(ws3 * float(RNG.uniform(1.3, 1.8)), 1),
+                }
+            )
 
     return pd.DataFrame(rows)
 
@@ -161,7 +223,9 @@ def generate_predictions(raw: pd.DataFrame) -> pd.DataFrame:
             actual_rain_tm = int(nxt["rain_today"])
             actual_max_tm = float(nxt["max_temp"])
             # Force accuracy to _RAIN_ACCURACY_TARGET (avoids luck-of-the-draw variance)
-            rain_tomorrow = actual_rain_tm if RNG.random() < _RAIN_ACCURACY_TARGET else 1 - actual_rain_tm
+            rain_tomorrow = (
+                actual_rain_tm if RNG.random() < _RAIN_ACCURACY_TARGET else 1 - actual_rain_tm
+            )
             max_temp_tomorrow = round(actual_max_tm + float(RNG.normal(0, _TEMP_ERROR_SD)), 1)
         else:
             # Last day: no next-day actuals yet
@@ -192,19 +256,21 @@ def generate_predictions(raw: pd.DataFrame) -> pd.DataFrame:
         hum_ok = max(0.0, 1.0 - abs(h3 - 55.0) / 55.0)
         comfort = float(np.clip((temp_ok * 0.5 + hum_ok * 0.3 + (1 - storm) * 0.2) * 100, 0, 100))
 
-        rows.append({
-            "date": d,
-            "city": city,
-            "rain_tomorrow": rain_tomorrow,
-            "rain_tomorrow_proba": round(rain_proba, 3),
-            "max_temp_tomorrow": max_temp_tomorrow,
-            "weather_type_tomorrow": str(RNG.choice(WEATHER_TYPES, p=wt_probs)),
-            "comfort_score": round(comfort, 1),
-            "heatwave_risk": round(heatwave, 3),
-            "frost_risk": round(frost, 3),
-            "storm_probability": round(storm, 3),
-            "predicted_at": predicted_at,
-        })
+        rows.append(
+            {
+                "date": d,
+                "city": city,
+                "rain_tomorrow": rain_tomorrow,
+                "rain_tomorrow_proba": round(rain_proba, 3),
+                "max_temp_tomorrow": max_temp_tomorrow,
+                "weather_type_tomorrow": str(RNG.choice(WEATHER_TYPES, p=wt_probs)),
+                "comfort_score": round(comfort, 1),
+                "heatwave_risk": round(heatwave, 3),
+                "frost_risk": round(frost, 3),
+                "storm_probability": round(storm, 3),
+                "predicted_at": predicted_at,
+            }
+        )
 
     return pd.DataFrame(rows)
 
@@ -301,7 +367,9 @@ def write_sqlite(raw: pd.DataFrame, preds: pd.DataFrame) -> None:
         raw.to_sql("weather_raw", conn, if_exists="append", index=False)
         preds.to_sql("weather_predictions", conn, if_exists="append", index=False)
         conn.execute(_DDL_VIEW)
-    print(f"  SQLite  → {SQLITE_PATH.relative_to(ROOT)}  ({SQLITE_PATH.stat().st_size / 1024:.0f} KB)")
+    print(
+        f"  SQLite  → {SQLITE_PATH.relative_to(ROOT)}  ({SQLITE_PATH.stat().st_size / 1024:.0f} KB)"
+    )
 
 
 # ─── analytics marts ──────────────────────────────────────────────────────────
@@ -332,27 +400,29 @@ def _build_timeline(raw: pd.DataFrame, preds: pd.DataFrame) -> pd.DataFrame:
             has_actuals = False
             rain_correct = temp_err = None
 
-        rows.append({
-            "prediction_date": d,
-            "city": city,
-            "state": state_map.get(city),
-            "pred_rain_tomorrow": int(p["rain_tomorrow"]),
-            "pred_rain_proba": float(p["rain_tomorrow_proba"]),
-            "pred_max_temp_tomorrow": float(p["max_temp_tomorrow"]),
-            "pred_weather_type_tomorrow": str(p["weather_type_tomorrow"]),
-            "pred_heatwave_risk": float(p["heatwave_risk"]),
-            "pred_frost_risk": float(p["frost_risk"]),
-            "pred_storm_probability": float(p["storm_probability"]),
-            "comfort_score": float(p["comfort_score"]),
-            "actual_date": nd,
-            "actual_rain": actual_rain,
-            "actual_max_temp": actual_max,
-            "actual_min_temp": actual_min,
-            "actual_rainfall": actual_rainfall,
-            "rain_correct": rain_correct,
-            "temp_abs_error": temp_err,
-            "has_actuals": has_actuals,
-        })
+        rows.append(
+            {
+                "prediction_date": d,
+                "city": city,
+                "state": state_map.get(city),
+                "pred_rain_tomorrow": int(p["rain_tomorrow"]),
+                "pred_rain_proba": float(p["rain_tomorrow_proba"]),
+                "pred_max_temp_tomorrow": float(p["max_temp_tomorrow"]),
+                "pred_weather_type_tomorrow": str(p["weather_type_tomorrow"]),
+                "pred_heatwave_risk": float(p["heatwave_risk"]),
+                "pred_frost_risk": float(p["frost_risk"]),
+                "pred_storm_probability": float(p["storm_probability"]),
+                "comfort_score": float(p["comfort_score"]),
+                "actual_date": nd,
+                "actual_rain": actual_rain,
+                "actual_max_temp": actual_max,
+                "actual_min_temp": actual_min,
+                "actual_rainfall": actual_rainfall,
+                "rain_correct": rain_correct,
+                "temp_abs_error": temp_err,
+                "has_actuals": has_actuals,
+            }
+        )
 
     df = pd.DataFrame(rows).sort_values(["city", "prediction_date"]).reset_index(drop=True)
 
@@ -374,15 +444,19 @@ def _build_performance_overview(timeline: pd.DataFrame) -> pd.DataFrame:
     t = timeline.copy()
     t["month"] = pd.to_datetime(t["prediction_date"]).dt.to_period("M").dt.to_timestamp()
 
-    agg = t.groupby("month").agg(
-        n_city_days=("prediction_date", "count"),
-        n_days=("prediction_date", "nunique"),
-        n_cities=("city", "nunique"),
-        rain_accuracy=("rain_correct", "mean"),
-        temp_mae=("temp_abs_error", "mean"),
-        temp_max_error=("temp_abs_error", "max"),
-        temp_min_error=("temp_abs_error", "min"),
-    ).reset_index()
+    agg = (
+        t.groupby("month")
+        .agg(
+            n_city_days=("prediction_date", "count"),
+            n_days=("prediction_date", "nunique"),
+            n_cities=("city", "nunique"),
+            rain_accuracy=("rain_correct", "mean"),
+            temp_mae=("temp_abs_error", "mean"),
+            temp_max_error=("temp_abs_error", "max"),
+            temp_min_error=("temp_abs_error", "min"),
+        )
+        .reset_index()
+    )
 
     pct_actuals = t.groupby("month")["has_actuals"].mean() * 100
     agg["pct_with_actuals"] = agg["month"].map(pct_actuals).round(1)
@@ -428,30 +502,29 @@ def _build_mlops_health(raw: pd.DataFrame, timeline: pd.DataFrame) -> pd.DataFra
 
         high_mae = bool(temp_mae_val is not None and temp_mae_val > 2.0)
         last_retrain = max((r for r in retrain_dates if r <= d), default=None)
-        days_since = (
-            (pd.Timestamp(d) - pd.Timestamp(last_retrain)).days
-            if last_retrain else None
-        )
+        days_since = (pd.Timestamp(d) - pd.Timestamp(last_retrain)).days if last_retrain else None
 
-        rows.append({
-            "date": d,
-            "completeness_pct": round(cities_present / expected * 100, 1),
-            "missing_city_count": missing,
-            "present_cities": cities_present,
-            "expected_cities": expected,
-            "has_gap": missing > 0,
-            "monitoring_action": action,
-            "monitoring_reason": reason,
-            "n_drifted_features": n_drift,
-            "heavy_drift": heavy,
-            "mild_drift": mild,
-            "low_accuracy": low_acc,
-            "high_mae": high_mae,
-            "rain_accuracy_30d": round(rain_acc_val, 4) if rain_acc_val is not None else None,
-            "temp_mae_30d": round(temp_mae_val, 3) if temp_mae_val is not None else None,
-            "last_retrain_date": last_retrain,
-            "days_since_retrain": int(days_since) if days_since is not None else None,
-        })
+        rows.append(
+            {
+                "date": d,
+                "completeness_pct": round(cities_present / expected * 100, 1),
+                "missing_city_count": missing,
+                "present_cities": cities_present,
+                "expected_cities": expected,
+                "has_gap": missing > 0,
+                "monitoring_action": action,
+                "monitoring_reason": reason,
+                "n_drifted_features": n_drift,
+                "heavy_drift": heavy,
+                "mild_drift": mild,
+                "low_accuracy": low_acc,
+                "high_mae": high_mae,
+                "rain_accuracy_30d": round(rain_acc_val, 4) if rain_acc_val is not None else None,
+                "temp_mae_30d": round(temp_mae_val, 3) if temp_mae_val is not None else None,
+                "last_retrain_date": last_retrain,
+                "days_since_retrain": int(days_since) if days_since is not None else None,
+            }
+        )
 
     return pd.DataFrame(rows).reset_index(drop=True)
 
@@ -462,23 +535,33 @@ def _build_performance_by_city(timeline: pd.DataFrame) -> pd.DataFrame:
     t["month"] = pd.to_datetime(t["prediction_date"]).dt.to_period("M").dt.to_timestamp()
     t_sorted = t.sort_values(["city", "month", "prediction_date"])
 
-    agg = t_sorted.groupby(["month", "city"]).agg(
-        n_days=("prediction_date", "nunique"),
-        rain_accuracy=("rain_correct", "mean"),
-        temp_mae=("temp_abs_error", "mean"),
-        temp_max_error=("temp_abs_error", "max"),
-    ).reset_index()
+    agg = (
+        t_sorted.groupby(["month", "city"])
+        .agg(
+            n_days=("prediction_date", "nunique"),
+            rain_accuracy=("rain_correct", "mean"),
+            temp_mae=("temp_abs_error", "mean"),
+            temp_max_error=("temp_abs_error", "max"),
+        )
+        .reset_index()
+    )
 
-    eom = t_sorted.groupby(["month", "city"]).agg(
-        rain_accuracy_30d_eom=("rain_accuracy_30d", "last"),
-        temp_mae_30d_eom=("temp_mae_30d", "last"),
-    ).reset_index()
+    eom = (
+        t_sorted.groupby(["month", "city"])
+        .agg(
+            rain_accuracy_30d_eom=("rain_accuracy_30d", "last"),
+            temp_mae_30d_eom=("temp_mae_30d", "last"),
+        )
+        .reset_index()
+    )
 
     by_city = agg.merge(eom, on=["month", "city"])
-    city_meta = pd.DataFrame([
-        {"city": city, "state": c["state"], "latitude": c["lat"], "longitude": c["lon"]}
-        for city, c in CITIES.items()
-    ])
+    city_meta = pd.DataFrame(
+        [
+            {"city": city, "state": c["state"], "latitude": c["lat"], "longitude": c["lon"]}
+            for city, c in CITIES.items()
+        ]
+    )
     by_city = by_city.merge(city_meta, on="city")
 
     by_city["rain_accuracy"] = by_city["rain_accuracy"].round(4)
@@ -541,7 +624,9 @@ def _build_retraining_history(timeline: pd.DataFrame) -> pd.DataFrame:
 
         curr_acc = ev["rain_accuracy_at_retrain"]
         next_acc = ev["next_rain_accuracy"]
-        ev["accuracy_delta"] = round(float(next_acc) - curr_acc, 4) if next_acc is not None else None
+        ev["accuracy_delta"] = (
+            round(float(next_acc) - curr_acc, 4) if next_acc is not None else None
+        )
         curr_mae = ev["temp_mae_at_retrain"]
         next_mae = ev["next_temp_mae"]
         ev["mae_delta"] = round(curr_mae - float(next_mae), 3) if next_mae is not None else None
@@ -578,14 +663,67 @@ def write_duckdb(
         con.execute(f"CREATE TABLE {name} AS SELECT * FROM _src_{name}")
     con.close()
 
-    print(f"  DuckDB  → {DUCKDB_PATH.relative_to(ROOT)}  ({DUCKDB_PATH.stat().st_size / 1024:.0f} KB)")
+    print(
+        f"  DuckDB  → {DUCKDB_PATH.relative_to(ROOT)}  ({DUCKDB_PATH.stat().st_size / 1024:.0f} KB)"
+    )
+
+
+# ─── mlflow_latest.json demo ──────────────────────────────────────────────────
+
+
+def _generate_mlflow_json() -> None:
+    """Write models/mlflow_latest.json with realistic demo values if absent."""
+    import json
+    import os
+
+    if os.getenv("DEMO_MODE", "false").lower() not in ("1", "true", "yes"):
+        return
+
+    out = ROOT / "models" / "mlflow_latest.json"
+    if out.exists():
+        return  # never overwrite a real export
+
+    demo_payload = {
+        "exported_at": "2026-05-01T06:00:00Z",
+        "run_id": "demo_run_001abcdef",
+        "run_name": "train_20260501_060000",
+        "start_time": "2026-05-01T04:00:00Z",
+        "duration_seconds": 823,
+        "status": "FINISHED",
+        "model_version": "20260501_060000",
+        "metrics": {
+            "rain_accuracy": 0.7699,
+            "temp_mae": 1.628,
+            "temp_rmse": 2.31,
+            "rain_f1": 0.76,
+            "rain_precision": 0.78,
+            "rain_recall": 0.74,
+        },
+        "params": {"n_estimators": "200", "max_depth": "6", "learning_rate": "0.05"},
+        "tags": {"trigger": "scheduled", "cities_count": "26"},
+        "baseline_metrics": {"rain_accuracy": 0.75, "temp_mae": 1.89},
+        "delta_vs_baseline": {"rain_accuracy": 0.0199, "temp_mae": -0.262},
+        "model_metrics": {
+            "rain_tomorrow": {"accuracy": 0.7699, "auc": 0.8518},
+            "max_temp_tomorrow": {"mae": 1.628, "r2": 0.9068},
+            "weather_type_tomorrow": {"accuracy": 0.8216},
+            "heatwave_risk": {"auc": 0.9963},
+            "frost_risk": {"auc": 0.9891},
+            "storm_probability": {"auc": 0.8980},
+        },
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(demo_payload, indent=2))
+    print(f"  MLflow  → {out.relative_to(ROOT)}")
 
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    print(f"Generating demo data: {START_DATE} → {END_DATE}  ({N_DAYS} days × {len(CITIES)} cities)")
+    print(
+        f"Generating demo data: {START_DATE} → {END_DATE}  ({N_DAYS} days × {len(CITIES)} cities)"
+    )
 
     print("  raw weather …")
     raw = generate_raw()
@@ -608,6 +746,8 @@ def main() -> None:
     )
 
     write_duckdb(timeline, overview, health, by_city, history)
+
+    _generate_mlflow_json()
 
     total_mb = (SQLITE_PATH.stat().st_size + DUCKDB_PATH.stat().st_size) / 1024 / 1024
     print(f"  Total size: {total_mb:.1f} MB  (target < 8 MB)")

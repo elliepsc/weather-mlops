@@ -1,0 +1,22 @@
+{
+  "rain_today": 0.411849,
+  "wind_dir_9am": 0.325472,
+  "wind_dir_3pm": 0.064035,
+  "rainfall": 0.0635,
+  "humidity_3pm": 0.010317,
+  "cloud_3pm": 0.009817,
+  "pressure_3pm_lag1": 0.008597,
+  "pressure_tendency": 0.007983,
+  "pressure_3pm": 0.005612,
+  "wind_speed_3pm": 0.005566,
+  "city": 0.005557,
+  "pressure_9am": 0.005448,
+  "evaporation": 0.005327,
+  "min_temp": 0.005065,
+  "state": 0.004707,
+  "humidity_3pm_rolling7": 0.004545,
+  "season": 0.004467,
+  "wind_gust_dir": 0.004361,
+  "wind_speed_9am": 0.003874,
+  "wind_gust_speed": 0.003538
+}

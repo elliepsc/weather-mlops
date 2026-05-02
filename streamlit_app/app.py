@@ -407,8 +407,25 @@ with tab3:
     # ── Métriques globales ────────────────────────────────────────────────────
     try:
         metrics = fetch_mlflow_metrics()
-        if metrics:
+        source = metrics.get("source") if metrics else None
+
+        if metrics and source != "unavailable":
             st.markdown("#### Métriques globales (dernier entraînement)")
+
+            _source_label = {"json_cache": "📦 cache JSON", "mlflow_live": "🔗 MLflow live"}
+            if source:
+                run_name = metrics.get("run_name") or ""
+                run_date = (metrics.get("start_time") or "")[:10]
+                duration = metrics.get("duration_seconds")
+                caption_parts = [_source_label.get(source, source)]
+                if run_name:
+                    caption_parts.append(run_name)
+                if run_date:
+                    caption_parts.append(run_date)
+                if duration:
+                    caption_parts.append(f"{duration}s")
+                st.caption("  ·  ".join(caption_parts))
+
             label_map = {
                 "rain_tomorrow":         "🌧 Pluie",
                 "max_temp_tomorrow":     "🌡 Temp max",
@@ -417,15 +434,44 @@ with tab3:
                 "frost_risk":            "❄️ Gel",
                 "storm_probability":     "⛈ Orage",
             }
-            cols_m = st.columns(len(metrics))
-            for col, (model_key, m_vals) in zip(cols_m, metrics.items()):
-                with col:
-                    st.markdown(f"**{label_map.get(model_key, model_key)}**")
-                    for k, v in m_vals.items():
-                        if isinstance(v, float):
-                            st.metric(k.upper(), f"{v:.4f}")
+
+            # Prefer nested model_metrics (new format) — fall back to flat dict iteration
+            model_m: dict = metrics.get("model_metrics") or {
+                k: v for k, v in metrics.items() if isinstance(v, dict)
+            }
+            if model_m:
+                cols_m = st.columns(len(model_m))
+                for col, (model_key, m_vals) in zip(cols_m, model_m.items()):
+                    with col:
+                        st.markdown(f"**{label_map.get(model_key, model_key)}**")
+                        for k, v in m_vals.items():
+                            if isinstance(v, float):
+                                st.metric(k.upper(), f"{v:.4f}")
+            elif metrics.get("metrics"):
+                flat = metrics["metrics"]
+                flat_labels = {
+                    "rain_accuracy": "🌧 Accuracy pluie",
+                    "temp_mae": "🌡 MAE temp (°C)",
+                    "temp_rmse": "🌡 RMSE temp",
+                    "rain_f1": "🌧 F1 pluie",
+                    "rain_precision": "🎯 Précision",
+                    "rain_recall": "📈 Rappel",
+                }
+                delta = metrics.get("delta_vs_baseline") or {}
+                cols_f = st.columns(min(len(flat), 6))
+                for col, (k, v) in zip(cols_f, flat.items()):
+                    with col:
+                        d = delta.get(k)
+                        st.metric(
+                            flat_labels.get(k, k),
+                            f"{v:.4f}" if isinstance(v, float) else str(v),
+                            delta=f"{d:+.4f}" if isinstance(d, float) else None,
+                        )
         else:
-            st.info("Métriques non disponibles — exécutez le pipeline d'entraînement.")
+            msg = (metrics or {}).get(
+                "message", "Métriques non disponibles — exécutez le pipeline d'entraînement."
+            )
+            st.info(msg)
     except Exception as exc:
         st.warning(f"Métriques inaccessibles : {exc}")
 

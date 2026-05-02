@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config.settings import mlops_config, settings
-from dags._airflow_compat import DAG, BranchPythonOperator, PythonOperator
+from dags._airflow_compat import DAG, BranchPythonOperator, PythonOperator, TriggerRule
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +173,12 @@ def send_degradation_alert(**context):
     _send_slack_alert(message, alert_key="retrain_degradation")
 
 
+def export_mlflow(**context):
+    from pipeline.export_mlflow_metrics import main
+
+    main()
+
+
 def step_predict(**context):
     from pipeline.run_pipeline import step_predict as _step_predict
 
@@ -225,6 +231,14 @@ with DAG(
         # Training can take significantly longer than the default.
         execution_timeout=timedelta(hours=2),
     )
+    t_export_mlflow = PythonOperator(
+        task_id="export_mlflow_metrics",
+        python_callable=export_mlflow,
+        trigger_rule=TriggerRule.ALL_SUCCESS,
+        retries=1,
+        retry_delay=timedelta(seconds=30),
+        execution_timeout=timedelta(minutes=5),
+    )
     t_validate = PythonOperator(
         task_id="compare_vs_baseline",
         python_callable=compare_vs_baseline,
@@ -261,6 +275,6 @@ with DAG(
         execution_timeout=timedelta(minutes=5),
     )
 
-    t_snapshot >> t_train >> t_validate >> t_gate
+    t_snapshot >> t_train >> t_export_mlflow >> t_validate >> t_gate
     t_gate >> t_predict >> t_export >> t_write_last_retrain
     t_gate >> t_rollback >> t_alert

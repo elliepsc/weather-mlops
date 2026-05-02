@@ -1,0 +1,22 @@
+{
+  "rain_today": 0.133966,
+  "rainfall": 0.071292,
+  "hot_day_lag1": 0.047958,
+  "wind_gust_speed": 0.047771,
+  "wind_dir_3pm": 0.0391,
+  "cloud_3pm": 0.038674,
+  "pressure_tendency": 0.0384,
+  "wind_gust_dir": 0.035291,
+  "state": 0.030466,
+  "pressure_3pm": 0.029144,
+  "sunshine_hours": 0.027296,
+  "wind_dir_9am": 0.026714,
+  "min_temp_lag1": 0.023167,
+  "max_temp_rolling7": 0.019904,
+  "rainfall_rolling7": 0.019645,
+  "humidity_3pm": 0.01924,
+  "city": 0.019058,
+  "consec_hot_days": 0.018809,
+  "pressure_9am": 0.018355,
+  "season": 0.017455
+}

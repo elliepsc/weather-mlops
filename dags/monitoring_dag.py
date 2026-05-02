@@ -403,9 +403,7 @@ def branch_on_monitoring_decision(**context):
     mild_drift = M.min_drift_features_alert <= n_drifted < M.min_drift_features_retrain
     early_warning = (
         accuracy_7d is not None and accuracy_7d < M.rain_accuracy_early_warning_threshold
-    ) or (
-        temp_mae_7d is not None and temp_mae_7d > M.temp_mae_early_warning_threshold
-    )
+    ) or (temp_mae_7d is not None and temp_mae_7d > M.temp_mae_early_warning_threshold)
 
     decision_data = {
         "date": ds,
@@ -512,9 +510,7 @@ def _format_drift_lines(drift_path: Path) -> str:
     lines = []
     for feat, stats in features.items():
         flag = ":red_circle:" if stats.get("drifted") else ":white_circle:"
-        lines.append(
-            f"  {flag} {feat}: KS={stats.get('ks_stat')} p={stats.get('p_value')}"
-        )
+        lines.append(f"  {flag} {feat}: KS={stats.get('ks_stat')} p={stats.get('p_value')}")
     dqw = drift.get("data_quality_warning")
     footer = (
         f"\n  :warning: data quality warning — completeness "

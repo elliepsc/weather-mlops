@@ -186,9 +186,7 @@ def test_decision_payload_schema(patched_io):
 
 def test_early_warning_accuracy_routes_to_alert_only(patched_io):
     """7d accuracy below threshold triggers alert even when 30d metrics are nominal."""
-    context = make_context(
-        accuracy=0.85, temp_mae=2.0, drifted_features=[], accuracy_7d=0.68
-    )
+    context = make_context(accuracy=0.85, temp_mae=2.0, drifted_features=[], accuracy_7d=0.68)
 
     result = md.branch_on_monitoring_decision(**context)
 
@@ -202,9 +200,7 @@ def test_early_warning_accuracy_routes_to_alert_only(patched_io):
 
 def test_early_warning_mae_routes_to_alert_only(patched_io):
     """7d MAE above threshold triggers alert even when 30d metrics are nominal."""
-    context = make_context(
-        accuracy=0.85, temp_mae=2.0, drifted_features=[], temp_mae_7d=4.5
-    )
+    context = make_context(accuracy=0.85, temp_mae=2.0, drifted_features=[], temp_mae_7d=4.5)
 
     result = md.branch_on_monitoring_decision(**context)
 
@@ -218,9 +214,7 @@ def test_early_warning_mae_routes_to_alert_only(patched_io):
 
 def test_early_warning_does_not_fire_when_30d_triggers_retrain(patched_io):
     """Retrain path takes priority over early warning."""
-    context = make_context(
-        accuracy=0.70, temp_mae=2.0, drifted_features=[], accuracy_7d=0.68
-    )
+    context = make_context(accuracy=0.70, temp_mae=2.0, drifted_features=[], accuracy_7d=0.68)
 
     result = md.branch_on_monitoring_decision(**context)
 

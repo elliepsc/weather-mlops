@@ -15,6 +15,8 @@ Endpoints:
 
 import os
 import sys
+from math import isfinite
+from numbers import Real
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -66,11 +68,15 @@ OUTPUT_CSV = ROOT / "data" / "output" / "weather_final.csv"
 
 def _df_to_records(df: pd.DataFrame) -> list[dict]:
     """Convert DataFrame to JSON-serialisable records (NaN → None)."""
-    records = df.where(pd.notnull(df), None).to_dict(orient="records")
+    clean = df.replace([float("inf"), float("-inf")], None)
+    clean = clean.astype(object).where(pd.notnull(clean), None)
+    records = clean.to_dict(orient="records")
     for row in records:
         for key, value in row.items():
             if isinstance(value, (pd.Timestamp, datetime, date)):
                 row[key] = value.isoformat()
+            elif isinstance(value, Real) and not isinstance(value, bool) and not isfinite(value):
+                row[key] = None
     return records
 
 
@@ -164,6 +170,7 @@ def get_latest(city: Optional[str] = Query(None)):
                 INNER JOIN (
                     SELECT city, MAX(date) AS max_date
                     FROM v_weather_full
+                    WHERE predicted_at IS NOT NULL
                     GROUP BY city
                 ) m ON w.city = m.city AND w.date = m.max_date
             """
@@ -502,4 +509,6 @@ if __name__ == "__main__":
 
     port = int(os.getenv("API_PORT", 8001))  # 8001 local (8083 = Airflow)
     host = os.getenv("API_HOST", "0.0.0.0")
-    uvicorn.run("api.app:app", host=host, port=port, reload=True)
+    # uvicorn.run("api.app:app", host=host, port=port, reload=True)
+    uvicorn.run("api.app:app", host=host, port=port, reload=False)
+

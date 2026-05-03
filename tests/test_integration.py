@@ -139,6 +139,23 @@ def test_weather_filter_by_date_range(client):
     assert r.json()["count"] == 1
 
 
+def test_weather_serializes_missing_predictions_as_null(client, test_db):
+    with sqlite3.connect(str(test_db)) as conn:
+        conn.execute(
+            """
+            INSERT INTO weather_raw
+                (date, city, state, max_temp, min_temp, rainfall, rain_today)
+            VALUES ('2025-01-03', 'Hobart', 'TAS', 19.5, 10.2, 0.0, 0)
+            """
+        )
+
+    r = client.get("/api/weather?city=Hobart")
+    assert r.status_code == 200
+    row = r.json()["data"][0]
+    assert row["max_temp_tomorrow"] is None
+    assert row["rain_tomorrow_proba"] is None
+
+
 # ── /api/weather/latest ───────────────────────────────────────────────────────
 
 
@@ -160,6 +177,24 @@ def test_weather_latest_filter_by_city(client):
     body = r.json()
     assert body["count"] == 1
     assert body["data"][0]["city"] == "Melbourne"
+
+
+def test_weather_latest_uses_latest_row_with_predictions(client, test_db):
+    with sqlite3.connect(str(test_db)) as conn:
+        conn.execute(
+            """
+            INSERT INTO weather_raw
+                (date, city, state, max_temp, min_temp, rainfall, rain_today)
+            VALUES ('2025-01-03', 'Sydney', 'NSW', 29.0, 18.8, 0.0, 0)
+            """
+        )
+
+    r = client.get("/api/weather/latest?city=Sydney")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] == 1
+    assert body["data"][0]["date"] == "2025-01-02"
+    assert body["data"][0]["max_temp_tomorrow"] == pytest.approx(31.0)
 
 
 # ── /api/weather/predictions ──────────────────────────────────────────────────

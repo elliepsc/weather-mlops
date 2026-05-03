@@ -131,6 +131,12 @@ def test_add_features_drops_last_row(raw_df):
     assert len(result) == len(raw_df) - 1
 
 
+def test_add_features_can_keep_last_row_for_inference(raw_df):
+    result = add_features(raw_df, drop_last_per_city=False)
+    assert len(result) == len(raw_df)
+    assert result.iloc[-1]["date"] == raw_df.iloc[-1]["date"]
+
+
 def test_add_features_target_columns(raw_df):
     result = add_features(raw_df)
     for col in [

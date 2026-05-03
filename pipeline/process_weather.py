@@ -72,7 +72,7 @@ def compute_comfort_score(row) -> float:
     return round(max(0.0, min(100.0, score)), 1)
 
 
-def add_features(df: pd.DataFrame) -> pd.DataFrame:
+def add_features(df: pd.DataFrame, drop_last_per_city: bool = True) -> pd.DataFrame:
     """
     Add all derived features needed for ML training and prediction.
     Input df must be sorted by (city, date).
@@ -163,9 +163,10 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         (next_rain > LABELS.storm_rainfall_mm) & (next_gust > LABELS.storm_gust_kmh)
     ).astype(int)
 
-    # Drop last row per city (no tomorrow available)
-    last_dates = df.groupby("city")["date"].transform("max")
-    df = df[df["date"] < last_dates].copy()
+    if drop_last_per_city:
+        # Training labels need a known tomorrow; inference keeps the latest row.
+        last_dates = df.groupby("city")["date"].transform("max")
+        df = df[df["date"] < last_dates].copy()
 
     df["date"] = df["date"].dt.strftime("%Y-%m-%d")
     return df

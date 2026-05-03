@@ -432,7 +432,7 @@ def step_train():
 def step_predict():
     logger.info("Generating predictions for all rows...")
     df_raw = read_raw()
-    df_feat = add_features(df_raw)
+    df_feat = add_features(df_raw, drop_last_per_city=False)
     preds = generate_predictions(df_feat)
     upsert_predictions(preds)
     logger.info("Predictions stored: %d rows", len(preds))

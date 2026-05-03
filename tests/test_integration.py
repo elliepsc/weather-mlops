@@ -57,14 +57,28 @@ def test_db(tmp_path):
 @pytest.fixture
 def client(test_db, tmp_path, monkeypatch):
     """TestClient wired to the temp database."""
+    import duckdb
     import api.app as app_module
 
     # Replace get_connection so every endpoint uses the temp DB
     def _temp_get_connection(*args, **kwargs):
         return sqlite3.connect(str(test_db))
 
+    analytics_db = tmp_path / "analytics_test.duckdb"
+    with duckdb.connect(str(analytics_db)) as con:
+        con.execute(
+            """
+            CREATE TABLE mart_mlops_health AS
+            SELECT
+                DATE '2025-01-02' AS snapshot_date,
+                0.98 AS completeness_rate,
+                'no_action' AS action
+            """
+        )
+
     monkeypatch.setattr(app_module, "get_connection", _temp_get_connection)
     monkeypatch.setattr(app_module, "DB_PATH", test_db)
+    monkeypatch.setattr(app_module, "ANALYTICS_DB_PATH", analytics_db)
     # Point OUTPUT_CSV to a non-existent path so export returns 404 in tests
     monkeypatch.setattr(app_module, "OUTPUT_CSV", tmp_path / "weather_final.csv")
 
@@ -178,6 +192,26 @@ def test_predictions_filter_by_city(client):
     body = r.json()
     assert body["count"] == 2
     assert all(row["city"] == "Sydney" for row in body["data"])
+
+
+# â”€â”€ /api/analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+
+def test_analytics_mart_json(client):
+    r = client.get("/api/analytics/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] == 1
+    assert body["data"][0]["action"] == "no_action"
+
+
+def test_analytics_mart_csv(client):
+    r = client.get("/api/analytics/health.csv")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "mart_mlops_health.csv" in r.headers["content-disposition"]
+    assert "snapshot_date,completeness_rate,action" in r.text
+    assert "2025-01-02,0.98,no_action" in r.text
 
 
 # ── /api/mlflow/metrics ───────────────────────────────────────────────────────

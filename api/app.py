@@ -21,13 +21,13 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from pipeline.database import DB_PATH, get_connection
@@ -66,7 +66,12 @@ OUTPUT_CSV = ROOT / "data" / "output" / "weather_final.csv"
 
 def _df_to_records(df: pd.DataFrame) -> list[dict]:
     """Convert DataFrame to JSON-serialisable records (NaN → None)."""
-    return df.where(pd.notnull(df), None).to_dict(orient="records")
+    records = df.where(pd.notnull(df), None).to_dict(orient="records")
+    for row in records:
+        for key, value in row.items():
+            if isinstance(value, (pd.Timestamp, datetime, date)):
+                row[key] = value.isoformat()
+    return records
 
 
 # ─── endpoints ───────────────────────────────────────────────────────────────
@@ -243,13 +248,7 @@ _ANALYTICS_MARTS = {
 }
 
 
-@app.get("/api/analytics/{mart}")
-def get_analytics_mart(mart: str):
-    """
-    Read one of the five DuckDB analytics marts.
-    Available slugs: forecast-timeline, performance-overview, health,
-                     performance-by-city, retraining-history.
-    """
+def _read_analytics_mart(mart: str) -> pd.DataFrame:
     if mart not in _ANALYTICS_MARTS:
         raise HTTPException(
             status_code=404,
@@ -269,6 +268,32 @@ def get_analytics_mart(mart: str):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+    return df
+
+
+@app.get("/api/analytics/{mart}.csv")
+def get_analytics_mart_csv(mart: str):
+    """
+    Download one analytics mart as CSV for Power BI Web connector.
+    Example: /api/analytics/health.csv
+    """
+    df = _read_analytics_mart(mart)
+    filename = f"{_ANALYTICS_MARTS[mart]}.csv"
+    return Response(
+        content=df.to_csv(index=False),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/analytics/{mart}")
+def get_analytics_mart(mart: str):
+    """
+    Read one of the five DuckDB analytics marts.
+    Available slugs: forecast-timeline, performance-overview, health,
+                     performance-by-city, retraining-history.
+    """
+    df = _read_analytics_mart(mart)
     return JSONResponse({"count": len(df), "data": _df_to_records(df)})
 
 

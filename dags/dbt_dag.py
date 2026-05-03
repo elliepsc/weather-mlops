@@ -29,10 +29,9 @@ Pour une passe locale complète préférer : make analytics-all
 
 import json
 import logging
-import os
 import subprocess
 import sys
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -48,7 +47,6 @@ from dags._airflow_compat import (
     BranchPythonOperator,
     ExternalTaskSensor,
     PythonOperator,
-    TriggerRule,
 )
 
 logger = logging.getLogger(__name__)
@@ -169,121 +167,6 @@ def _export_analytics(**kwargs):
     export_main()
 
 
-# ── Git push ──────────────────────────────────────────────────────────────────
-
-
-MART_CSVS = [
-    "mart_forecast_vs_actual_timeline.csv",
-    "mart_model_performance_overview.csv",
-    "mart_model_performance_by_city.csv",
-    "mart_mlops_health.csv",
-    "mart_retraining_history.csv",
-]
-
-
-def _git_push_analytics(**kwargs):
-    """Commit et push les mart_*.csv de data/analytics/ vers GitHub.
-
-    Erreurs non bloquantes : la tâche logue et retourne sans lever d'exception
-    pour ne pas impacter le DAG quand le push échoue (réseau, token absent…).
-    """
-    now = datetime.now(UTC)
-
-    try:
-        gh_token = os.getenv("GH_TOKEN", "")
-
-        if not gh_token:
-            logger.warning(
-                "git push analytics skipped — GH_TOKEN absent "
-                "(définir dans .env ou variable Airflow GH_TOKEN)"
-            )
-            return
-
-        analytics_dir = ROOT / "data" / "analytics"
-        csv_paths = [analytics_dir / name for name in MART_CSVS if (analytics_dir / name).exists()]
-
-        if not csv_paths:
-            logger.warning(
-                "git push analytics skipped — aucun mart_*.csv trouvé dans %s", analytics_dir
-            )
-            return
-
-        # Stage uniquement les mart_*.csv connus
-        subprocess.run(
-            ["git", "add", "--"] + [str(p) for p in csv_paths],
-            cwd=str(ROOT),
-            check=True,
-            capture_output=True,
-        )
-
-        # Vérifier si le staging a produit des changements
-        cached_check = subprocess.run(
-            ["git", "diff", "--quiet", "--cached"],
-            cwd=str(ROOT),
-            capture_output=True,
-        )
-        if cached_check.returncode == 0:
-            logger.info("git push analytics skipped — aucun changement dans les mart_*.csv")
-            return
-
-        commit_msg = (
-            f"chore: update analytics exports [skip ci] - {now.strftime('%Y-%m-%d %H:%M')} UTC"
-        )
-        subprocess.run(
-            ["git", "commit", "-m", commit_msg],
-            cwd=str(ROOT),
-            check=True,
-            capture_output=True,
-        )
-
-        # Construire l'URL authentifiée (token injecté, jamais loggué)
-        remote_url = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
-        if remote_url.startswith("https://"):
-            authed_url = remote_url.replace("https://", f"https://{gh_token}@", 1)
-        else:
-            authed_url = remote_url
-
-        push_result = subprocess.run(
-            ["git", "push", authed_url, "HEAD:main"],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-        )
-        if push_result.returncode != 0:
-            logger.error(
-                "git push failed (exit %d): %s", push_result.returncode, push_result.stderr
-            )
-            return
-
-        sha = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-
-        for p in csv_paths:
-            size_kb = p.stat().st_size / 1024
-            logger.info("  pushed %s (%.1f KB)", p.name, size_kb)
-
-        logger.info(
-            "git push analytics done — %d fichiers, SHA=%s, timestamp=%s UTC",
-            len(csv_paths),
-            sha,
-            now.strftime("%Y-%m-%d %H:%M"),
-        )
-
-    except Exception as exc:
-        logger.error("git push analytics error (non-bloquant) : %s", exc)
-
-
 # ── DAG ───────────────────────────────────────────────────────────────────────
 
 with DAG(
@@ -363,16 +246,6 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
-    # trigger_rule=ALL_DONE : s'exécute même si t_export a échoué,
-    # pour ne pas bloquer le DAG. La fonction logue les erreurs sans lever.
-    t_git_push = PythonOperator(
-        task_id="git_push_analytics",
-        python_callable=_git_push_analytics,
-        trigger_rule=TriggerRule.ALL_DONE,
-        retries=0,
-        execution_timeout=timedelta(minutes=5),
-    )
-
     # ── Dépendances ───────────────────────────────────────────────────────────
     #
     # Schedule normal :
@@ -383,8 +256,7 @@ with DAG(
     #
     # Suite commune :
     #   validate_sources → load_sources → dbt_run → dbt_test → export_analytics_csv
-    #   → git_push_analytics
 
     t_gate >> [t_wait_ing, t_wait_mon] >> t_validate
     t_gate >> t_validate
-    t_validate >> t_load >> t_run >> t_test >> t_export >> t_git_push
+    t_validate >> t_load >> t_run >> t_test >> t_export

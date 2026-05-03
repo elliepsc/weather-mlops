@@ -66,9 +66,10 @@ def client(test_db, tmp_path, monkeypatch):
 
     analytics_db = tmp_path / "analytics_test.duckdb"
     with duckdb.connect(str(analytics_db)) as con:
+        con.execute("CREATE SCHEMA IF NOT EXISTS main_marts")
         con.execute(
             """
-            CREATE TABLE mart_mlops_health AS
+            CREATE TABLE main_marts.mart_mlops_health AS
             SELECT
                 DATE '2025-01-02' AS snapshot_date,
                 0.98 AS completeness_rate,

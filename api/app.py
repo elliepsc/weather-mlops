@@ -263,7 +263,7 @@ def _read_analytics_mart(mart: str) -> pd.DataFrame:
         import duckdb
 
         con = duckdb.connect(str(ANALYTICS_DB_PATH), read_only=True)
-        df = con.execute(f"SELECT * FROM {_ANALYTICS_MARTS[mart]}").df()
+        df = con.execute(f"SELECT * FROM main_marts.{_ANALYTICS_MARTS[mart]}").df()
         con.close()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

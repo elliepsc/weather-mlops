@@ -26,9 +26,11 @@ st.set_page_config(
     layout="wide",
 )
 
-API_URL: str = (
-    st.secrets.get("API_URL", None) or os.getenv("API_URL", "http://localhost:8001")
-).rstrip("/")
+try:
+    _secret_api_url: str | None = st.secrets["API_URL"]
+except (FileNotFoundError, KeyError):
+    _secret_api_url = None
+API_URL: str = (_secret_api_url or os.getenv("API_URL", "http://localhost:8001")).rstrip("/")
 
 
 # ─── Data fetchers ────────────────────────────────────────────────────────────

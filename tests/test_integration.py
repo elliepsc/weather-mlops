@@ -58,6 +58,7 @@ def test_db(tmp_path):
 def client(test_db, tmp_path, monkeypatch):
     """TestClient wired to the temp database."""
     import duckdb
+
     import api.app as app_module
 
     # Replace get_connection so every endpoint uses the temp DB

@@ -380,9 +380,9 @@ if page == "🌤 Prédictions":
                     df_raw["pred_temp"] = df_raw.groupby("city")["max_temp_tomorrow"].shift(1)
                     df_raw["temp_error"] = (df_raw["pred_temp"] - df_raw["max_temp"]).abs()
                     df_raw["pred_rain"] = df_raw.groupby("city")["rain_tomorrow"].shift(1)
-                    df_raw["rain_correct"] = (
-                        df_raw["pred_rain"] == df_raw["rain_today"]
-                    ).astype(float)
+                    df_raw["rain_correct"] = (df_raw["pred_rain"] == df_raw["rain_today"]).astype(
+                        float
+                    )
 
                     valid = df_raw.dropna(subset=["pred_temp"])
                     if not valid.empty:

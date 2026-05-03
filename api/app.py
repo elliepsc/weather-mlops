@@ -511,4 +511,3 @@ if __name__ == "__main__":
     host = os.getenv("API_HOST", "0.0.0.0")
     # uvicorn.run("api.app:app", host=host, port=port, reload=True)
     uvicorn.run("api.app:app", host=host, port=port, reload=False)
-

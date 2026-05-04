@@ -284,19 +284,55 @@ if page == "🌤 Prédictions":
     with sub2:
         st.subheader("Prédictions vs Réalisés")
 
-        period_label = st.selectbox(
-            "Période", ["7 jours", "30 jours", "90 jours"], index=1, key="bt_period"
-        )
+        col_feat, col_period = st.columns([2, 1])
+        with col_feat:
+            feature_label = st.selectbox(
+                "Indicateur",
+                [
+                    "🌡 Température max",
+                    "🌧 Pluie (oui/non)",
+                    "🌧 Probabilité de pluie",
+                    "🔥 Risque canicule",
+                    "❄️ Risque gel",
+                    "⛈ Probabilité orage",
+                    "🌤 Score de confort",
+                ],
+                key="bt_feature",
+            )
+        with col_period:
+            period_label = st.selectbox(
+                "Période", ["7 jours", "30 jours", "90 jours"], index=1, key="bt_period"
+            )
         n_days = {"7 jours": 7, "30 jours": 30, "90 jours": 90}[period_label]
 
-        try:
-            df_bt = fetch_analytics("forecast-timeline")
-            using_mart = df_bt is not None and not df_bt.empty
+        _FEAT: dict = {
+            "🌡 Température max":      {"pred": "max_temp_tomorrow",   "actual": "max_temp",   "type": "continuous",   "unit": "°C"},
+            "🌧 Pluie (oui/non)":      {"pred": "rain_tomorrow",       "actual": "rain_today",  "type": "binary",       "unit": ""},
+            "🌧 Probabilité de pluie": {"pred": "rain_tomorrow_proba", "actual": "rain_today",  "type": "proba_binary", "unit": "%"},
+            "🔥 Risque canicule":      {"pred": "heatwave_risk",       "actual": None,           "type": "proba_only",   "unit": "%"},
+            "❄️ Risque gel":           {"pred": "frost_risk",          "actual": None,           "type": "proba_only",   "unit": "%"},
+            "⛈ Probabilité orage":    {"pred": "storm_probability",    "actual": None,           "type": "proba_only",   "unit": "%"},
+            "🌤 Score de confort":     {"pred": "comfort_score",       "actual": None,           "type": "score",        "unit": "/100"},
+        }
+        feat = _FEAT[feature_label]
+        chart_type = feat["type"]
+        pred_col = feat["pred"]
+        actual_col: Optional[str] = feat["actual"]
+        unit = feat["unit"]
+        city_label = selected_city or "Toutes villes"
 
-            if using_mart:
+        try:
+            # Temperature can use the pre-aligned mart; all other features use raw data
+            mart_available = False
+            if chart_type == "continuous":
+                _df_mart = fetch_analytics("forecast-timeline")
+                mart_available = _df_mart is not None and not _df_mart.empty
+
+            if mart_available:
+                # ── Mart path (temperature only) ───────────────────────────────
+                df_bt = _df_mart.copy()
                 if selected_city:
                     df_bt = df_bt[df_bt["city"] == selected_city].copy()
-
                 max_pred = pd.to_datetime(df_bt["prediction_date"]).max()
                 cutoff = (max_pred - timedelta(days=n_days)).strftime("%Y-%m-%d")
                 df_bt = df_bt[df_bt["prediction_date"] >= cutoff].copy()
@@ -307,59 +343,41 @@ if page == "🌤 Prédictions":
                 if df_bt.empty:
                     st.info("Aucune donnée pour cette période / ville.")
                 else:
-                    # ── KPIs ──────────────────────────────────────────────────
                     if has_actuals:
                         valid = df_bt[df_bt["has_actuals"]]
-                        mae = valid["temp_abs_error"].mean()
-                        acc = valid["rain_correct"].mean()
-                        m1, m2, m3 = st.columns(3)
+                        m1, m2 = st.columns(2)
                         with m1:
-                            st.metric("MAE température", f"{mae:.2f}°C")
+                            st.metric("MAE température", f"{valid['temp_abs_error'].mean():.2f}°C")
                         with m2:
-                            st.metric("Accuracy pluie", f"{acc:.1%}")
-                        with m3:
                             st.metric("Jours évalués", int(valid["prediction_date"].nunique()))
 
-                    # ── Courbe temp prévue vs réelle ──────────────────────────
                     fig = go.Figure()
                     if "pred_max_temp_tomorrow" in df_bt.columns:
-                        fig.add_trace(
-                            go.Scatter(
-                                x=df_bt["date"],
-                                y=df_bt["pred_max_temp_tomorrow"],
-                                name="Temp prévue J+1",
-                                mode="lines+markers",
-                                line=dict(color="#FF6B35", width=2),
-                            )
-                        )
+                        fig.add_trace(go.Scatter(
+                            x=df_bt["date"], y=df_bt["pred_max_temp_tomorrow"],
+                            name="Prévue J+1", mode="lines+markers",
+                            line=dict(color="#FF6B35", width=2),
+                        ))
                     if has_actuals and "actual_max_temp" in df_bt.columns:
-                        fig.add_trace(
-                            go.Scatter(
-                                x=df_bt["date"],
-                                y=df_bt["actual_max_temp"],
-                                name="Temp réelle J+1",
-                                mode="lines+markers",
-                                line=dict(color="#004E89", width=2, dash="dot"),
-                            )
-                        )
+                        fig.add_trace(go.Scatter(
+                            x=df_bt["date"], y=df_bt["actual_max_temp"],
+                            name="Réelle J+1", mode="lines+markers",
+                            line=dict(color="#004E89", width=2, dash="dot"),
+                        ))
                     fig.update_layout(
-                        title=f"Température prévue vs réelle — {selected_city or 'Toutes villes'} ({period_label})",
-                        xaxis_title="Date",
-                        yaxis_title="°C",
+                        title=f"Température prévue vs réelle — {city_label} ({period_label})",
+                        xaxis_title="Date", yaxis_title="°C",
                         legend=dict(orientation="h", yanchor="bottom", y=1.02),
                         height=370,
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-                    # ── Distribution des erreurs ───────────────────────────────
                     if has_actuals and "temp_abs_error" in df_bt.columns:
                         valid2 = df_bt[df_bt["has_actuals"]].dropna(subset=["temp_abs_error"])
                         if not valid2.empty:
                             fig_err = px.histogram(
-                                valid2,
-                                x="temp_abs_error",
-                                nbins=20,
-                                title="Distribution des erreurs de température",
+                                valid2, x="temp_abs_error", nbins=20,
+                                title="Distribution des erreurs",
                                 labels={"temp_abs_error": "Erreur absolue (°C)"},
                                 color_discrete_sequence=["#FF6B35"],
                             )
@@ -367,61 +385,220 @@ if page == "🌤 Prédictions":
                             st.plotly_chart(fig_err, use_container_width=True)
 
             else:
-                # ── Fallback : calcul depuis données brutes ────────────────────
+                # ── Raw data fallback (all features) ──────────────────────────
                 df_raw = fetch_weather(selected_city, limit=5000)
                 if df_raw.empty:
                     st.info("Aucune donnée disponible.")
+                elif pred_col not in df_raw.columns:
+                    st.warning(f"Colonne `{pred_col}` non disponible dans les données.")
                 else:
                     df_raw["date"] = pd.to_datetime(df_raw["date"])
                     max_d = df_raw["date"].max()
-                    cutoff_dt = max_d - timedelta(days=n_days)
-                    df_raw = df_raw[df_raw["date"] >= cutoff_dt].sort_values(["city", "date"])
+                    df_raw = df_raw[df_raw["date"] >= max_d - timedelta(days=n_days)]
+                    df_raw = df_raw.sort_values(["city", "date"])
 
-                    df_raw["pred_temp"] = df_raw.groupby("city")["max_temp_tomorrow"].shift(1)
-                    df_raw["temp_error"] = (df_raw["pred_temp"] - df_raw["max_temp"]).abs()
-                    df_raw["pred_rain"] = df_raw.groupby("city")["rain_tomorrow"].shift(1)
-                    df_raw["rain_correct"] = (df_raw["pred_rain"] == df_raw["rain_today"]).astype(
-                        float
+                    # Align: prediction made on D for D+1 → shift(1) aligns pred(D-1) with actual(D)
+                    df_raw["_pred"] = df_raw.groupby("city")[pred_col].shift(1)
+                    if actual_col and actual_col in df_raw.columns:
+                        df_raw["_actual"] = df_raw[actual_col]
+
+                    df_c = (
+                        df_raw[df_raw["city"] == selected_city].copy()
+                        if selected_city
+                        else df_raw.copy()
                     )
+                    df_c = df_c.dropna(subset=["_pred"])
 
-                    valid = df_raw.dropna(subset=["pred_temp"])
-                    if not valid.empty:
-                        m1, m2, m3 = st.columns(3)
-                        with m1:
-                            st.metric("MAE température", f"{valid['temp_error'].mean():.2f}°C")
-                        with m2:
-                            st.metric("Accuracy pluie", f"{valid['rain_correct'].mean():.1%}")
-                        with m3:
-                            st.metric("Jours évalués", int(valid["date"].nunique()))
+                    if df_c.empty:
+                        st.info(f"Aucune donnée disponible pour « {feature_label} ».")
 
-                    if selected_city:
-                        df_c = df_raw[df_raw["city"] == selected_city]
-                        fig = go.Figure()
-                        fig.add_trace(
-                            go.Scatter(
-                                x=df_c["date"],
-                                y=df_c["pred_temp"],
-                                name="Prévue",
-                                mode="lines+markers",
+                    elif chart_type == "continuous":
+                        if "_actual" in df_c.columns:
+                            df_valid = df_c.dropna(subset=["_actual"])
+                            mae = (df_valid["_pred"] - df_valid["_actual"]).abs().mean()
+                            m1, m2 = st.columns(2)
+                            with m1:
+                                st.metric("MAE", f"{mae:.2f}{unit}")
+                            with m2:
+                                st.metric("Jours évalués", int(df_valid["date"].nunique()))
+
+                        if selected_city:
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=df_c["date"], y=df_c["_pred"],
+                                name="Prévue J+1", mode="lines+markers",
                                 line=dict(color="#FF6B35", width=2),
+                            ))
+                            if "_actual" in df_c.columns:
+                                fig.add_trace(go.Scatter(
+                                    x=df_c["date"], y=df_c["_actual"],
+                                    name="Réelle J+1", mode="lines+markers",
+                                    line=dict(color="#004E89", width=2, dash="dot"),
+                                ))
+                            fig.update_layout(
+                                title=f"Température — {city_label} ({period_label})",
+                                xaxis_title="Date", yaxis_title="°C",
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                                height=370,
                             )
-                        )
-                        fig.add_trace(
-                            go.Scatter(
-                                x=df_c["date"],
-                                y=df_c["max_temp"],
-                                name="Réelle",
-                                mode="lines+markers",
-                                line=dict(color="#004E89", width=2, dash="dot"),
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            pivot = df_raw.dropna(subset=["_pred"]).pivot_table(
+                                index="date", columns="city", values="_pred", aggfunc="mean"
                             )
-                        )
-                        fig.update_layout(
-                            title=f"Température — {selected_city} ({period_label})",
-                            xaxis_title="Date",
-                            yaxis_title="°C",
-                            height=370,
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
+                            fig = px.line(
+                                pivot,
+                                title=f"Température prévue — Toutes villes ({period_label})",
+                                labels={"value": "°C", "date": "Date"},
+                            )
+                            fig.update_layout(height=370)
+                            st.plotly_chart(fig, use_container_width=True)
+
+                    elif chart_type == "binary":
+                        if not selected_city:
+                            st.info("Sélectionnez une ville pour voir le détail pluie oui/non.")
+                        elif "_actual" not in df_c.columns:
+                            st.warning("Données réelles (pluie) non disponibles.")
+                        else:
+                            df_c = df_c.dropna(subset=["_actual"]).copy()
+                            df_c["correct"] = df_c["_pred"] == df_c["_actual"]
+                            acc = df_c["correct"].mean()
+                            m1, m2 = st.columns(2)
+                            with m1:
+                                st.metric("Accuracy pluie", f"{acc:.1%}")
+                            with m2:
+                                st.metric("Jours évalués", len(df_c))
+
+                            # Scatter : prévu vs réel (y = 0 Non / 1 Oui)
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=df_c["date"], y=df_c["_pred"].astype(int),
+                                name="Prévu", mode="markers",
+                                marker=dict(color="#FF6B35", size=9, symbol="circle"),
+                            ))
+                            fig.add_trace(go.Scatter(
+                                x=df_c["date"], y=df_c["_actual"].astype(int) + 0.08,
+                                name="Réel", mode="markers",
+                                marker=dict(color="#004E89", size=9, symbol="diamond"),
+                            ))
+                            fig.update_layout(
+                                title=f"Pluie — prévu vs réel ({city_label}, {period_label})",
+                                xaxis_title="Date",
+                                yaxis=dict(title="Pluie", tickvals=[0, 1], ticktext=["Non", "Oui"]),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                                height=300,
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+
+                            # Timeline correct / incorrect
+                            correct_days = df_c[df_c["correct"]]
+                            wrong_days = df_c[~df_c["correct"]]
+                            fig2 = go.Figure()
+                            fig2.add_trace(go.Scatter(
+                                x=correct_days["date"], y=[0.5] * len(correct_days),
+                                mode="markers", name="Correct",
+                                marker=dict(color="#2ecc71", size=12, symbol="square"),
+                            ))
+                            fig2.add_trace(go.Scatter(
+                                x=wrong_days["date"], y=[0.5] * len(wrong_days),
+                                mode="markers", name="Erreur",
+                                marker=dict(color="#e74c3c", size=12, symbol="square"),
+                            ))
+                            fig2.update_layout(
+                                title="Prédictions correctes / incorrectes",
+                                height=160,
+                                yaxis=dict(visible=False, range=[0, 1]),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.05),
+                                margin=dict(t=40, b=20),
+                            )
+                            st.plotly_chart(fig2, use_container_width=True)
+
+                    elif chart_type == "proba_binary":
+                        # Ligne de probabilité + marqueurs événements pluie réels
+                        is_pct = df_c["_pred"].max() <= 1.0
+                        if selected_city:
+                            y_pred = df_c["_pred"] * 100 if is_pct else df_c["_pred"]
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=df_c["date"], y=y_pred,
+                                name="Probabilité prévue (%)", mode="lines+markers",
+                                line=dict(color="#FF6B35", width=2),
+                            ))
+                            if "_actual" in df_c.columns:
+                                rain_days = df_c[df_c["_actual"] == 1]
+                                no_rain_days = df_c[df_c["_actual"] == 0]
+                                fig.add_trace(go.Scatter(
+                                    x=rain_days["date"], y=[100] * len(rain_days),
+                                    name="Pluie réelle ✓", mode="markers",
+                                    marker=dict(color="#004E89", size=10, symbol="triangle-up"),
+                                ))
+                                fig.add_trace(go.Scatter(
+                                    x=no_rain_days["date"], y=[0] * len(no_rain_days),
+                                    name="Pas de pluie ✓", mode="markers",
+                                    marker=dict(color="#95a5a6", size=6, symbol="triangle-down"),
+                                ))
+                            fig.update_layout(
+                                title=f"Probabilité de pluie — {city_label} ({period_label})",
+                                xaxis_title="Date", yaxis_title="%",
+                                yaxis=dict(range=[-10, 110]),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                                height=370,
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            df_raw_pct = df_raw.dropna(subset=["_pred"]).copy()
+                            if is_pct:
+                                df_raw_pct["_pred"] = df_raw_pct["_pred"] * 100
+                            pivot = df_raw_pct.pivot_table(
+                                index="date", columns="city", values="_pred", aggfunc="mean"
+                            )
+                            fig = px.line(
+                                pivot,
+                                title=f"Probabilité de pluie — Toutes villes ({period_label})",
+                                labels={"value": "%", "date": "Date"},
+                            )
+                            fig.update_layout(height=370, yaxis=dict(range=[-5, 105]))
+                            st.plotly_chart(fig, use_container_width=True)
+
+                    elif chart_type in ("proba_only", "score"):
+                        if chart_type == "proba_only":
+                            st.caption(
+                                "ℹ️ Les données réelles pour cet indicateur ne sont pas disponibles "
+                                "— affichage de la prédiction uniquement."
+                            )
+                        is_pct = chart_type == "proba_only" and df_c["_pred"].max() <= 1.0
+                        y_label = f"Valeur ({unit})" if unit else "Valeur"
+
+                        if selected_city:
+                            y_vals = df_c["_pred"] * 100 if is_pct else df_c["_pred"]
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=df_c["date"], y=y_vals,
+                                name=feature_label, mode="lines+markers",
+                                line=dict(color="#FF6B35", width=2),
+                                fill="tozeroy", fillcolor="rgba(255,107,53,0.12)",
+                            ))
+                            fig.update_layout(
+                                title=f"{feature_label} — {city_label} ({period_label})",
+                                xaxis_title="Date", yaxis_title=y_label,
+                                yaxis=dict(range=[-5, 105] if chart_type == "proba_only" else None),
+                                height=370,
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            df_raw_clean = df_raw.dropna(subset=["_pred"]).copy()
+                            if is_pct:
+                                df_raw_clean["_pred"] = df_raw_clean["_pred"] * 100
+                            pivot = df_raw_clean.pivot_table(
+                                index="date", columns="city", values="_pred", aggfunc="mean"
+                            )
+                            fig = px.line(
+                                pivot,
+                                title=f"{feature_label} — Toutes villes ({period_label})",
+                                labels={"value": unit or "Valeur", "date": "Date"},
+                            )
+                            fig.update_layout(height=370)
+                            st.plotly_chart(fig, use_container_width=True)
 
         except Exception as exc:
             st.error(f"Erreur backtesting : {exc}")

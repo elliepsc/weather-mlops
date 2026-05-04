@@ -306,13 +306,48 @@ if page == "🌤 Prédictions":
         n_days = {"7 jours": 7, "30 jours": 30, "90 jours": 90}[period_label]
 
         _FEAT: dict = {
-            "🌡 Température max":      {"pred": "max_temp_tomorrow",   "actual": "max_temp",   "type": "continuous",   "unit": "°C"},
-            "🌧 Pluie (oui/non)":      {"pred": "rain_tomorrow",       "actual": "rain_today",  "type": "binary",       "unit": ""},
-            "🌧 Probabilité de pluie": {"pred": "rain_tomorrow_proba", "actual": "rain_today",  "type": "proba_binary", "unit": "%"},
-            "🔥 Risque canicule":      {"pred": "heatwave_risk",       "actual": None,           "type": "proba_only",   "unit": "%"},
-            "❄️ Risque gel":           {"pred": "frost_risk",          "actual": None,           "type": "proba_only",   "unit": "%"},
-            "⛈ Probabilité orage":    {"pred": "storm_probability",    "actual": None,           "type": "proba_only",   "unit": "%"},
-            "🌤 Score de confort":     {"pred": "comfort_score",       "actual": None,           "type": "score",        "unit": "/100"},
+            "🌡 Température max": {
+                "pred": "max_temp_tomorrow",
+                "actual": "max_temp",
+                "type": "continuous",
+                "unit": "°C",
+            },
+            "🌧 Pluie (oui/non)": {
+                "pred": "rain_tomorrow",
+                "actual": "rain_today",
+                "type": "binary",
+                "unit": "",
+            },
+            "🌧 Probabilité de pluie": {
+                "pred": "rain_tomorrow_proba",
+                "actual": "rain_today",
+                "type": "proba_binary",
+                "unit": "%",
+            },
+            "🔥 Risque canicule": {
+                "pred": "heatwave_risk",
+                "actual": None,
+                "type": "proba_only",
+                "unit": "%",
+            },
+            "❄️ Risque gel": {
+                "pred": "frost_risk",
+                "actual": None,
+                "type": "proba_only",
+                "unit": "%",
+            },
+            "⛈ Probabilité orage": {
+                "pred": "storm_probability",
+                "actual": None,
+                "type": "proba_only",
+                "unit": "%",
+            },
+            "🌤 Score de confort": {
+                "pred": "comfort_score",
+                "actual": None,
+                "type": "score",
+                "unit": "/100",
+            },
         }
         feat = _FEAT[feature_label]
         chart_type = feat["type"]
@@ -353,20 +388,29 @@ if page == "🌤 Prédictions":
 
                     fig = go.Figure()
                     if "pred_max_temp_tomorrow" in df_bt.columns:
-                        fig.add_trace(go.Scatter(
-                            x=df_bt["date"], y=df_bt["pred_max_temp_tomorrow"],
-                            name="Prévue J+1", mode="lines+markers",
-                            line=dict(color="#FF6B35", width=2),
-                        ))
+                        fig.add_trace(
+                            go.Scatter(
+                                x=df_bt["date"],
+                                y=df_bt["pred_max_temp_tomorrow"],
+                                name="Prévue J+1",
+                                mode="lines+markers",
+                                line=dict(color="#FF6B35", width=2),
+                            )
+                        )
                     if has_actuals and "actual_max_temp" in df_bt.columns:
-                        fig.add_trace(go.Scatter(
-                            x=df_bt["date"], y=df_bt["actual_max_temp"],
-                            name="Réelle J+1", mode="lines+markers",
-                            line=dict(color="#004E89", width=2, dash="dot"),
-                        ))
+                        fig.add_trace(
+                            go.Scatter(
+                                x=df_bt["date"],
+                                y=df_bt["actual_max_temp"],
+                                name="Réelle J+1",
+                                mode="lines+markers",
+                                line=dict(color="#004E89", width=2, dash="dot"),
+                            )
+                        )
                     fig.update_layout(
                         title=f"Température prévue vs réelle — {city_label} ({period_label})",
-                        xaxis_title="Date", yaxis_title="°C",
+                        xaxis_title="Date",
+                        yaxis_title="°C",
                         legend=dict(orientation="h", yanchor="bottom", y=1.02),
                         height=370,
                     )
@@ -376,7 +420,9 @@ if page == "🌤 Prédictions":
                         valid2 = df_bt[df_bt["has_actuals"]].dropna(subset=["temp_abs_error"])
                         if not valid2.empty:
                             fig_err = px.histogram(
-                                valid2, x="temp_abs_error", nbins=20,
+                                valid2,
+                                x="temp_abs_error",
+                                nbins=20,
                                 title="Distribution des erreurs",
                                 labels={"temp_abs_error": "Erreur absolue (°C)"},
                                 color_discrete_sequence=["#FF6B35"],
@@ -424,20 +470,29 @@ if page == "🌤 Prédictions":
 
                         if selected_city:
                             fig = go.Figure()
-                            fig.add_trace(go.Scatter(
-                                x=df_c["date"], y=df_c["_pred"],
-                                name="Prévue J+1", mode="lines+markers",
-                                line=dict(color="#FF6B35", width=2),
-                            ))
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=df_c["date"],
+                                    y=df_c["_pred"],
+                                    name="Prévue J+1",
+                                    mode="lines+markers",
+                                    line=dict(color="#FF6B35", width=2),
+                                )
+                            )
                             if "_actual" in df_c.columns:
-                                fig.add_trace(go.Scatter(
-                                    x=df_c["date"], y=df_c["_actual"],
-                                    name="Réelle J+1", mode="lines+markers",
-                                    line=dict(color="#004E89", width=2, dash="dot"),
-                                ))
+                                fig.add_trace(
+                                    go.Scatter(
+                                        x=df_c["date"],
+                                        y=df_c["_actual"],
+                                        name="Réelle J+1",
+                                        mode="lines+markers",
+                                        line=dict(color="#004E89", width=2, dash="dot"),
+                                    )
+                                )
                             fig.update_layout(
                                 title=f"Température — {city_label} ({period_label})",
-                                xaxis_title="Date", yaxis_title="°C",
+                                xaxis_title="Date",
+                                yaxis_title="°C",
                                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
                                 height=370,
                             )
@@ -471,16 +526,24 @@ if page == "🌤 Prédictions":
 
                             # Scatter : prévu vs réel (y = 0 Non / 1 Oui)
                             fig = go.Figure()
-                            fig.add_trace(go.Scatter(
-                                x=df_c["date"], y=df_c["_pred"].astype(int),
-                                name="Prévu", mode="markers",
-                                marker=dict(color="#FF6B35", size=9, symbol="circle"),
-                            ))
-                            fig.add_trace(go.Scatter(
-                                x=df_c["date"], y=df_c["_actual"].astype(int) + 0.08,
-                                name="Réel", mode="markers",
-                                marker=dict(color="#004E89", size=9, symbol="diamond"),
-                            ))
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=df_c["date"],
+                                    y=df_c["_pred"].astype(int),
+                                    name="Prévu",
+                                    mode="markers",
+                                    marker=dict(color="#FF6B35", size=9, symbol="circle"),
+                                )
+                            )
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=df_c["date"],
+                                    y=df_c["_actual"].astype(int) + 0.08,
+                                    name="Réel",
+                                    mode="markers",
+                                    marker=dict(color="#004E89", size=9, symbol="diamond"),
+                                )
+                            )
                             fig.update_layout(
                                 title=f"Pluie — prévu vs réel ({city_label}, {period_label})",
                                 xaxis_title="Date",
@@ -494,16 +557,24 @@ if page == "🌤 Prédictions":
                             correct_days = df_c[df_c["correct"]]
                             wrong_days = df_c[~df_c["correct"]]
                             fig2 = go.Figure()
-                            fig2.add_trace(go.Scatter(
-                                x=correct_days["date"], y=[0.5] * len(correct_days),
-                                mode="markers", name="Correct",
-                                marker=dict(color="#2ecc71", size=12, symbol="square"),
-                            ))
-                            fig2.add_trace(go.Scatter(
-                                x=wrong_days["date"], y=[0.5] * len(wrong_days),
-                                mode="markers", name="Erreur",
-                                marker=dict(color="#e74c3c", size=12, symbol="square"),
-                            ))
+                            fig2.add_trace(
+                                go.Scatter(
+                                    x=correct_days["date"],
+                                    y=[0.5] * len(correct_days),
+                                    mode="markers",
+                                    name="Correct",
+                                    marker=dict(color="#2ecc71", size=12, symbol="square"),
+                                )
+                            )
+                            fig2.add_trace(
+                                go.Scatter(
+                                    x=wrong_days["date"],
+                                    y=[0.5] * len(wrong_days),
+                                    mode="markers",
+                                    name="Erreur",
+                                    marker=dict(color="#e74c3c", size=12, symbol="square"),
+                                )
+                            )
                             fig2.update_layout(
                                 title="Prédictions correctes / incorrectes",
                                 height=160,
@@ -519,27 +590,42 @@ if page == "🌤 Prédictions":
                         if selected_city:
                             y_pred = df_c["_pred"] * 100 if is_pct else df_c["_pred"]
                             fig = go.Figure()
-                            fig.add_trace(go.Scatter(
-                                x=df_c["date"], y=y_pred,
-                                name="Probabilité prévue (%)", mode="lines+markers",
-                                line=dict(color="#FF6B35", width=2),
-                            ))
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=df_c["date"],
+                                    y=y_pred,
+                                    name="Probabilité prévue (%)",
+                                    mode="lines+markers",
+                                    line=dict(color="#FF6B35", width=2),
+                                )
+                            )
                             if "_actual" in df_c.columns:
                                 rain_days = df_c[df_c["_actual"] == 1]
                                 no_rain_days = df_c[df_c["_actual"] == 0]
-                                fig.add_trace(go.Scatter(
-                                    x=rain_days["date"], y=[100] * len(rain_days),
-                                    name="Pluie réelle ✓", mode="markers",
-                                    marker=dict(color="#004E89", size=10, symbol="triangle-up"),
-                                ))
-                                fig.add_trace(go.Scatter(
-                                    x=no_rain_days["date"], y=[0] * len(no_rain_days),
-                                    name="Pas de pluie ✓", mode="markers",
-                                    marker=dict(color="#95a5a6", size=6, symbol="triangle-down"),
-                                ))
+                                fig.add_trace(
+                                    go.Scatter(
+                                        x=rain_days["date"],
+                                        y=[100] * len(rain_days),
+                                        name="Pluie réelle ✓",
+                                        mode="markers",
+                                        marker=dict(color="#004E89", size=10, symbol="triangle-up"),
+                                    )
+                                )
+                                fig.add_trace(
+                                    go.Scatter(
+                                        x=no_rain_days["date"],
+                                        y=[0] * len(no_rain_days),
+                                        name="Pas de pluie ✓",
+                                        mode="markers",
+                                        marker=dict(
+                                            color="#95a5a6", size=6, symbol="triangle-down"
+                                        ),
+                                    )
+                                )
                             fig.update_layout(
                                 title=f"Probabilité de pluie — {city_label} ({period_label})",
-                                xaxis_title="Date", yaxis_title="%",
+                                xaxis_title="Date",
+                                yaxis_title="%",
                                 yaxis=dict(range=[-10, 110]),
                                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
                                 height=370,
@@ -572,15 +658,21 @@ if page == "🌤 Prédictions":
                         if selected_city:
                             y_vals = df_c["_pred"] * 100 if is_pct else df_c["_pred"]
                             fig = go.Figure()
-                            fig.add_trace(go.Scatter(
-                                x=df_c["date"], y=y_vals,
-                                name=feature_label, mode="lines+markers",
-                                line=dict(color="#FF6B35", width=2),
-                                fill="tozeroy", fillcolor="rgba(255,107,53,0.12)",
-                            ))
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=df_c["date"],
+                                    y=y_vals,
+                                    name=feature_label,
+                                    mode="lines+markers",
+                                    line=dict(color="#FF6B35", width=2),
+                                    fill="tozeroy",
+                                    fillcolor="rgba(255,107,53,0.12)",
+                                )
+                            )
                             fig.update_layout(
                                 title=f"{feature_label} — {city_label} ({period_label})",
-                                xaxis_title="Date", yaxis_title=y_label,
+                                xaxis_title="Date",
+                                yaxis_title=y_label,
                                 yaxis=dict(range=[-5, 105] if chart_type == "proba_only" else None),
                                 height=370,
                             )

@@ -102,16 +102,16 @@ analytics-load:
 	python analytics/scripts/load_sources.py
 
 analytics-run: analytics-load
-	cd analytics && dbt deps && dbt run
+	cd analytics && dbt deps && dbt run --no-partial-parse
 
 analytics-test:
-	cd analytics && dbt test
+	cd analytics && dbt test --no-partial-parse
 
 analytics-export:
 	python analytics/scripts/export_powerbi.py
 
 analytics-docs:
-	cd analytics && dbt docs generate && dbt docs serve
+	cd analytics && dbt docs generate --no-partial-parse && dbt docs serve
 
 analytics-all: analytics-run analytics-export
 

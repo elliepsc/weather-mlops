@@ -32,20 +32,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from pipeline.database import DB_PATH, get_connection
-
-# ─── DEMO_MODE ────────────────────────────────────────────────────────────────
-# Set DEMO_MODE=true on Render to serve pre-generated demo databases instead of
-# the production SQLite / DuckDB files that live outside the repo.
-
-DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("1", "true", "yes")
-
-_DEMO_DB = ROOT / "data" / "demo" / "weather_demo.db"
-_DEMO_ANALYTICS = ROOT / "data" / "demo" / "analytics_demo.duckdb"
-_PROD_ANALYTICS = ROOT / "data" / "analytics.duckdb"
-
-APP_DB_PATH: Path = _DEMO_DB if DEMO_MODE else DB_PATH
-ANALYTICS_DB_PATH: Path = _DEMO_ANALYTICS if DEMO_MODE else _PROD_ANALYTICS
+from pipeline.database import get_connection
+from api.config import (
+    DEMO_MODE,
+    APP_DB_PATH,
+    ANALYTICS_DB_PATH,
+    MLFLOW_JSON_PATH,
+    OUTPUT_CSV,
+)
 
 app = FastAPI(
     title="Weather Australia API",
@@ -62,8 +56,6 @@ app.add_middleware(
 
 # Expose /metrics endpoint for Prometheus scraping
 Instrumentator().instrument(app).expose(app)
-
-OUTPUT_CSV = ROOT / "data" / "output" / "weather_final.csv"
 
 
 def _df_to_records(df: pd.DataFrame) -> list[dict]:
@@ -87,24 +79,45 @@ def _df_to_records(df: pd.DataFrame) -> list[dict]:
 def health():
     import json
 
-    json_path = ROOT / "models" / "mlflow_latest.json"
-    if json_path.exists():
+    import duckdb as _duckdb
+
+    # DuckDB connectivity
+    duckdb_connected = False
+    try:
+        con = _duckdb.connect(str(ANALYTICS_DB_PATH), read_only=True)
+        con.execute("SELECT 1").fetchone()
+        con.close()
+        duckdb_connected = True
+    except Exception:
+        pass
+
+    # Last data update from SQLite
+    last_data_update = None
+    try:
+        with get_connection(APP_DB_PATH) as conn:
+            row = conn.execute("SELECT MAX(date) FROM weather_raw").fetchone()
+            if row and row[0]:
+                last_data_update = str(row[0])
+    except Exception:
+        pass
+
+    # Model version from mlflow_latest.json
+    model_version = None
+    if MLFLOW_JSON_PATH.exists():
         try:
-            json.loads(json_path.read_text())
-            mlflow_source = "json_cache"
+            data = json.loads(MLFLOW_JSON_PATH.read_text())
+            model_version = data.get("model_version") or data.get("run_name")
         except Exception:
-            mlflow_source = "unavailable"
-    elif DEMO_MODE:
-        mlflow_source = "json_cache"
-    else:
-        mlflow_source = "unknown"
+            pass
+    if model_version is None and DEMO_MODE:
+        model_version = "20260501_060000"
 
     return {
         "status": "ok",
-        "db": str(APP_DB_PATH),
-        "db_exists": APP_DB_PATH.exists(),
-        "demo_mode": DEMO_MODE,
-        "mlflow_source": mlflow_source,
+        "duckdb_connected": duckdb_connected,
+        "last_data_update": last_data_update,
+        "model_version": model_version,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
 
@@ -247,11 +260,42 @@ def export_csv():
 # ─── Analytics (DuckDB marts) ────────────────────────────────────────────────
 
 _ANALYTICS_MARTS = {
+    "bi-dashboard-overview": "bi_dashboard_overview",
+    "bi-data-quality-summary": "bi_data_quality_summary",
+    "bi-homepage-kpis": "bi_powerbi_homepage_kpis",
+    "bi-weather-alerts-summary-monthly": "bi_weather_alerts_summary_monthly",
+    "bi-weather-current-snapshot": "bi_weather_current_snapshot",
+    "bi-weather-extremes": "bi_weather_extremes",
+    "bi-weather-risk-alerts": "bi_weather_risk_alerts",
+    "city-weather-scorecard": "mart_city_weather_scorecard",
+    "climate-anomaly-vs-drift": "mart_climate_anomaly_vs_drift",
+    "climate-normals-city-month": "mart_climate_normals_city_month",
+    "current-weather-snapshot": "mart_current_weather_snapshot",
+    "data-freshness-by-city": "mart_data_freshness_by_city",
+    "data-quality-daily": "mart_data_quality_daily",
+    "extreme-events-performance": "mart_extreme_events_performance",
+    "feature-drift-summary": "mart_feature_drift_summary",
+    "forecast-accuracy-monthly": "mart_forecast_accuracy_monthly",
+    "forecast-confusion-matrix": "mart_forecast_confusion_matrix",
+    "forecast-vs-actual-daily": "mart_forecast_vs_actual_daily",
     "forecast-timeline": "mart_forecast_vs_actual_timeline",
-    "performance-overview": "mart_model_performance_overview",
     "health": "mart_mlops_health",
+    "location-cities": "location_cities",
+    "model-calibration": "mart_model_calibration",
     "performance-by-city": "mart_model_performance_by_city",
+    "performance-overview": "mart_model_performance_overview",
+    "prediction-bias-report": "mart_prediction_bias_report",
+    "rain-probability-calibration": "mart_rain_probability_calibration",
     "retraining-history": "mart_retraining_history",
+    "seasonal-performance": "mart_seasonal_performance",
+    "weather-comfort-segments": "mart_weather_comfort_segments",
+    "weather-daily-clean": "mart_weather_daily_clean",
+    "weather-extremes": "mart_weather_extremes",
+    "weather-monthly-city": "mart_weather_monthly_city",
+    "weather-risk-alerts": "mart_weather_risk_alerts",
+    "weather-seasonality": "mart_weather_seasonality",
+    "weather-state-monthly": "mart_weather_state_monthly",
+    "weather-yearly-city": "mart_weather_yearly_city",
 }
 
 
@@ -296,9 +340,8 @@ def get_analytics_mart_csv(mart: str):
 @app.get("/api/analytics/{mart}")
 def get_analytics_mart(mart: str):
     """
-    Read one of the five DuckDB analytics marts.
-    Available slugs: forecast-timeline, performance-overview, health,
-                     performance-by-city, retraining-history.
+    Read one DuckDB analytics mart.
+    Use /api/analytics/{mart}.csv for the CSV version of the same mart.
     """
     df = _read_analytics_mart(mart)
     return JSONResponse({"count": len(df), "data": _df_to_records(df)})
@@ -386,10 +429,9 @@ def get_latest_mlflow_metrics():
     import json
 
     # ── Case 1: committed JSON cache ─────────────────────────────────────────
-    json_path = ROOT / "models" / "mlflow_latest.json"
-    if json_path.exists():
+    if MLFLOW_JSON_PATH.exists():
         try:
-            data = json.loads(json_path.read_text())
+            data = json.loads(MLFLOW_JSON_PATH.read_text())
             data["source"] = "json_cache"
             return JSONResponse(data)
         except Exception:

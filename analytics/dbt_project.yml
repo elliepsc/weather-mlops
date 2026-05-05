@@ -28,9 +28,39 @@ models:
     marts:
       +materialized: table
       +schema: marts
+      weather:
+        +materialized: table
+        +schema: marts
+      forecast:
+        +materialized: table
+        +schema: marts
+      quality:
+        +materialized: table
+        +schema: marts
+      scorecard:
+        +materialized: table
+        +schema: marts
+      bi:
+        +materialized: table
+        +schema: marts
+      location:
+        +materialized: table
+        +schema: marts
+      model:
+        +materialized: table
+        +schema: marts
+      drift:
+        +materialized: table
+        +schema: marts
+      operations:
+        +materialized: table
+        +schema: marts
 
 vars:
   # Lookback windows
   forecast_timeline_days: 90
   mlops_health_days: 30
   completeness_baseline_days: 90
+  # Data horizon: rows before this date are excluded from all staging models.
+  # Change here to widen or narrow the analytics window without touching SQL.
+  min_date: "2016-01-01"

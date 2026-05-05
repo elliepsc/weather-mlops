@@ -1,6 +1,18 @@
 version: 2
 
 models:
+
+  - name: location_cities
+    description: >
+      City location lookup for map visuals. Exposes a French-friendly lieu field
+      with latitude and longitude.
+    columns:
+      - name: lieu
+        tests: [not_null, unique]
+      - name: latitude
+        tests: [not_null]
+      - name: longitude
+        tests: [not_null]
   # ── Modèles originaux ─────────────────────────────────────────────────────
 
   - name: mart_model_performance_overview
@@ -109,7 +121,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Current', 'Yesterday', 'Stale (2-3d)', 'Stale (4-7d)', 'Critical (>7d)']
+              arguments:
+                values: ['Current', 'Yesterday', 'Stale (2-3d)', 'Stale (4-7d)', 'Critical (>7d)']
 
   - name: mart_seasonal_performance
     description: >
@@ -135,3 +148,154 @@ models:
     columns:
       - name: date
         tests: [not_null, unique]
+
+  - name: mart_weather_daily_clean
+    description: Daily clean weather mart with forecast outputs and derived weather categories.
+    columns:
+      - name: weather_date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_weather_monthly_city
+    description: Monthly weather aggregates by city.
+    columns:
+      - name: year_month
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_weather_yearly_city
+    description: Yearly weather aggregates by city.
+    columns:
+      - name: year
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_weather_state_monthly
+    description: Monthly weather aggregates by Australian state.
+    columns:
+      - name: year_month
+        tests: [not_null]
+      - name: state
+        tests: [not_null]
+
+  - name: mart_current_weather_snapshot
+    description: Latest available weather and forecast snapshot by city.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+
+  - name: mart_weather_risk_alerts
+    description: Daily city-level risk alerts for rain, storm, heatwave, frost, and comfort.
+    columns:
+      - name: weather_date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+      - name: alert_type
+        tests: [not_null]
+
+  - name: mart_weather_extremes
+    description: Daily city-level extreme weather event flags and categories.
+    columns:
+      - name: weather_date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_weather_seasonality
+    description: Seasonal weather aggregates by city and year.
+    columns:
+      - name: city
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+
+  - name: mart_climate_normals_city_month
+    description: Historical monthly climate normals by city and month.
+    columns:
+      - name: city
+        tests: [not_null]
+      - name: month
+        tests: [not_null]
+
+  - name: mart_weather_comfort_segments
+    description: Weather comfort distribution by city, month, and comfort category.
+    columns:
+      - name: state
+        tests: [not_null]
+      - name: comfort_category
+        tests: [not_null]
+
+  - name: mart_data_quality_daily
+    description: Daily data completeness and quality status by city.
+    columns:
+      - name: weather_date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_forecast_vs_actual_daily
+    description: Daily prediction-vs-actual table by city for rain and max temperature.
+    columns:
+      - name: prediction_date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_forecast_accuracy_monthly
+    description: Monthly forecast accuracy metrics by city.
+    columns:
+      - name: year_month
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_forecast_confusion_matrix
+    description: Monthly rain forecast confusion matrix counts by city.
+    columns:
+      - name: year_month
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+
+  - name: mart_rain_probability_calibration
+    description: Rain probability calibration buckets by city and month.
+    columns:
+      - name: proba_bucket
+        tests: [not_null]
+
+  - name: mart_city_weather_scorecard
+    description: City-level weather, risk, quality, and forecast scorecard.
+    columns:
+      - name: city
+        tests: [not_null]
+
+  - name: bi_dashboard_overview
+    description: BI monthly overview combining weather, forecast, alert, and quality KPIs.
+    columns:
+      - name: year_month
+        tests: [not_null]
+
+  - name: bi_powerbi_homepage_kpis
+    description: Single-row KPI snapshot for Power BI homepage cards.
+
+  - name: bi_weather_current_snapshot
+    description: BI projection of the latest weather snapshot.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+
+  - name: bi_weather_risk_alerts
+    description: BI projection of weather risk alerts.
+
+  - name: bi_weather_alerts_summary_monthly
+    description: Monthly BI summary of weather alerts by type and level.
+
+  - name: bi_data_quality_summary
+    description: BI projection of daily data quality status.
+
+  - name: bi_weather_extremes
+    description: BI projection of weather extreme events.

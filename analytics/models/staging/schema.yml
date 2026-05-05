@@ -40,7 +40,8 @@ models:
       - name: action
         tests:
           - accepted_values:
-              values: [trigger_retrain, alert_only, alert_insufficient_data, no_action]
+              arguments:
+                values: [trigger_retrain, alert_only, alert_insufficient_data, no_action]
 
   - name: stg_drift_reports
     description: Long-format drift stats — one row per date × feature.

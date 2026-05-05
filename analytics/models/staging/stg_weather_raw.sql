@@ -45,3 +45,4 @@ SELECT
 FROM source
 WHERE date IS NOT NULL
   AND city IS NOT NULL
+  AND CAST(date AS DATE) >= CAST('{{ var("min_date") }}' AS DATE)

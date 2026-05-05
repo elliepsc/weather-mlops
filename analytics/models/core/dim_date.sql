@@ -65,6 +65,9 @@ enriched AS (
     FROM date_spine
 )
 
-SELECT *
+SELECT
+    *,
+    date                            AS date_key,
+    date_trunc('month', date)       AS year_month
 FROM enriched
 ORDER BY date

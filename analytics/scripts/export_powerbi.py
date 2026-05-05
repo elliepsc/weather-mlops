@@ -1,23 +1,18 @@
 """
-Export all mart tables from DuckDB analytics.duckdb → data/analytics/*.csv
+Export all mart tables from DuckDB analytics.duckdb to data/analytics/*.csv.
 
 Run after dbt run:
     python analytics/scripts/export_powerbi.py
 
-Output files (one per mart, ready to import in Power BI):
-    data/analytics/mart_model_performance_overview.csv
-    data/analytics/mart_model_performance_by_city.csv
-    data/analytics/mart_forecast_vs_actual_timeline.csv
-    data/analytics/mart_mlops_health.csv
-    data/analytics/mart_retraining_history.csv
+Output files: one CSV per mart/BI model, ready to import in Power BI.
 
-Power BI connection (after export):
-    Get Data → Text/CSV → select any file in data/analytics/
+Power BI connection after export:
+    Get Data -> Text/CSV -> select files in data/analytics/
 
-Power BI ODBC connection (live, no export needed):
+Power BI ODBC connection, live with no export needed:
     1. Install DuckDB ODBC driver: https://duckdb.org/docs/api/odbc/overview
     2. Create DSN pointing to data/analytics.duckdb
-    3. Get Data → ODBC → select DSN → Import mode
+    3. Get Data -> ODBC -> select DSN -> Import mode
     4. Tables are under schema main_marts.*
 """
 
@@ -35,11 +30,42 @@ DUCKDB_PATH = ROOT / "data" / "analytics.duckdb"
 OUTPUT_DIR = ROOT / "data" / "analytics"
 
 MARTS = [
-    "mart_model_performance_overview",
-    "mart_model_performance_by_city",
+    "bi_dashboard_overview",
+    "bi_data_quality_summary",
+    "bi_powerbi_homepage_kpis",
+    "bi_weather_alerts_summary_monthly",
+    "bi_weather_current_snapshot",
+    "bi_weather_extremes",
+    "bi_weather_risk_alerts",
+    "location_cities",
+    "mart_city_weather_scorecard",
+    "mart_climate_anomaly_vs_drift",
+    "mart_climate_normals_city_month",
+    "mart_current_weather_snapshot",
+    "mart_data_freshness_by_city",
+    "mart_data_quality_daily",
+    "mart_extreme_events_performance",
+    "mart_feature_drift_summary",
+    "mart_forecast_accuracy_monthly",
+    "mart_forecast_confusion_matrix",
+    "mart_forecast_vs_actual_daily",
     "mart_forecast_vs_actual_timeline",
     "mart_mlops_health",
+    "mart_model_calibration",
+    "mart_model_performance_by_city",
+    "mart_model_performance_overview",
+    "mart_prediction_bias_report",
+    "mart_rain_probability_calibration",
     "mart_retraining_history",
+    "mart_seasonal_performance",
+    "mart_weather_comfort_segments",
+    "mart_weather_daily_clean",
+    "mart_weather_extremes",
+    "mart_weather_monthly_city",
+    "mart_weather_risk_alerts",
+    "mart_weather_seasonality",
+    "mart_weather_state_monthly",
+    "mart_weather_yearly_city",
 ]
 
 
@@ -63,12 +89,12 @@ def main() -> None:
                     COPY (SELECT * FROM main_marts.{mart})
                     TO '{out_tmp.as_posix()}'
                     (HEADER, DELIMITER ',')
-                """
+                    """
                 )
                 row_count = duck.execute(f"SELECT COUNT(*) FROM main_marts.{mart}").fetchone()[0]
                 out_tmp.replace(out)
                 logger.info(
-                    "exported %s: %d rows, %.1f KB → %s",
+                    "exported %s: %d rows, %.1f KB -> %s",
                     mart,
                     row_count,
                     out.stat().st_size / 1024,

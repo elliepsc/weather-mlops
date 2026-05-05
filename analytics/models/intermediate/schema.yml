@@ -16,6 +16,22 @@ models:
       - name: actual_date
         tests: [not_null]
 
+  - name: int_weather_final
+    description: >
+      Flat daily weather table joining stg_weather_raw with
+      stg_weather_predictions. Mirrors weather_final.csv naming for downstream
+      BI marts.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: city
+        tests: [not_null]
+      - name: rain_tomorrow
+      - name: rain_tomorrow_proba
+      - name: max_temp_tomorrow
+      - name: weather_type_tomorrow
+      - name: predicted_at
+
   - name: int_model_performance_daily
     description: >
       City × date grain with 7d and 30d rolling accuracy/MAE.
@@ -102,7 +118,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [Chronic, Frequent, Occasional, Rare]
+              arguments:
+                values: [Chronic, Frequent, Occasional, Rare]
 
   - name: int_data_freshness_by_city
     description: >

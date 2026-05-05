@@ -30,22 +30,26 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [Summer, Autumn, Winter, Spring]
+              arguments:
+                values: [Summer, Autumn, Winter, Spring]
       - name: season_code_southern
         tests:
           - not_null
           - accepted_values:
-              values: [DJF, MAM, JJA, SON]
+              arguments:
+                values: [DJF, MAM, JJA, SON]
       - name: season_northern
         tests:
           - not_null
           - accepted_values:
-              values: [Summer, Autumn, Winter, Spring]
+              arguments:
+                values: [Summer, Autumn, Winter, Spring]
       - name: season_code_northern
         tests:
           - not_null
           - accepted_values:
-              values: [DJF, MAM, JJA, SON]
+              arguments:
+                values: [DJF, MAM, JJA, SON]
 
   - name: dim_geography
     description: >
@@ -63,11 +67,13 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [Southern, Northern]
+              arguments:
+                values: [Southern, Northern]
       - name: koppen_group
         tests:
           - accepted_values:
-              values: ['Tropical (A)', 'Arid (B)', 'Temperate (C)', 'Continental (D)', 'Unknown']
+              arguments:
+                values: ['Tropical (A)', 'Arid (B)', 'Temperate (C)', 'Continental (D)', 'Unknown']
 
   - name: dim_weather_code
     description: >
@@ -82,4 +88,37 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [0, 1, 2, 3]
+              arguments:
+                values: [0, 1, 2, 3]
+
+  - name: dim_city
+    description: >
+      Simplified city dimension for BI joins. Stable one-row-per-city projection
+      of dim_cities with state and coordinates.
+    columns:
+      - name: city
+        tests: [not_null, unique]
+      - name: state
+      - name: latitude
+        tests: [not_null]
+      - name: longitude
+        tests: [not_null]
+
+  - name: dim_weather_type
+    description: >
+      Weather type dimension derived from prediction outputs, with readable
+      weather_type_group labels for dashboard filtering.
+    columns:
+      - name: weather_type
+        tests: [not_null, unique]
+      - name: weather_type_group
+        tests: [not_null]
+
+  - name: dim_alert_type
+    description: >
+      Static alert type lookup used by weather risk alert marts.
+    columns:
+      - name: alert_type
+        tests: [not_null, unique]
+      - name: alert_category
+        tests: [not_null]

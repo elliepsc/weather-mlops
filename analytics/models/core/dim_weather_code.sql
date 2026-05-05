@@ -6,7 +6,9 @@
 SELECT
     weather_code,
     description,
+    description                     AS weather_label,
     category,
+    category                        AS weather_group,
     -- severity: 0=clear, 1=cloud/fog, 2=precip, 3=heavy/storm
     severity_tier
 FROM (

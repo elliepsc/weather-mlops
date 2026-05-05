@@ -1,66 +1,66 @@
 {
-  "exported_at": "2026-05-04T09:48:18Z",
-  "run_id": "2889b9298ebb4b6eb51cb2e61f92fe95",
-  "run_name": "train_20260504_090842",
-  "start_time": "2026-05-04T09:08:42Z",
-  "duration_seconds": 2371,
+  "exported_at": "2026-05-05T14:07:06Z",
+  "run_id": "54551a1c9eb244c7934e71fbf328ec06",
+  "run_name": "train_20260505_140225",
+  "start_time": "2026-05-05T14:02:26Z",
+  "duration_seconds": 278,
   "status": "FINISHED",
-  "model_version": "20260504_090842",
+  "model_version": "20260505_140225",
   "metrics": {
-    "rain_accuracy": 0.7694,
-    "temp_mae": 1.609
+    "rain_accuracy": 0.7651,
+    "temp_mae": 1.608
   },
   "params": {
-    "n_rows": "174122",
+    "n_rows": "174148",
     "n_features": "46",
     "n_cities": "26",
     "date_range_start": "2008-01-01",
-    "date_range_end": "2026-05-02"
+    "date_range_end": "2026-05-03"
   },
   "tags": {},
   "baseline_metrics": {
-    "rain_accuracy": 0.7673,
-    "temp_mae": 1.606,
-    "temp_r2": 0.9069
+    "rain_accuracy": 0.7694,
+    "temp_mae": 1.609,
+    "temp_r2": 0.9065
   },
   "delta_vs_baseline": {
-    "rain_accuracy": 0.0021,
-    "temp_mae": 0.003
+    "rain_accuracy": -0.0043,
+    "temp_mae": -0.001
   },
   "model_metrics": {
     "rain_tomorrow": {
-      "accuracy": 0.7694,
-      "f1": 0.6371,
-      "auc_roc": 0.8533,
+      "accuracy": 0.7651,
+      "f1": 0.6336,
+      "auc_roc": 0.8506,
       "pos_rate": 0.2617
     },
     "max_temp_tomorrow": {
-      "mae": 1.609,
-      "r2": 0.9065,
-      "rmse": 2.224
+      "mae": 1.608,
+      "r2": 0.9069,
+      "rmse": 2.21
     },
     "weather_type_tomorrow": {
-      "accuracy": 0.7729,
-      "f1_macro": 0.8408,
-      "f1_weighted": 0.7725,
+      "accuracy": 0.7746,
+      "f1_macro": 0.8422,
+      "f1_weighted": 0.7743,
       "n_classes": 3
     },
     "heatwave_risk": {
-      "accuracy": 0.9771,
-      "f1": 0.7653,
-      "auc_roc": 0.9968,
+      "accuracy": 0.9769,
+      "f1": 0.7637,
+      "auc_roc": 0.9966,
       "pos_rate": 0.0378
     },
     "frost_risk": {
-      "accuracy": 0.9427,
-      "f1": 0.4788,
+      "accuracy": 0.944,
+      "f1": 0.4839,
       "auc_roc": 0.9887,
       "pos_rate": 0.0272
     },
     "storm_probability": {
-      "accuracy": 0.8746,
-      "f1": 0.1995,
-      "auc_roc": 0.888,
+      "accuracy": 0.8747,
+      "f1": 0.1925,
+      "auc_roc": 0.8837,
       "pos_rate": 0.0221
     }
   }

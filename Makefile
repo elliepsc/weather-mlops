@@ -4,7 +4,7 @@ PYTHON := python
 PYTEST  := $(PYTHON) -m pytest
 
 .PHONY: help install install-dev test test-monitoring test-ingestion test-train \
-        lint format format-check ci docker-build docker-up docker-down \
+        lint format format-github format-check ci docker-build docker-up docker-down \
         analytics-install analytics-load analytics-run analytics-test \
         analytics-export analytics-docs analytics-all analytics-odbc
 
@@ -24,6 +24,7 @@ help:
 	@echo "Code quality"
 	@echo "  lint                Lint with ruff"
 	@echo "  format              Format with black"
+	@echo "  format-github       Auto-fix ruff issues, then format with black"
 	@echo "  format-check        Check formatting (no writes, for CI)"
 	@echo "  ci                  lint + format-check + test"
 	@echo ""
@@ -74,6 +75,10 @@ lint-fix:
 	ruff check --fix .
 
 format:
+	black .
+
+format-github:
+	ruff check --fix .
 	black .
 
 format-check:

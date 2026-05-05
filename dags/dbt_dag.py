@@ -47,6 +47,7 @@ from dags._airflow_compat import (
     BranchPythonOperator,
     ExternalTaskSensor,
     PythonOperator,
+    TriggerRule,
 )
 
 logger = logging.getLogger(__name__)
@@ -167,6 +168,17 @@ def _export_analytics(**kwargs):
     export_main()
 
 
+def _export_gcs(**kwargs):
+    import os
+
+    if os.getenv("GCS_ENABLED", "false").lower() != "true":
+        logger.info("GCS_ENABLED=false — skip")
+        return
+    from pipeline.export_to_gcs import main
+
+    main()
+
+
 # ── DAG ───────────────────────────────────────────────────────────────────────
 
 with DAG(
@@ -246,6 +258,15 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
+    # Optional GCS export — runs regardless of t_export outcome, never blocks the DAG.
+    t_export_gcs = PythonOperator(
+        task_id="export_gcs_parquet",
+        python_callable=_export_gcs,
+        trigger_rule=TriggerRule.ALL_DONE,
+        retries=1,
+        execution_timeout=timedelta(minutes=20),
+    )
+
     # ── Dépendances ───────────────────────────────────────────────────────────
     #
     # Schedule normal :
@@ -255,8 +276,9 @@ with DAG(
     #   check_mode → validate_sources
     #
     # Suite commune :
-    #   validate_sources → load_sources → dbt_run → dbt_test → export_analytics_csv
+    #   validate_sources → load_sources → dbt_run → dbt_test
+    #   → export_analytics_csv → export_gcs_parquet (ALL_DONE, non-blocking)
 
     t_gate >> [t_wait_ing, t_wait_mon] >> t_validate
     t_gate >> t_validate
-    t_validate >> t_load >> t_run >> t_test >> t_export
+    t_validate >> t_load >> t_run >> t_test >> t_export >> t_export_gcs

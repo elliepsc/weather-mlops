@@ -32,14 +32,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from pipeline.database import get_connection
 from api.config import (
-    DEMO_MODE,
-    APP_DB_PATH,
     ANALYTICS_DB_PATH,
+    APP_DB_PATH,
+    DEMO_MODE,
     MLFLOW_JSON_PATH,
     OUTPUT_CSV,
 )
+from pipeline.database import get_connection
 
 app = FastAPI(
     title="Weather Australia API",

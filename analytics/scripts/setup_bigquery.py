@@ -78,8 +78,7 @@ def main() -> None:
         from google.cloud import bigquery
     except ImportError:
         sys.exit(
-            "google-cloud-bigquery is not installed. "
-            "Run: pip install google-cloud-bigquery"
+            "google-cloud-bigquery is not installed. " "Run: pip install google-cloud-bigquery"
         )
 
     client = bigquery.Client(project=project)
@@ -111,10 +110,7 @@ def main() -> None:
             logger.error("failed %s: %s", table_id, exc)
             failed.append(mart)
 
-    print(
-        f"\nDone: {len(created)}/{len(MARTS)} external tables created in "
-        f"{project}.{dataset}"
-    )
+    print(f"\nDone: {len(created)}/{len(MARTS)} external tables created in " f"{project}.{dataset}")
     if failed:
         print(f"Failed ({len(failed)}): {', '.join(failed)}")
 

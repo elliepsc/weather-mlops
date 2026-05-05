@@ -14,8 +14,8 @@ RUN mkdir -p /app/data/output /app/models /app/mlflow
 
 ENV MLFLOW_TRACKING_URI=sqlite:///app/mlflow/mlflow.db
 ENV API_HOST=0.0.0.0
-ENV API_PORT=8003
+ENV API_PORT=8000
 
-EXPOSE 8003
+EXPOSE 8000
 
 CMD ["python", "api/app.py"]

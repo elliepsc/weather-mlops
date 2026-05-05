@@ -80,7 +80,7 @@ Variables importantes dans `.env` :
 # - WSL + repo sous /mnt/... : ~/.weather-mlops/mlflow/mlflow.db
 # MLFLOW_TRACKING_URI=sqlite:///mlflow/mlflow.db
 API_HOST=0.0.0.0
-API_PORT=8083
+API_PORT=8001
 AIRFLOW_ADMIN_USERNAME=admin
 AIRFLOW_ADMIN_PASSWORD=weather
 ```
@@ -275,8 +275,8 @@ Le push automatique nécessite un Personal Access Token GitHub avec permission
 
 **Option D — Via l'API FastAPI (données brutes, sans agrégations dbt) :**
 ```text
-http://localhost:8083/api/weather        → toutes les données
-http://localhost:8083/api/export/csv     → weather_final.csv
+http://localhost:8001/api/weather        → toutes les données
+http://localhost:8001/api/export/csv     → weather_final.csv
 ```
 
 ### 3.5 Exploration interactive — notebooks Jupyter
@@ -309,16 +309,16 @@ make analytics-all
 
 ```bash
 python api/app.py
-# → http://localhost:8083
-# → http://localhost:8083/docs  (Swagger)
+# → http://localhost:8001
+# → http://localhost:8001/docs  (Swagger)
 ```
 
 Vérification :
 ```bash
-curl http://localhost:8083/health
+curl http://localhost:8001/health
 # Attendu : {"status":"ok","db":true}
 
-curl "http://localhost:8083/api/weather/latest?city=Sydney"
+curl "http://localhost:8001/api/weather/latest?city=Sydney"
 ```
 
 ### 3.2 Dashboard Streamlit
@@ -353,13 +353,13 @@ Ne pas utiliser `--build` sauf si les Dockerfiles ont changé.
 
 | Service | URL | Identifiants |
 |---|---|---|
-| API FastAPI | http://localhost:8003 | — |
+| API FastAPI | http://localhost:8000 | — |
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 | Airflow UI | http://localhost:8083 | voir ci-dessous |
 
-> **Note port API :** en local (sans Docker), l'API tourne sur **8083** (variable `API_PORT` dans `.env`).
-> Dans Docker, le Dockerfile force le port **8003** et docker-compose mappe `8003:8003`.
+> **Note port API :** en local (sans Docker), l'API tourne sur **8001** (variable `API_PORT` dans `.env`).
+> Dans Docker, `docker-compose.yaml` force le port **8000** et mappe `8000:8000`.
 
 #### Identifiants Airflow (SimpleAuthManager — Airflow 3.x)
 
@@ -464,13 +464,13 @@ bash start_airflow.sh
 
 ```bash
 # Terminal 1
-airflow api-server --port 8081   # port 8081 pour éviter conflit avec l'API FastAPI
+airflow api-server --port 8083   # port 8083 pour Airflow UI
 
 # Terminal 2
 airflow scheduler
 ```
 
-UI : http://localhost:8081 — identifiants : `admin / weather`
+UI : http://localhost:8083 — identifiants : `admin / weather`
 
 ### 4.3 bis — Symlink vers `start_airflow.sh` (depuis `~`)
 
@@ -675,7 +675,7 @@ airflow dags trigger weather_daily_monitoring
 
 1. Ouvrir Power BI Desktop
 2. **Obtenir les données > Web**
-3. URL : `http://localhost:8083/api/weather`
+3. URL : `http://localhost:8001/api/weather`
 4. Dans Power Query : développer la colonne `data`
 
 Filtres disponibles via paramètres URL :
@@ -821,7 +821,7 @@ print('CSV       :', rows, 'lignes')
 "
 
 # 4. API
-curl -s http://localhost:8083/health
+curl -s http://localhost:8001/health
 
 # 5. Tests
 python -m pytest tests/ -q
@@ -841,10 +841,10 @@ BACKFILL (une fois, CLI ou DAG manuel)
           |
           v
 SERVICES (démarrer manuellement ou via gestionnaire de processus)
-    python api/app.py          → :8083  (FastAPI, local)
+    python api/app.py          → :8001  (FastAPI, local)
     streamlit run app.py       → :8501  (Dashboard)
     mlflow ui                  → :5000  (Tracking)
-    docker compose up          → :8003/:9090/:3000/:8083 (API Docker/Prometheus/Grafana/Airflow)
+    docker compose up          → :8000/:9090/:3000/:8083 (API Docker/Prometheus/Grafana/Airflow)
     bash start_airflow.sh      → :8083  (Orchestrateur, mode dev)
           |
           v
@@ -862,7 +862,7 @@ CYCLE HEBDOMADAIRE (Airflow automatique)
           |
           v
 CONSOMMATION
-    Power BI  → http://localhost:8083/api/weather
+    Power BI  → http://localhost:8001/api/weather
     Streamlit → http://localhost:8501
     CSV       → data/output/weather_final.csv
     MLflow    → http://localhost:5000

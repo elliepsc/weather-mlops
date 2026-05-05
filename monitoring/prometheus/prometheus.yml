@@ -5,5 +5,5 @@ global:
 scrape_configs:
   - job_name: "weather_api"
     static_configs:
-      - targets: ["api:8003"]
+      - targets: ["api:8000"]
     metrics_path: /metrics

@@ -25,7 +25,7 @@ data/weather.db (SQLite)
     |
     +-- data/output/weather_final.csv  (vue v_weather_full exportée)
     |
-    +-- api/app.py                   --> FastAPI :8083 (local) / :8003 (Docker)
+    +-- api/app.py                   --> FastAPI :8001 (local) / :8000 (Docker)
     |        |
     |        +-- streamlit_app/app.py      dashboard interactif
     |        +-- Prometheus /metrics
@@ -50,7 +50,7 @@ data/weather.db (SQLite)
 | **SQLite** | Base locale `data/weather.db`. Tables `weather_raw` + `weather_predictions` + vue `v_weather_full`. |
 | **XGBoost** | 6 modèles sauvegardés dans `models/`. Paramètres dans `config/modeling.yaml`. |
 | **MLflow** | Tracking local SQLite. Sous WSL avec repo sur `/mnt/...`, le backend bascule automatiquement vers `~/.weather-mlops/mlflow`. |
-| **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8083 (local) ou 8003 (Docker). |
+| **FastAPI** | Endpoints JSON/CSV + métriques Prometheus. Port 8001 (local) ou 8000 (Docker). |
 | **Streamlit** | Dashboard local connecté à l'API. |
 | **Airflow** | Orchestration : ingestion quotidienne, réentraînement hebdomadaire, monitoring, backfill, gap monitoring. |
 | **Prometheus/Grafana** | Monitoring API via Docker Compose. |
@@ -253,7 +253,7 @@ weather-mlops/
 │   ├── modeling.yaml            # Hyperparamètres XGBoost, features, labels
 │   └── settings.py              # Chargement typé des configs
 ├── docker-compose.yaml           # API + Prometheus + Grafana + Airflow (PostgreSQL)
-├── Dockerfile                    # Image Python 3.11 slim pour l'API (port 8003)
+├── Dockerfile                    # Image Python 3.11 slim pour l'API (port 8000)
 ├── Dockerfile.airflow            # Image apache/airflow:3.0.0 + dépendances pipeline
 ├── start_airflow.sh              # Lanceur Airflow standalone (mode dev / WSL)
 └── requirements.txt
@@ -382,13 +382,13 @@ Prédictions générées par les 6 modèles, une ligne par (date, ville).
 ## API FastAPI
 
 ```bash
-# Local (port 8083 par défaut)
+# Local (port 8001 par défaut)
 python api/app.py
 ```
 
-URL locale : `http://localhost:8083` — Swagger : `http://localhost:8083/docs`
+URL locale : `http://localhost:8001` — Swagger : `http://localhost:8001/docs`
 
-Via Docker Compose, l'API tourne sur le port **8003**.
+Via Docker Compose, l'API tourne sur le port **8000**.
 
 | Endpoint | Description |
 |---|---|
@@ -403,14 +403,14 @@ Via Docker Compose, l'API tourne sur le port **8003**.
 | `GET /metrics` | Métriques Prometheus |
 
 ```bash
-curl "http://localhost:8083/api/weather/latest?city=Sydney"
+curl "http://localhost:8001/api/weather/latest?city=Sydney"
 ```
 
 ---
 
 ## Dashboard Streamlit
 
-Le dashboard consomme l'API FastAPI sur `http://localhost:8083`.
+Le dashboard consomme l'API FastAPI sur `http://localhost:8001`.
 Démarrer l'API en premier, puis :
 
 ```bash
@@ -473,8 +473,8 @@ Dans Power BI Desktop : **Obtenir les données → Texte/CSV**
 
 **Option C — API FastAPI (données brutes) :**
 ```text
-http://localhost:8083/api/weather
-http://localhost:8083/api/export/csv
+http://localhost:8001/api/weather
+http://localhost:8001/api/export/csv
 ```
 
 ---
@@ -485,7 +485,7 @@ http://localhost:8083/api/export/csv
 
 1. Ouvrir Power BI Desktop
 2. **Obtenir les données > Web**
-3. URL : `http://localhost:8083/api/weather` ou `.../api/weather/latest`
+3. URL : `http://localhost:8001/api/weather` ou `.../api/weather/latest`
 4. Dans Power Query, développer le champ `data`
 
 **CSV brut :**
@@ -563,7 +563,7 @@ docker compose up -d
 
 | Service | URL | Notes |
 |---|---|---|
-| API FastAPI | http://localhost:8003 | Port 8003 dans Docker (8083 en local) |
+| API FastAPI | http://localhost:8000 | Port 8000 dans Docker (8001 en local) |
 | Prometheus | http://localhost:9090 | Scrape `/metrics` toutes les 15 s |
 | Grafana | http://localhost:3000 | Identifiants : admin / admin |
 | Airflow UI | http://localhost:8083 | Identifiants dans les logs au 1er démarrage |

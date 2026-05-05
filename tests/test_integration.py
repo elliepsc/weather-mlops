@@ -79,7 +79,7 @@ def client(test_db, tmp_path, monkeypatch):
         )
 
     monkeypatch.setattr(app_module, "get_connection", _temp_get_connection)
-    monkeypatch.setattr(app_module, "DB_PATH", test_db)
+    monkeypatch.setattr(app_module, "APP_DB_PATH", test_db)
     monkeypatch.setattr(app_module, "ANALYTICS_DB_PATH", analytics_db)
     # Point OUTPUT_CSV to a non-existent path so export returns 404 in tests
     monkeypatch.setattr(app_module, "OUTPUT_CSV", tmp_path / "weather_final.csv")
@@ -97,8 +97,8 @@ def test_health_returns_ok(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
-    assert "db" in body
-    assert "db_exists" in body
+    assert "duckdb_connected" in body
+    assert "last_data_update" in body
 
 
 # ── /api/cities ───────────────────────────────────────────────────────────────
@@ -267,19 +267,14 @@ def test_mlflow_metrics_200_with_real_file(client, tmp_path, monkeypatch):
 
     metrics = {"rain_accuracy": 0.77, "temp_mae": 1.63}
 
-    # Point ROOT to tmp_path so the endpoint resolves the file correctly
-    monkeypatch.setattr(app_module, "OUTPUT_CSV", tmp_path / "weather_final.csv")
-    orig_root = app_module.ROOT
-    monkeypatch.setattr(app_module, "ROOT", tmp_path)
-    (tmp_path / "models").mkdir(exist_ok=True)
-    (tmp_path / "models" / "mlflow_latest.json").write_text(json.dumps(metrics))
+    mlflow_json = tmp_path / "mlflow_latest.json"
+    mlflow_json.write_text(json.dumps(metrics))
+    monkeypatch.setattr(app_module, "MLFLOW_JSON_PATH", mlflow_json)
 
     r = client.get("/api/mlflow/metrics")
     assert r.status_code == 200
     body = r.json()
     assert body["rain_accuracy"] == pytest.approx(0.77)
-
-    monkeypatch.setattr(app_module, "ROOT", orig_root)
 
 
 # ── /api/export/csv ───────────────────────────────────────────────────────────

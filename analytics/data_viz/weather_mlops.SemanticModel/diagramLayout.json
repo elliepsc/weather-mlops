@@ -1,0 +1,165 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 26,
+            "y": 1099
+          },
+          "nodeIndex": "ForecastDaily",
+          "nodeLineageTag": "77fe9b7a-858c-4684-af08-b025f4674065",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 9
+        },
+        {
+          "location": {
+            "x": 1057.5714285714284,
+            "y": 0
+          },
+          "nodeIndex": "Location",
+          "nodeLineageTag": "0dd7bd07-5364-43da-8000-7098f04e830d",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 468.38095746721541
+          },
+          "nodeIndex": "RiskAlerts",
+          "nodeLineageTag": "8465cab6-ed39-4d95-bb4b-77b73e2abd34",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 280.38095238095241,
+            "y": 0
+          },
+          "nodeIndex": "ExtremeEvents",
+          "nodeLineageTag": "26204a71-e733-47cd-8e71-9b3d3bd9a124",
+          "size": {
+            "height": 271.57142857142856,
+            "width": 234
+          },
+          "zIndex": 11
+        },
+        {
+          "location": {
+            "x": 916.57142857142867,
+            "y": 894.57142857142867
+          },
+          "nodeIndex": "MLopsHealth",
+          "nodeLineageTag": "f4014904-bbef-4b60-9fca-f64f7f4511ab",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 400.99999999999989,
+            "y": 909.28571428571422
+          },
+          "nodeIndex": "Retraining",
+          "nodeLineageTag": "5d816711-64d3-481f-b54b-7ef00a20dc7a",
+          "size": {
+            "height": 294,
+            "width": 234
+          },
+          "zIndex": 10
+        },
+        {
+          "location": {
+            "x": 888.42857142857144,
+            "y": 311.14285714285717
+          },
+          "nodeIndex": "FeatureDrift",
+          "nodeLineageTag": "c216b07a-3929-4c9d-814c-4fa49f1f2f1a",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 8
+        },
+        {
+          "location": {
+            "x": 593,
+            "y": 0
+          },
+          "nodeIndex": "AnomalyDrift",
+          "nodeLineageTag": "5d15ff9e-c36d-403c-995f-2b245a3a3fc3",
+          "size": {
+            "height": 277.57142857142856,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "HomepageKPIs",
+          "nodeLineageTag": "78ac6f4e-779d-4ec3-ad7a-c43358d45c2d",
+          "size": {
+            "height": 279.57142857142861,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 446.14285714285722,
+            "y": 410
+          },
+          "nodeIndex": "Calendar",
+          "nodeLineageTag": "f1fe2506-19c6-484c-8c63-57884b2d3b9b",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 7
+        },
+        {
+          "location": {
+            "x": 1216.4285714285716,
+            "y": 497.07142857142856
+          },
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "8d9a7ad1-c589-4b97-b359-a558e6c5d8e2",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 1
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 70,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "74dab29b06a2f31bfc85",
+  "position": {
+    "x": 635,
+    "y": 195,
+    "z": 6600,
+    "height": 235,
+    "width": 629,
+    "tabOrder": 6600
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FeatureDrift"
+                    }
+                  },
+                  "Property": "feature_name"
+                }
+              },
+              "queryRef": "FeatureDrift.feature_name",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "FeatureDrift"
+                        }
+                      },
+                      "Property": "monthly_drift_pct"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(FeatureDrift.monthly_drift_pct)",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

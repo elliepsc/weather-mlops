@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "46c5be2d9b961222238c",
+  "position": {
+    "x": 760,
+    "y": 70,
+    "z": 3400,
+    "height": 110,
+    "width": 238,
+    "tabOrder": 3400
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Avg Comfort Score"
+                }
+              },
+              "queryRef": "_Measures.Avg Comfort Score",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,270 @@
+table ForecastDaily
+	lineageTag: 77fe9b7a-858c-4684-af08-b025f4674065
+
+	column prediction_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 4d7fb409-e888-40dc-af60-03e3452bdc29
+		summarizeBy: none
+		sourceColumn: prediction_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column actual_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f366a951-bc94-48b0-aa7a-2f12fd7edab8
+		summarizeBy: none
+		sourceColumn: actual_date
+
+		variation Variation
+			isDefault
+			relationship: 53214523-0c24-47d1-8068-a623e0c4b76f
+			defaultHierarchy: LocalDateTable_5b721efc-f42b-4f53-9722-b187d553e3a7.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column city
+		dataType: string
+		lineageTag: 004d559b-1200-47b3-a857-2e43e5c3b25a
+		summarizeBy: none
+		sourceColumn: city
+
+		annotation SummarizationSetBy = Automatic
+
+	column pred_rain_tomorrow
+		dataType: int64
+		formatString: 0
+		lineageTag: 51daaac0-86b1-4c6f-951e-9576f3854442
+		summarizeBy: sum
+		sourceColumn: pred_rain_tomorrow
+
+		annotation SummarizationSetBy = Automatic
+
+	column pred_rain_proba
+		dataType: double
+		lineageTag: 18367fe8-d736-499b-aa01-b4d541128f85
+		summarizeBy: sum
+		sourceColumn: pred_rain_proba
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column actual_rain_tomorrow
+		dataType: int64
+		formatString: 0
+		lineageTag: 6d482ca0-58a1-47a9-9f18-9b609a65da88
+		summarizeBy: sum
+		sourceColumn: actual_rain_tomorrow
+
+		annotation SummarizationSetBy = Automatic
+
+	column rain_prediction_correct
+		dataType: int64
+		formatString: 0
+		lineageTag: a06a6e4e-7995-4ee6-b60d-ef29a37fef84
+		summarizeBy: sum
+		sourceColumn: rain_prediction_correct
+
+		annotation SummarizationSetBy = Automatic
+
+	column forecast_result
+		dataType: string
+		lineageTag: b7fce4f9-7c46-42f4-ab15-463b7967ec85
+		summarizeBy: none
+		sourceColumn: forecast_result
+
+		annotation SummarizationSetBy = Automatic
+
+	column pred_max_temp_tomorrow
+		dataType: double
+		lineageTag: c0b6713b-8b70-40fb-8c73-0a50e05728bc
+		summarizeBy: sum
+		sourceColumn: pred_max_temp_tomorrow
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column actual_max_temp_tomorrow
+		dataType: double
+		lineageTag: a4337c2c-14fb-41ca-988f-1522b561853b
+		summarizeBy: sum
+		sourceColumn: actual_max_temp_tomorrow
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column temp_abs_error
+		dataType: double
+		lineageTag: 2f9a6e25-a4c5-4238-8322-49a862647ef2
+		summarizeBy: sum
+		sourceColumn: temp_abs_error
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column temp_error_signed
+		dataType: double
+		lineageTag: 54faa539-2c1a-427b-901a-48742801b033
+		summarizeBy: sum
+		sourceColumn: temp_error_signed
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column weather_type_tomorrow
+		dataType: string
+		lineageTag: e602fa3d-e9bb-4ac9-8910-61d5f2109ddd
+		summarizeBy: none
+		sourceColumn: weather_type_tomorrow
+
+		annotation SummarizationSetBy = Automatic
+
+	column comfort_score
+		dataType: double
+		lineageTag: b2b414f4-1269-4dcc-9e49-7a83d2140e5f
+		summarizeBy: sum
+		sourceColumn: comfort_score
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column heatwave_risk
+		dataType: double
+		lineageTag: fdde4f15-8933-4f5c-946d-fe4ceb2aab52
+		summarizeBy: sum
+		sourceColumn: heatwave_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column frost_risk
+		dataType: double
+		lineageTag: 2ad0cfd2-0dc3-4d4c-81ab-85e12bb614b9
+		summarizeBy: sum
+		sourceColumn: frost_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column storm_probability
+		dataType: double
+		lineageTag: 414d8846-8848-4bdb-b01f-5b2f50be5ae8
+		summarizeBy: sum
+		sourceColumn: storm_probability
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column predicted_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: a6b49f11-6830-4e79-abc5-5d2528a7bb87
+		summarizeBy: none
+		sourceColumn: predicted_at
+
+		variation Variation
+			isDefault
+			relationship: 371d1bd4-6b2c-4422-849b-6d6d946f1927
+			defaultHierarchy: LocalDateTable_d723af70-650e-4670-b858-12e15dfb30ba.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Saison = ```
+			
+			SWITCH(
+			    MONTH(ForecastDaily[prediction_date]),
+			    12, "Summer", 1, "Summer", 2, "Summer",
+			    3, "Autumn",  4, "Autumn",  5, "Autumn",
+			    6, "Winter",  7, "Winter",  8, "Winter",
+			    "Spring"
+			)
+			
+			```
+		lineageTag: ca00c6f6-039c-49d7-bc90-7bacb313c1e6
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column YearMonth = FORMAT(ForecastDaily[prediction_date], "YYYY-MM")
+		lineageTag: 62f1d8bb-4657-45ce-ac0b-841221b2c508
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column Annee = YEAR(ForecastDaily[prediction_date])
+		formatString: 0
+		lineageTag: 9bba8f49-2d50-4a2f-a721-5fff4c8eb113
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Mois Nom' = FORMAT(ForecastDaily[prediction_date], "MMM")
+		lineageTag: 161d426c-6265-4b08-ab64-ed5adc5cacb4
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Has Actual' =
+			
+			IF(ISBLANK(ForecastDaily[actual_max_temp_tomorrow]), 0, 1)
+		formatString: 0
+		lineageTag: 2cf4e7f2-f0a2-4798-9335-694d15e0982e
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Bias Direction Row' =
+			
+			IF(ForecastDaily[temp_error_signed] > 0.5,  "Surchauffe",
+			IF(ForecastDaily[temp_error_signed] < -0.5, "Sous-estime",
+			"Neutre"))
+		lineageTag: 553db446-8e21-452b-b59a-3b288ab70935
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Forecast Result FR' =
+			
+			SWITCH(
+			    ForecastDaily[forecast_result],
+			    "True positive",  "Vrai positif (pluie détectée)",
+			    "True negative",  "Vrai négatif (sec bien prédit)",
+			    "False positive", "Fausse alarme (prédit pluie, sec)",
+			    "False negative", "Pluie manquée (pas prédit, a plu)",
+			    ForecastDaily[forecast_result]
+			)
+		lineageTag: 0f1a140f-d1ca-4490-9b00-b33ec0b4b97d
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition ForecastDaily = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_forecast_vs_actual_daily.csv"),[Delimiter=",", Columns=21, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"prediction_date", type date}, {"actual_date", type date}, {"city", type text}, {"state", type text}, {"latitude", type text}, {"longitude", type text}, {"pred_rain_tomorrow", type text}, {"pred_rain_proba", type number}, {"actual_rain_tomorrow", Int64.Type}, {"rain_prediction_correct", Int64.Type}, {"forecast_result", type text}, {"pred_max_temp_tomorrow", type text}, {"actual_max_temp_tomorrow", type text}, {"temp_abs_error", type text}, {"temp_error_signed", type text}, {"weather_type_tomorrow", type text}, {"comfort_score", type text}, {"heatwave_risk", type text}, {"frost_risk", type text}, {"storm_probability", type text}, {"predicted_at", type datetime}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"state", "latitude", "longitude"}),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Removed Columns",{{"pred_rain_tomorrow", Int64.Type}, {"storm_probability", type number}, {"comfort_score", type number}, {"heatwave_risk", type number}, {"frost_risk", type number}, {"temp_error_signed", type number}, {"temp_abs_error", type number}, {"actual_max_temp_tomorrow", type number}, {"pred_max_temp_tomorrow", type number}})
+				in
+				    #"Changed Type1"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,5 +1,4 @@
 {
-  "_comment": "Placeholder — sera écrasé à la première ouverture dans Power BI Desktop (Fichier → Enregistrer sous → format .pbip).",
   "version": "1.0",
   "artifacts": [
     {
@@ -8,5 +7,7 @@
       }
     }
   ],
-  "settings": {}
+  "settings": {
+    "enableAutoRecovery": true
+  }
 }

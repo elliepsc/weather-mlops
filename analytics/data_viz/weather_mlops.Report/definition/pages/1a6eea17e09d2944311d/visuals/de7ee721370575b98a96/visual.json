@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "de7ee721370575b98a96",
+  "position": {
+    "x": 545,
+    "y": 440,
+    "z": 4100,
+    "height": 265,
+    "width": 719,
+    "tabOrder": 4100
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "RiskAlerts"
+                    }
+                  },
+                  "Property": "city"
+                }
+              },
+              "queryRef": "RiskAlerts.city",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Nb Alertes Aujourd'hui"
+                }
+              },
+              "queryRef": "_Measures.Nb Alertes Aujourd'hui",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

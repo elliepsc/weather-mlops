@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "1568e1a130aa00cb7e77",
+  "displayName": "Fiabilité des prévisions",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280
+}

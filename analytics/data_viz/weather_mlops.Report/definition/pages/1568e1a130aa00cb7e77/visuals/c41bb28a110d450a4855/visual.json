@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "c41bb28a110d450a4855",
+  "position": {
+    "x": 16,
+    "y": 445,
+    "z": 5700,
+    "height": 260,
+    "width": 800,
+    "tabOrder": 5700
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ForecastDaily"
+                    }
+                  },
+                  "Property": "prediction_date"
+                }
+              },
+              "queryRef": "ForecastDaily.prediction_date",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Temp MAE"
+                }
+              },
+              "queryRef": "_Measures.Temp MAE",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

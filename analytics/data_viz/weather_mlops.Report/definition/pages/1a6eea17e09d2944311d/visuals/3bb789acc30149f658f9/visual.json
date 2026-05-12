@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "3bb789acc30149f658f9",
+  "position": {
+    "x": 280,
+    "y": 440,
+    "z": 3900,
+    "height": 125,
+    "width": 250,
+    "tabOrder": 3900
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Avg Heatwave Risk %"
+                }
+              },
+              "queryRef": "_Measures.Avg Heatwave Risk %",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

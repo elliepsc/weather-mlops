@@ -1,0 +1,180 @@
+table MLopsHealth
+	lineageTag: f4014904-bbef-4b60-9fca-f64f7f4511ab
+
+	column date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: e480cdcb-450c-4b03-b190-c98f8ab8c996
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column completeness_pct
+		dataType: double
+		lineageTag: 0d870b0e-4151-428b-9ce9-3801fb6137ae
+		summarizeBy: sum
+		sourceColumn: completeness_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column missing_city_count
+		dataType: int64
+		formatString: 0
+		lineageTag: e53290f9-b674-42f0-ae35-f1eee4d1ca7f
+		summarizeBy: sum
+		sourceColumn: missing_city_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column present_cities
+		dataType: int64
+		formatString: 0
+		lineageTag: d3ebcd61-810d-4e30-8b22-e811082aaceb
+		summarizeBy: sum
+		sourceColumn: present_cities
+
+		annotation SummarizationSetBy = Automatic
+
+	column expected_cities
+		dataType: int64
+		formatString: 0
+		lineageTag: 50dcf994-985c-4409-9aa6-5688e1c33828
+		summarizeBy: sum
+		sourceColumn: expected_cities
+
+		annotation SummarizationSetBy = Automatic
+
+	column has_gap
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 9ba4206a-801a-4e25-90e7-102acb5bfb4b
+		summarizeBy: none
+		sourceColumn: has_gap
+
+		annotation SummarizationSetBy = Automatic
+
+	column monitoring_action
+		dataType: string
+		lineageTag: ee4d20a4-c816-4a55-b92e-0dc385b7cfdf
+		summarizeBy: none
+		sourceColumn: monitoring_action
+
+		annotation SummarizationSetBy = Automatic
+
+	column monitoring_reason
+		dataType: string
+		lineageTag: f21d01b0-051b-468b-8153-7f2593bfa2ee
+		summarizeBy: none
+		sourceColumn: monitoring_reason
+
+		annotation SummarizationSetBy = Automatic
+
+	column n_drifted_features
+		dataType: int64
+		formatString: 0
+		lineageTag: 99639143-ef09-47fb-88b9-ecae809e5832
+		summarizeBy: sum
+		sourceColumn: n_drifted_features
+
+		annotation SummarizationSetBy = Automatic
+
+	column heavy_drift
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 3f78edca-2f7d-4307-b794-9a4d6ccc3fff
+		summarizeBy: none
+		sourceColumn: heavy_drift
+
+		annotation SummarizationSetBy = Automatic
+
+	column mild_drift
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: b694f57a-587f-4a00-b6c4-430d26527215
+		summarizeBy: none
+		sourceColumn: mild_drift
+
+		annotation SummarizationSetBy = Automatic
+
+	column low_accuracy
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: f8f8c5fb-0dc8-4b6b-a3a3-b2cd890df27d
+		summarizeBy: none
+		sourceColumn: low_accuracy
+
+		annotation SummarizationSetBy = Automatic
+
+	column high_mae
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: fc79cd68-0e5a-4057-876a-1cba9210822f
+		summarizeBy: none
+		sourceColumn: high_mae
+
+		annotation SummarizationSetBy = Automatic
+
+	column rain_accuracy_30d
+		dataType: double
+		lineageTag: cc21d5f4-d716-4c4c-98b7-2f9178e024c2
+		summarizeBy: sum
+		sourceColumn: rain_accuracy_30d
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column temp_mae_30d
+		dataType: double
+		lineageTag: 9dab3be3-851f-4941-bbf2-354551d369ff
+		summarizeBy: sum
+		sourceColumn: temp_mae_30d
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column last_retrain_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 2e58e150-7446-45a3-8234-e6e0ea61a232
+		summarizeBy: none
+		sourceColumn: last_retrain_date
+
+		variation Variation
+			isDefault
+			relationship: c7b21540-7353-4fa4-a133-3a24b02e40f6
+			defaultHierarchy: LocalDateTable_4edffa49-469f-4030-ad08-c8c366419e49.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column days_since_retrain
+		dataType: int64
+		formatString: 0
+		lineageTag: 37d3f141-c71f-4fef-9731-4a057723d54e
+		summarizeBy: sum
+		sourceColumn: days_since_retrain
+
+		annotation SummarizationSetBy = Automatic
+
+	partition MLopsHealth = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_mlops_health.csv"),[Delimiter=",", Columns=17, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"date", type date}, {"completeness_pct", type number}, {"missing_city_count", Int64.Type}, {"present_cities", Int64.Type}, {"expected_cities", Int64.Type}, {"has_gap", type logical}, {"monitoring_action", type text}, {"monitoring_reason", type text}, {"n_drifted_features", Int64.Type}, {"heavy_drift", type logical}, {"mild_drift", type logical}, {"low_accuracy", type logical}, {"high_mae", type logical}, {"rain_accuracy_30d", type number}, {"temp_mae_30d", type number}, {"last_retrain_date", type date}, {"days_since_retrain", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

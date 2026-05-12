@@ -1,0 +1,144 @@
+table HomepageKPIs
+	lineageTag: 78ac6f4e-779d-4ec3-ad7a-c43358d45c2d
+
+	column latest_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 1329a97f-a9da-455c-adfa-83ccadd900d1
+		summarizeBy: none
+		sourceColumn: latest_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column current_n_cities
+		dataType: int64
+		formatString: 0
+		lineageTag: 12ae9bb0-756a-410b-825d-afa94b8b0fef
+		summarizeBy: sum
+		sourceColumn: current_n_cities
+
+		annotation SummarizationSetBy = Automatic
+
+	column avg_max_temp_tomorrow
+		dataType: double
+		lineageTag: cec9d87b-0809-40a1-82be-d1d1e573dbb7
+		summarizeBy: sum
+		sourceColumn: avg_max_temp_tomorrow
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_rain_tomorrow_proba
+		dataType: double
+		lineageTag: 9dff72c7-06f6-4a64-8498-c3ffc9f82fca
+		summarizeBy: sum
+		sourceColumn: avg_rain_tomorrow_proba
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_current_comfort_score
+		dataType: double
+		lineageTag: 7498582a-e681-4244-bae5-0ca8353e9d84
+		summarizeBy: sum
+		sourceColumn: avg_current_comfort_score
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_current_heatwave_risk
+		dataType: double
+		lineageTag: c45bb348-9cc0-4557-b55e-747fbfa094a3
+		summarizeBy: sum
+		sourceColumn: avg_current_heatwave_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_current_frost_risk
+		dataType: double
+		lineageTag: 7866c4c5-a788-431d-befb-c9d757dacdfc
+		summarizeBy: sum
+		sourceColumn: avg_current_frost_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_current_storm_probability
+		dataType: double
+		lineageTag: d612426a-8390-47c8-9b58-dde27d96c15b
+		summarizeBy: sum
+		sourceColumn: avg_current_storm_probability
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column latest_month_rain_accuracy
+		dataType: double
+		lineageTag: 85b8ead9-8b28-44da-920b-193947473652
+		summarizeBy: sum
+		sourceColumn: latest_month_rain_accuracy
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column latest_month_temp_mae
+		dataType: double
+		lineageTag: 5e60dd70-f127-4119-93ac-a4b6796e681a
+		summarizeBy: sum
+		sourceColumn: latest_month_temp_mae
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column latest_month_completeness_pct
+		dataType: double
+		lineageTag: 45b57faf-35c5-49e0-b8b4-fcf529ea6205
+		summarizeBy: sum
+		sourceColumn: latest_month_completeness_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column latest_month_critical_alerts
+		dataType: double
+		formatString: 0
+		lineageTag: 56b5b863-677b-4e94-9886-eb6e8d87c91c
+		summarizeBy: sum
+		sourceColumn: latest_month_critical_alerts
+
+		annotation SummarizationSetBy = Automatic
+
+	column latest_global_status
+		dataType: string
+		lineageTag: 2317d848-f0ba-4d35-8b9d-f7164a613a11
+		summarizeBy: none
+		sourceColumn: latest_global_status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition HomepageKPIs = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\bi_powerbi_homepage_kpis.csv"),[Delimiter=",", Columns=13, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"latest_date", type date}, {"current_n_cities", Int64.Type}, {"avg_max_temp_tomorrow", type number}, {"avg_rain_tomorrow_proba", type number}, {"avg_current_comfort_score", type number}, {"avg_current_heatwave_risk", type number}, {"avg_current_frost_risk", type number}, {"avg_current_storm_probability", type number}, {"latest_month_rain_accuracy", type number}, {"latest_month_temp_mae", type number}, {"latest_month_completeness_pct", type number}, {"latest_month_critical_alerts", type number}, {"latest_global_status", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

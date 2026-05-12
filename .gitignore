@@ -89,9 +89,14 @@ config/simple_auth_manager_passwords.json
 /weather-mlops
 notes/
 
-# ── Dbt ───────────────────────────────────────────────────────────────────
+# ── Dbt ──────────────────────────────────────────────────────────────────────
 analytics/target/
 analytics/dbt_packages/
 analytics/logs/
 analytics/*.duckdb
 analytics/profiles.yml
+
+# ── analytics ───────────────────────────────────────────────────────────────
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+**/.pbi/editorSettings.json

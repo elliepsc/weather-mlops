@@ -1,0 +1,135 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "90690a270635c6cd4108",
+  "position": {
+    "x": 9999,
+    "y": 9999,
+    "z": 1,
+    "height": 235,
+    "width": 634,
+    "tabOrder": 1
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ForecastDaily"
+                    }
+                  },
+                  "Property": "city"
+                }
+              },
+              "queryRef": "ForecastDaily.city",
+              "active": false
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Rain Accuracy %"
+                }
+              },
+              "queryRef": "_Measures.Rain Accuracy %",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Precision"
+                }
+              },
+              "queryRef": "_Measures.Precision",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Recall"
+                }
+              },
+              "queryRef": "_Measures.Recall",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "F1 Score"
+                }
+              },
+              "queryRef": "_Measures.F1 Score",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "TP"
+                }
+              },
+              "queryRef": "_Measures.TP",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "FP"
+                }
+              },
+              "queryRef": "_Measures.FP",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "FN"
+                }
+              },
+              "queryRef": "_Measures.FN",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

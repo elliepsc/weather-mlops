@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "6323c46a8f7693e56a2a",
+  "position": {
+    "x": 16,
+    "y": 70,
+    "z": 3100,
+    "height": 110,
+    "width": 238,
+    "tabOrder": 3100
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Dernière Date"
+                }
+              },
+              "queryRef": "_Measures.Dernière Date",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

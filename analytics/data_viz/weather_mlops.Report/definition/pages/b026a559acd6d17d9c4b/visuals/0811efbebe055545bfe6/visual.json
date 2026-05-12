@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "0811efbebe055545bfe6",
+  "position": {
+    "x": 760,
+    "y": 385,
+    "z": 7200,
+    "height": 175,
+    "width": 244,
+    "tabOrder": 7200
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Weather Score"
+                }
+              },
+              "queryRef": "_Measures.Weather Score",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "cc35c3bc93f97483b317",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Weather Score"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

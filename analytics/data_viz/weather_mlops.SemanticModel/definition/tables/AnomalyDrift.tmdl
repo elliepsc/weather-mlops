@@ -1,0 +1,196 @@
+table AnomalyDrift
+	lineageTag: 5d15ff9e-c36d-403c-995f-2b245a3a3fc3
+
+	column date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: e87040ff-2e5f-4d8c-8a0a-bf9fa42d8141
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column n_features_monitored
+		dataType: int64
+		formatString: 0
+		lineageTag: b78e0d65-5a74-4c2e-b182-bf95d2bf7787
+		summarizeBy: sum
+		sourceColumn: n_features_monitored
+
+		annotation SummarizationSetBy = Automatic
+
+	column n_drifted_features
+		dataType: int64
+		formatString: 0
+		lineageTag: f73e286c-9404-4997-88f0-143fc3267e61
+		summarizeBy: sum
+		sourceColumn: n_drifted_features
+
+		annotation SummarizationSetBy = Automatic
+
+	column mean_ks_stat
+		dataType: double
+		lineageTag: e0b63e27-31f5-4130-91b8-197a01c32bec
+		summarizeBy: sum
+		sourceColumn: mean_ks_stat
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column max_ks_stat
+		dataType: double
+		lineageTag: 7fc56321-c0ed-448e-a9f6-5a20401f4add
+		summarizeBy: sum
+		sourceColumn: max_ks_stat
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column any_drift
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 8832d519-9c8d-4e20-9c93-fc61d0795d86
+		summarizeBy: none
+		sourceColumn: any_drift
+
+		annotation SummarizationSetBy = Automatic
+
+	column n_cities_observed
+		dataType: int64
+		formatString: 0
+		lineageTag: 923823ce-bd1c-4177-b495-768a3607b75c
+		summarizeBy: sum
+		sourceColumn: n_cities_observed
+
+		annotation SummarizationSetBy = Automatic
+
+	column n_anomalous_cities
+		dataType: int64
+		formatString: 0
+		lineageTag: 0be0281c-eee6-49d5-9c46-22296fe2191d
+		summarizeBy: sum
+		sourceColumn: n_anomalous_cities
+
+		annotation SummarizationSetBy = Automatic
+
+	column avg_composite_anomaly
+		dataType: double
+		lineageTag: 3f717800-4173-4509-b63c-bd45b2b17c26
+		summarizeBy: sum
+		sourceColumn: avg_composite_anomaly
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column max_composite_anomaly
+		dataType: double
+		lineageTag: 8e0f1617-eda0-450b-ab77-02c480194f6d
+		summarizeBy: sum
+		sourceColumn: max_composite_anomaly
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_anomalous_features_per_city
+		dataType: double
+		lineageTag: 7bf9e907-fe7a-4bef-a08d-5daf8cf21949
+		summarizeBy: sum
+		sourceColumn: avg_anomalous_features_per_city
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_abs_z_max_temp
+		dataType: double
+		lineageTag: 9f543b71-502a-4961-8bf5-86f312028953
+		summarizeBy: sum
+		sourceColumn: avg_abs_z_max_temp
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_abs_z_rainfall
+		dataType: double
+		lineageTag: 146eae64-08b2-44b2-8a89-11c684e89e3a
+		summarizeBy: sum
+		sourceColumn: avg_abs_z_rainfall
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_abs_z_wind_gust
+		dataType: double
+		lineageTag: 6646a9e7-1c1e-4b4d-bc09-3f284a5f92a6
+		summarizeBy: sum
+		sourceColumn: avg_abs_z_wind_gust
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column high_weather_anomaly
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 853b2a9b-87b3-47ad-af87-d3fe84f2fa7d
+		summarizeBy: none
+		sourceColumn: high_weather_anomaly
+
+		annotation SummarizationSetBy = Automatic
+
+	column monitoring_action
+		dataType: string
+		lineageTag: 37dabec7-cc44-416f-a9dd-cc0ac6e5a7aa
+		summarizeBy: none
+		sourceColumn: monitoring_action
+
+		annotation SummarizationSetBy = Automatic
+
+	column heavy_drift
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 7478949d-5ab2-438b-9e58-65b4eca0ae05
+		summarizeBy: none
+		sourceColumn: heavy_drift
+
+		annotation SummarizationSetBy = Automatic
+
+	column low_accuracy
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 7dfc9ede-77d4-4af9-9165-565eba67d6a9
+		summarizeBy: none
+		sourceColumn: low_accuracy
+
+		annotation SummarizationSetBy = Automatic
+
+	column drift_explainability_label
+		dataType: string
+		lineageTag: 4a13f40f-b310-4a19-aa5c-cf2adf274f12
+		summarizeBy: none
+		sourceColumn: drift_explainability_label
+
+		annotation SummarizationSetBy = Automatic
+
+	partition AnomalyDrift = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_climate_anomaly_vs_drift.csv"),[Delimiter=",", Columns=19, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"date", type date}, {"n_features_monitored", Int64.Type}, {"n_drifted_features", Int64.Type}, {"mean_ks_stat", type number}, {"max_ks_stat", type number}, {"any_drift", type logical}, {"n_cities_observed", Int64.Type}, {"n_anomalous_cities", Int64.Type}, {"avg_composite_anomaly", type number}, {"max_composite_anomaly", type number}, {"avg_anomalous_features_per_city", type number}, {"avg_abs_z_max_temp", type number}, {"avg_abs_z_rainfall", type number}, {"avg_abs_z_wind_gust", type number}, {"high_weather_anomaly", type logical}, {"monitoring_action", type text}, {"heavy_drift", type logical}, {"low_accuracy", type logical}, {"drift_explainability_label", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

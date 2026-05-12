@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "08f8d25fbb4a532216d8",
+  "position": {
+    "x": 830,
+    "y": 535,
+    "z": 5900,
+    "height": 80,
+    "width": 434,
+    "tabOrder": 5900
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Taux Pluie Manquée %"
+                }
+              },
+              "queryRef": "_Measures.Taux Pluie Manquée %",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

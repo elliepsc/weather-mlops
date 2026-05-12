@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "550642fec416159555d0",
+  "position": {
+    "x": 958,
+    "y": 70,
+    "z": 4500,
+    "height": 110,
+    "width": 304,
+    "tabOrder": 4500
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "N Prédictions Validées"
+                }
+              },
+              "queryRef": "_Measures.N Prédictions Validées",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

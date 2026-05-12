@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "4cfc627227db6f2449e6",
+  "position": {
+    "x": 280,
+    "y": 580,
+    "z": 4000,
+    "height": 125,
+    "width": 250,
+    "tabOrder": 4000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Nb Alertes Critiques Aujourd'hui"
+                }
+              },
+              "queryRef": "_Measures.Nb Alertes Critiques Aujourd'hui",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

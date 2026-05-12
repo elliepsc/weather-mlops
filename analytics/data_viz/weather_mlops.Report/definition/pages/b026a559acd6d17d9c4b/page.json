@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "b026a559acd6d17d9c4b",
+  "displayName": "Vue Géographique",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280
+}

@@ -1,0 +1,158 @@
+table ExtremeEvents
+	lineageTag: 26204a71-e733-47cd-8e71-9b3d3bd9a124
+
+	column weather_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 770c5d1d-1cee-4fa0-92ad-a67165fdbc8c
+		summarizeBy: none
+		sourceColumn: weather_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column year_month
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 7a83d0e0-109a-43aa-b0a5-39ae5213c88f
+		summarizeBy: none
+		sourceColumn: year_month
+
+		variation Variation
+			isDefault
+			relationship: 1424a701-f2f5-49ee-b960-01a300831485
+			defaultHierarchy: LocalDateTable_7dbb8f97-cede-4834-afd2-afdce788fff9.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column city
+		dataType: string
+		lineageTag: 6367c405-b50e-4be8-b594-a4c7f940cb30
+		summarizeBy: none
+		sourceColumn: city
+
+		annotation SummarizationSetBy = Automatic
+
+	column extreme_type
+		dataType: string
+		lineageTag: ba26f3ed-e768-41c3-b30d-b789a9ac0f53
+		summarizeBy: none
+		sourceColumn: extreme_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column extreme_value
+		dataType: double
+		lineageTag: 8999e768-7653-4fa2-ab37-4ec012f837a0
+		summarizeBy: sum
+		sourceColumn: extreme_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column severity_level
+		dataType: string
+		lineageTag: a1b6abb7-2409-4dc0-a662-9a5884732820
+		summarizeBy: none
+		sourceColumn: severity_level
+
+		annotation SummarizationSetBy = Automatic
+
+	column max_temp
+		dataType: double
+		lineageTag: 7d8e3dc2-3316-4824-b47a-e4ad942051a0
+		summarizeBy: sum
+		sourceColumn: max_temp
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column min_temp
+		dataType: double
+		lineageTag: 96daf907-11be-4b6d-9790-69f13254b43f
+		summarizeBy: sum
+		sourceColumn: min_temp
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column rainfall
+		dataType: double
+		lineageTag: 9ce8627d-d78e-4383-ac32-bf2dbf8b23b6
+		summarizeBy: sum
+		sourceColumn: rainfall
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column wind_gust_speed
+		dataType: double
+		lineageTag: dde2377a-921f-40c3-8590-cedfb7108d2f
+		summarizeBy: sum
+		sourceColumn: wind_gust_speed
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column humidity_3pm
+		dataType: double
+		lineageTag: 924f5888-bdc8-44f2-98b3-8d939b58d3a5
+		summarizeBy: sum
+		sourceColumn: humidity_3pm
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column storm_probability
+		dataType: double
+		lineageTag: 525a37a8-ad40-410c-a6c3-c6e1e6c71f91
+		summarizeBy: sum
+		sourceColumn: storm_probability
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column heatwave_risk
+		dataType: double
+		lineageTag: 9c30691e-d61a-40b2-93d0-b63dfcc0373f
+		summarizeBy: sum
+		sourceColumn: heatwave_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column frost_risk
+		dataType: double
+		lineageTag: 11b3987d-2729-442d-9d35-e89f34df2752
+		summarizeBy: sum
+		sourceColumn: frost_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition ExtremeEvents = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\bi_weather_extremes.csv"),[Delimiter=",", Columns=17, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"weather_date", type date}, {"year_month", type datetime}, {"city", type text}, {"state", type text}, {"latitude", type text}, {"longitude", type text}, {"extreme_type", type text}, {"extreme_value", type text}, {"severity_level", type text}, {"max_temp", type text}, {"min_temp", type text}, {"rainfall", type text}, {"wind_gust_speed", type text}, {"humidity_3pm", type text}, {"storm_probability", type text}, {"heatwave_risk", type text}, {"frost_risk", type text}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"state", "latitude", "longitude"}),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Removed Columns",{{"extreme_value", type number}, {"max_temp", type number}, {"min_temp", type number}, {"rainfall", type number}, {"wind_gust_speed", type number}, {"humidity_3pm", type number}, {"storm_probability", type number}, {"heatwave_risk", type number}, {"frost_risk", type number}})
+				in
+				    #"Changed Type1"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

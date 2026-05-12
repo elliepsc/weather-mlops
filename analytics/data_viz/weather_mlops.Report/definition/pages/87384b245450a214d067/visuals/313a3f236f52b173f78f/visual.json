@@ -1,0 +1,118 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "313a3f236f52b173f78f",
+  "position": {
+    "x": 16,
+    "y": 445,
+    "z": 6700,
+    "height": 260,
+    "width": 790,
+    "tabOrder": 6700
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "MLopsHealth"
+                    }
+                  },
+                  "Property": "date"
+                }
+              },
+              "queryRef": "MLopsHealth.date"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "MLopsHealth"
+                    }
+                  },
+                  "Property": "completeness_pct"
+                }
+              },
+              "queryRef": "MLopsHealth.completeness_pct"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "MLopsHealth"
+                    }
+                  },
+                  "Property": "n_drifted_features"
+                }
+              },
+              "queryRef": "MLopsHealth.n_drifted_features"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "MLopsHealth"
+                    }
+                  },
+                  "Property": "rain_accuracy_30d"
+                }
+              },
+              "queryRef": "MLopsHealth.rain_accuracy_30d"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "MLopsHealth"
+                    }
+                  },
+                  "Property": "temp_mae_30d"
+                }
+              },
+              "queryRef": "MLopsHealth.temp_mae_30d"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "MLopsHealth"
+                    }
+                  },
+                  "Property": "monitoring_action"
+                }
+              },
+              "queryRef": "MLopsHealth.monitoring_action"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "MLopsHealth"
+                  }
+                },
+                "Property": "date"
+              }
+            },
+            "direction": "Descending"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "weather_mlops"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "61d6e550-a96a-4fd0-807f-f85b67bd643b"
+  }
+}

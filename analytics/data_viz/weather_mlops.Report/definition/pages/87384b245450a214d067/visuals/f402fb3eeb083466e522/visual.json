@@ -1,0 +1,60 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "f402fb3eeb083466e522",
+  "position": {
+    "x": 16,
+    "y": 195,
+    "z": 6500,
+    "height": 235,
+    "width": 605,
+    "tabOrder": 6500
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "AnomalyDrift"
+                    }
+                  },
+                  "Property": "date"
+                }
+              },
+              "queryRef": "AnomalyDrift.date",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "AnomalyDrift"
+                        }
+                      },
+                      "Property": "n_drifted_features"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(AnomalyDrift.n_drifted_features)",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

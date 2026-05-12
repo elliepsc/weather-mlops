@@ -1,0 +1,114 @@
+table RiskAlerts
+	lineageTag: 8465cab6-ed39-4d95-bb4b-77b73e2abd34
+
+	column weather_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 3fa9996c-3d68-45fb-b0df-cdd62b182f1f
+		summarizeBy: none
+		sourceColumn: weather_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column city
+		dataType: string
+		lineageTag: 9b684c80-8753-47e4-85b0-057c90a7de37
+		summarizeBy: none
+		sourceColumn: city
+
+		annotation SummarizationSetBy = Automatic
+
+	column alert_type
+		dataType: string
+		lineageTag: 2412aea2-bd41-405b-b8e1-503f8ea73db9
+		summarizeBy: none
+		sourceColumn: alert_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column alert_score
+		dataType: double
+		lineageTag: 0262ef6b-5b35-405e-bf81-d7bec03c06f2
+		summarizeBy: sum
+		sourceColumn: alert_score
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column rain_tomorrow_proba
+		dataType: double
+		lineageTag: e8a32fa7-9088-417f-b36f-05733709aac3
+		summarizeBy: sum
+		sourceColumn: rain_tomorrow_proba
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column heatwave_risk
+		dataType: double
+		lineageTag: bb3dadea-e73c-40d9-b43d-859249d42168
+		summarizeBy: sum
+		sourceColumn: heatwave_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column frost_risk
+		dataType: double
+		lineageTag: d31e3736-e4d3-475f-8e12-3d06deda275a
+		summarizeBy: sum
+		sourceColumn: frost_risk
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column storm_probability
+		dataType: double
+		lineageTag: 038b3dd7-3f76-426d-9de9-019ce3bdcbe0
+		summarizeBy: sum
+		sourceColumn: storm_probability
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column comfort_score
+		dataType: double
+		lineageTag: 0ffeed99-e8c3-4a74-9313-0104381d0a23
+		summarizeBy: sum
+		sourceColumn: comfort_score
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column alert_level
+		dataType: string
+		lineageTag: a7230a59-e761-4697-80fb-64a44ee356fd
+		summarizeBy: none
+		sourceColumn: alert_level
+
+		annotation SummarizationSetBy = Automatic
+
+	partition RiskAlerts = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_weather_risk_alerts.csv"),[Delimiter=",", Columns=13, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"weather_date", type date}, {"city", type text}, {"state", type text}, {"latitude", type text}, {"longitude", type text}, {"alert_type", type text}, {"alert_score", type text}, {"rain_tomorrow_proba", type text}, {"heatwave_risk", type text}, {"frost_risk", type text}, {"storm_probability", type text}, {"comfort_score", type text}, {"alert_level", type text}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"state", "latitude", "longitude"}),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Removed Columns",{{"comfort_score", type number}, {"storm_probability", type number}, {"frost_risk", type number}, {"heatwave_risk", type number}, {"rain_tomorrow_proba", type number}, {"alert_score", type number}})
+				in
+				    #"Changed Type1"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

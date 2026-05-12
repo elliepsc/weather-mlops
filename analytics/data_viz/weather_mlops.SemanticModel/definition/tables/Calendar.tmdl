@@ -1,0 +1,188 @@
+table Calendar
+	lineageTag: f1fe2506-19c6-484c-8c63-57884b2d3b9b
+
+	column Date
+		formatString: General Date
+		lineageTag: 3b9946e6-3727-4deb-a875-7e910ccf35f1
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Date]
+
+		variation Variation
+			isDefault
+			relationship: 14e94c5d-1bf2-4f05-967d-0f89c64d002a
+			defaultHierarchy: LocalDateTable_e1662789-9542-4927-893f-f5339cce2452.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Année
+		formatString: 0
+		lineageTag: 1e0565f3-6bf5-4b70-9205-b977bfb9b75a
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Année]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Mois Num'
+		formatString: 0
+		lineageTag: 5bd36bac-c314-4c36-8257-77fadc7f78ea
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Mois Num]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Mois
+		lineageTag: 53cdbb13-e781-4fc0-a75c-ee52b040ca19
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Mois]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Mois Court'
+		lineageTag: 1fd3bfdc-48aa-4e1e-9315-85c902a8736a
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Mois Court]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Année-Mois
+		lineageTag: 38d2d1da-ead5-486a-b68c-9bb81f36bec4
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Année-Mois]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Trimestre
+		lineageTag: f2e4b680-f46f-4171-9d24-69e970a8114a
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Trimestre]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Jour
+		formatString: 0
+		lineageTag: 5a39eec2-098d-4a40-973d-8a4bbaac7b84
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Jour]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Jour semaine Num'
+		formatString: 0
+		lineageTag: 4dcb10f9-5685-4573-9c88-6559b0f521be
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Jour semaine Num]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Jour semaine'
+		lineageTag: ca9b8790-b7bc-4a61-a21a-4bbb97f33e0f
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Jour semaine]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Semaine
+		formatString: 0
+		lineageTag: 3a345f99-17cc-4d11-ad87-ede0f59891f1
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Semaine]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Semaine ISO'
+		lineageTag: df7d210d-b4a2-4074-8800-8ca480d56c05
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Semaine ISO]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Année ISO'
+		formatString: 0
+		lineageTag: 2042e36e-111c-40ab-9d00-87bb9d9e48bc
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Année ISO]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Année-Semaine ISO'
+		lineageTag: 5d2bdc2d-49a9-4d03-9884-74f1296b3558
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Année-Semaine ISO]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Saison
+		lineageTag: 68b71e7d-0ed1-4d2a-b28a-10ed05896984
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Saison]
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Saison Ordre'
+		formatString: 0
+		lineageTag: c5afd125-f0e1-4e7c-a0d3-8fc33b14f4e4
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Saison Ordre]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Calendar = calculated
+		mode: import
+		source = ```
+				
+				ADDCOLUMNS (
+				    CALENDARAUTO(),
+				    "Année", YEAR ( [Date] ),
+				    "Mois Num", MONTH ( [Date] ),
+				    "Mois", FORMAT ( [Date], "mmmm" ),
+				    "Mois Court", FORMAT ( [Date], "mmm" ),
+				    "Année-Mois", FORMAT ( [Date], "yyyy-MM" ),
+				    "Trimestre", "T" & FORMAT ( [Date], "Q" ),
+				    "Jour", DAY ( [Date] ),
+				    "Jour semaine Num", WEEKDAY ( [Date], 2 ),
+				    "Jour semaine", FORMAT ( [Date], "dddd" ),
+				    "Semaine", WEEKNUM ( [Date], 2 ),
+				    "Semaine ISO", "W" & FORMAT ( WEEKNUM ( [Date], 21 ), "00" ),
+				    "Année ISO", YEAR ( [Date] - WEEKDAY ( [Date], 2 ) + 4 ),
+				    "Année-Semaine ISO",
+				        VAR ISOYear = YEAR ( [Date] - WEEKDAY ( [Date], 2 ) + 4 )
+				        VAR ISOWeek = WEEKNUM ( [Date], 21 )
+				        RETURN ISOYear & "-W" & FORMAT ( ISOWeek, "00" ),
+				    "Saison",
+				        SWITCH(
+				            MONTH ( [Date] ),
+				            12, "Summer", 1, "Summer", 2, "Summer",
+				            3, "Autumn",  4, "Autumn",  5, "Autumn",
+				            6, "Winter",  7, "Winter",  8, "Winter",
+				            "Spring"
+				        ),
+				    "Saison Ordre",
+				        SWITCH(
+				            MONTH ( [Date] ),
+				            12, 1, 1, 1, 2, 1,
+				            3, 2, 4, 2, 5, 2,
+				            6, 3, 7, 3, 8, 3,
+				            4
+				        )
+				)
+				
+				```
+
+	annotation PBI_Id = 88db8abba57d4d8cb57b2efbad0314d3
+

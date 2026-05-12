@@ -1,0 +1,177 @@
+table FeatureDrift
+	lineageTag: c216b07a-3929-4c9d-814c-4fa49f1f2f1a
+
+	column drift_rank
+		dataType: int64
+		formatString: 0
+		lineageTag: 0fb69550-8358-4b4a-abda-4601fbf1617d
+		summarizeBy: sum
+		sourceColumn: drift_rank
+
+		annotation SummarizationSetBy = Automatic
+
+	column drift_tier
+		dataType: string
+		lineageTag: 3712c107-d721-4796-bb56-45fbc76c6311
+		summarizeBy: none
+		sourceColumn: drift_tier
+
+		annotation SummarizationSetBy = Automatic
+
+	column feature_name
+		dataType: string
+		lineageTag: 565bcaa4-710d-4402-b155-1061d106a3d1
+		summarizeBy: none
+		sourceColumn: feature_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: dc0d8a15-ec97-4ff5-b4e3-2768a9d39d1c
+		summarizeBy: sum
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		formatString: 0
+		lineageTag: 109d4bdb-032f-4a75-8126-e3bfa25d6d39
+		summarizeBy: sum
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+	column season
+		dataType: string
+		lineageTag: b6c67c60-f5c2-43bd-9220-4bb2b00222d6
+		summarizeBy: none
+		sourceColumn: season
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_monitored
+		dataType: int64
+		formatString: 0
+		lineageTag: 5535e818-de0e-4d09-aac5-e6993c691f28
+		summarizeBy: sum
+		sourceColumn: days_monitored
+
+		annotation SummarizationSetBy = Automatic
+
+	column drift_days
+		dataType: int64
+		formatString: 0
+		lineageTag: d16204b7-075c-44c0-aff0-0372885b0791
+		summarizeBy: sum
+		sourceColumn: drift_days
+
+		annotation SummarizationSetBy = Automatic
+
+	column monthly_drift_pct
+		dataType: double
+		lineageTag: 4a20b5f4-8d00-4f85-87f1-ab3f1d87d7d1
+		summarizeBy: sum
+		sourceColumn: monthly_drift_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column mean_ks_stat
+		dataType: double
+		lineageTag: 7f4c219f-25cf-4dd7-995a-425c9aaded01
+		summarizeBy: sum
+		sourceColumn: mean_ks_stat
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column max_ks_stat
+		dataType: double
+		lineageTag: e4079829-6d01-459e-bf56-d6e4dfde590d
+		summarizeBy: sum
+		sourceColumn: max_ks_stat
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column mean_p_value
+		dataType: double
+		lineageTag: 3ed00a2d-f303-4f96-917d-3ef197db8ec0
+		summarizeBy: sum
+		sourceColumn: mean_p_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column overall_drift_pct
+		dataType: double
+		lineageTag: bc25a339-3a49-444c-9012-993e80440f22
+		summarizeBy: sum
+		sourceColumn: overall_drift_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column recent_drift_pct
+		dataType: double
+		lineageTag: 1e92956c-43f0-4a78-96e0-c1bcfbbd3e4b
+		summarizeBy: sum
+		sourceColumn: recent_drift_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column drift_accelerating
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 1829b8b7-03fe-49b7-b1e7-c65da91ecab6
+		summarizeBy: none
+		sourceColumn: drift_accelerating
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_monitoring_days
+		dataType: int64
+		formatString: 0
+		lineageTag: fb0d8896-c027-47c0-8b40-9e92ec0b9a57
+		summarizeBy: sum
+		sourceColumn: total_monitoring_days
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthDate =
+			
+			IF (
+			    NOT ISBLANK ( FeatureDrift[year] )
+			        && NOT ISBLANK ( FeatureDrift[month] ),
+			    DATE ( FeatureDrift[year], FeatureDrift[month], 1 )
+			)
+		formatString: General Date
+		lineageTag: a26cc1d0-c5bd-4923-b041-6ae70578a945
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition FeatureDrift = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_feature_drift_summary.csv"),[Delimiter=",", Columns=16, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"drift_rank", Int64.Type}, {"drift_tier", type text}, {"feature_name", type text}, {"year", Int64.Type}, {"month", Int64.Type}, {"season", type text}, {"days_monitored", Int64.Type}, {"drift_days", Int64.Type}, {"monthly_drift_pct", type number}, {"mean_ks_stat", type number}, {"max_ks_stat", type number}, {"mean_p_value", type number}, {"overall_drift_pct", type number}, {"recent_drift_pct", type number}, {"drift_accelerating", type logical}, {"total_monitoring_days", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,35 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-150
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_ProTooling = ["DevMode"]
+
+annotation PBI_QueryOrder = ["ForecastDaily","RiskAlerts","ExtremeEvents","MLopsHealth","Retraining","FeatureDrift","AnomalyDrift","HomepageKPIs","Location"]
+
+ref table ForecastDaily
+ref table DateTableTemplate_843aba83-e6bc-4ce8-a394-6530dd75e5f1
+ref table LocalDateTable_d723af70-650e-4670-b858-12e15dfb30ba
+ref table RiskAlerts
+ref table ExtremeEvents
+ref table LocalDateTable_7dbb8f97-cede-4834-afd2-afdce788fff9
+ref table MLopsHealth
+ref table LocalDateTable_4edffa49-469f-4030-ad08-c8c366419e49
+ref table Retraining
+ref table LocalDateTable_ef1a9e9b-ca7d-4971-8717-78dca195e0ef
+ref table FeatureDrift
+ref table AnomalyDrift
+ref table HomepageKPIs
+ref table Location
+ref table Calendar
+ref table _Measures
+ref table LocalDateTable_e1662789-9542-4927-893f-f5339cce2452
+ref table LocalDateTable_5b721efc-f42b-4f53-9722-b187d553e3a7
+
+ref cultureInfo en-US
+

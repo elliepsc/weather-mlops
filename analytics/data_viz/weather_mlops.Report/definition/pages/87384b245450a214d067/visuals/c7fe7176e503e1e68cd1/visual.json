@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "c7fe7176e503e1e68cd1",
+  "position": {
+    "x": 820,
+    "y": 580,
+    "z": 6900,
+    "height": 125,
+    "width": 444,
+    "tabOrder": 6900
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Nb Retrains Dégradants"
+                }
+              },
+              "queryRef": "_Measures.Nb Retrains Dégradants",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "66c2489fdccd12c70a1f",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Nb Retrains Dégradants"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

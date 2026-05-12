@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "c8e4e6a94a9fa76e5abf",
+  "position": {
+    "x": 642,
+    "y": 195,
+    "z": 3700,
+    "height": 230,
+    "width": 622,
+    "tabOrder": 3700
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ForecastDaily"
+                    }
+                  },
+                  "Property": "city"
+                }
+              },
+              "queryRef": "ForecastDaily.city",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Avg Comfort Score"
+                }
+              },
+              "queryRef": "_Measures.Avg Comfort Score",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

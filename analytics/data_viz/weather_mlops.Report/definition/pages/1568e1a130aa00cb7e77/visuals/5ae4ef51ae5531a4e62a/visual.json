@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "5ae4ef51ae5531a4e62a",
+  "position": {
+    "x": 830,
+    "y": 625,
+    "z": 6000,
+    "height": 80,
+    "width": 434,
+    "tabOrder": 6000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Direction Biais"
+                }
+              },
+              "queryRef": "_Measures.Direction Biais",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

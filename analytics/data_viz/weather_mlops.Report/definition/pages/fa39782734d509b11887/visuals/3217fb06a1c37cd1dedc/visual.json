@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "3217fb06a1c37cd1dedc",
+  "position": {
+    "x": 644,
+    "y": 70,
+    "z": 4400,
+    "height": 110,
+    "width": 304,
+    "tabOrder": 4400
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Proba Pluie Moyenne %"
+                }
+              },
+              "queryRef": "_Measures.Proba Pluie Moyenne %",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

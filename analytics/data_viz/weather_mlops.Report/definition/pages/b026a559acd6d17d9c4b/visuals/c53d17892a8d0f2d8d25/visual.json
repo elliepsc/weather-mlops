@@ -1,0 +1,79 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "c53d17892a8d0f2d8d25",
+  "position": {
+    "x": 9999,
+    "y": 9999,
+    "z": 1,
+    "height": 300,
+    "width": 504,
+    "tabOrder": 1
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Location"
+                    }
+                  },
+                  "Property": "city_state"
+                }
+              },
+              "queryRef": "Location.city_state",
+              "active": false
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Weather Score"
+                }
+              },
+              "queryRef": "_Measures.Weather Score",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Nb Alertes Aujourd'hui"
+                }
+              },
+              "queryRef": "_Measures.Nb Alertes Aujourd'hui",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Performance Category"
+                }
+              },
+              "queryRef": "_Measures.Performance Category",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,532 @@
+table _Measures
+	lineageTag: 8d9a7ad1-c589-4b97-b359-a558e6c5d8e2
+
+	measure 'Dernière Date' =
+			
+			FORMAT(MAX(ForecastDaily[prediction_date]), "DD/MM/YYYY")
+		displayFolder: Overview
+		lineageTag: cdec5cab-7b80-486f-8b5b-4267df213579
+
+	measure 'Nb Villes Actives' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(ForecastDaily[prediction_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			CALCULATE(
+			    DISTINCTCOUNT(ForecastDaily[city]),
+			    REMOVEFILTERS(Calendar),
+			    REMOVEFILTERS(Location),
+			    ForecastDaily[prediction_date] = latestDate
+			)
+		formatString: 0
+		displayFolder: Overview
+		lineageTag: 9984f5bd-98f9-42b3-bdf5-7254e45e7370
+
+	measure 'Avg Temp Demain' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(ForecastDaily[prediction_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			ROUND(
+			    CALCULATE(
+			        AVERAGE(ForecastDaily[pred_max_temp_tomorrow]),
+			        REMOVEFILTERS(Calendar),
+			        ForecastDaily[prediction_date] = latestDate
+			    ), 1)
+		displayFolder: Overview
+		lineageTag: 0a15ee9e-b0b9-458c-bb9a-bcc239aea5e3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Avg Proba Pluie %' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(ForecastDaily[prediction_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			ROUND(
+			    CALCULATE(
+			        AVERAGE(ForecastDaily[pred_rain_proba]),
+			        REMOVEFILTERS(Calendar),
+			        ForecastDaily[prediction_date] = latestDate
+			    ) * 100, 1)
+		displayFolder: Overview
+		lineageTag: 6e81abea-7883-4bd4-9b3a-f9cafc4206c9
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Avg Comfort Score' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(ForecastDaily[prediction_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			ROUND(
+			    CALCULATE(
+			        AVERAGE(ForecastDaily[comfort_score]),
+			        REMOVEFILTERS(Calendar),
+			        ForecastDaily[prediction_date] = latestDate
+			    ), 1)
+		displayFolder: Overview
+		lineageTag: c490a996-a57b-49c0-a18b-9a1833dd3cd1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Avg Heatwave Risk %' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(ForecastDaily[prediction_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			ROUND(
+			    CALCULATE(
+			        AVERAGE(ForecastDaily[heatwave_risk]),
+			        REMOVEFILTERS(Calendar),
+			        ForecastDaily[prediction_date] = latestDate
+			    ) * 100, 1)
+		displayFolder: Overview
+		lineageTag: a9f1ae25-922d-498a-ba75-4f2a4c2f615a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Avg Storm Proba %' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(ForecastDaily[prediction_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			ROUND(
+			    CALCULATE(
+			        AVERAGE(ForecastDaily[storm_probability]),
+			        REMOVEFILTERS(Calendar),
+			        ForecastDaily[prediction_date] = latestDate
+			    ) * 100, 1)
+		displayFolder: Overview
+		lineageTag: e20cf613-ea2f-47e9-90a8-697c2b4db5c0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Nb Alertes Aujourd''hui' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(RiskAlerts[weather_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			CALCULATE(
+			    COUNTROWS(RiskAlerts),
+			    REMOVEFILTERS(Calendar),
+			    RiskAlerts[weather_date] = latestDate
+			)
+		formatString: 0
+		displayFolder: Alerts
+		lineageTag: 348eaa79-0ef7-4d93-99c2-1c7daad58edf
+
+	measure 'Nb Alertes Critiques Aujourd''hui' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(RiskAlerts[weather_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			CALCULATE(
+			    COUNTROWS(RiskAlerts),
+			    REMOVEFILTERS(Calendar),
+			    RiskAlerts[alert_level] = "Critical",
+			    RiskAlerts[weather_date] = latestDate
+			)
+		formatString: 0
+		displayFolder: Alerts
+		lineageTag: 93ecf6ce-fb85-47e8-b8dd-ba3d44718822
+
+	measure 'Nb Alertes High Aujourd''hui' =
+			
+			VAR latestDate =
+			    CALCULATE(MAX(RiskAlerts[weather_date]), REMOVEFILTERS(Calendar))
+			RETURN
+			CALCULATE(
+			    COUNTROWS(RiskAlerts),
+			    REMOVEFILTERS(Calendar),
+			    RiskAlerts[alert_level] = "High",
+			    RiskAlerts[weather_date] = latestDate
+			)
+		formatString: 0
+		displayFolder: Alerts
+		lineageTag: 9b35c013-4394-4649-9e75-500db5b63b37
+
+	measure 'Nb Événements Extrêmes' = COUNTROWS(ExtremeEvents)
+		formatString: 0
+		displayFolder: Alerts
+		lineageTag: 34fbe0af-0017-44f6-9ff5-7ac51a8cd3cb
+
+	measure 'Completeness %' =
+			
+			VAR latestDate =
+			    CALCULATE(
+			        MAX(MLOpsHealth[date]),
+			        REMOVEFILTERS(Calendar)
+			    )
+			RETURN
+			CALCULATE(
+			    MAX(MLOpsHealth[completeness_pct]),
+			    REMOVEFILTERS(Calendar),
+			    MLOpsHealth[date] = latestDate
+			)
+		displayFolder: Système & Santé
+		lineageTag: f61db68d-e6a0-4f69-928e-de4856c5b40e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Global Status' =
+			
+			VAR latestDate =
+			    CALCULATE(
+			        MAX('MLOpsHealth'[date]),
+			        REMOVEFILTERS('Calendar')
+			    )
+			VAR actionStatus =
+			    CALCULATE(
+			        MAX('MLOpsHealth'[monitoring_action]),
+			        REMOVEFILTERS('Calendar'),
+			        'MLOpsHealth'[date] = latestDate
+			    )
+			RETURN
+			SWITCH(
+			    actionStatus,
+			    "no_action",               "OK",
+			    "alert_only",              "Attention",
+			    "trigger_retrain",         "Critique",
+			    "alert_insufficient_data", "Données insuffisantes",
+			    "Inconnu"
+			)
+		displayFolder: Système & Santé
+		lineageTag: 9e2c3ab1-ccda-4f0e-ba32-62cc62c738a5
+
+	measure 'Days Since Retrain' =
+			
+			VAR latestDate =
+			    CALCULATE(
+			        MAX(MLOpsHealth[date]),
+			        REMOVEFILTERS(Calendar)
+			    )
+			RETURN
+			CALCULATE(
+			    MAX(MLOpsHealth[days_since_retrain]),
+			    REMOVEFILTERS(Calendar),
+			    MLOpsHealth[date] = latestDate
+			)
+		formatString: 0
+		displayFolder: Système & Santé
+		lineageTag: b22a159a-7ef3-4be0-9942-664497dec984
+
+	measure 'N Features Driftées' =
+			
+			VAR latestDate =
+			    CALCULATE(
+			        MAX(MLOpsHealth[date]),
+			        REMOVEFILTERS(Calendar)
+			    )
+			RETURN
+			CALCULATE(
+			    MAX(MLOpsHealth[n_drifted_features]),
+			    REMOVEFILTERS(Calendar),
+			    MLOpsHealth[date] = latestDate
+			)
+		formatString: 0
+		displayFolder: Système & Santé
+		lineageTag: fbbf55a1-e68b-4390-9be9-521915d918d1
+
+	measure 'Rain Accuracy 30j' =
+			
+			VAR latestDate =
+			    CALCULATE(
+			        MAX(MLOpsHealth[date]),
+			        REMOVEFILTERS(Calendar)
+			    )
+			RETURN
+			CALCULATE(
+			    MAX(MLOpsHealth[rain_accuracy_30d]),
+			    REMOVEFILTERS(Calendar),
+			    MLOpsHealth[date] = latestDate
+			)
+		displayFolder: Système & Santé
+		lineageTag: 6eae0c86-6bde-45c6-90ec-cefd2e192761
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Temp MAE 30j' =
+			
+			VAR latestDate =
+			    CALCULATE(
+			        MAX(MLOpsHealth[date]),
+			        REMOVEFILTERS(Calendar)
+			    )
+			RETURN
+			CALCULATE(
+			    MAX(MLOpsHealth[temp_mae_30d]),
+			    REMOVEFILTERS(Calendar),
+			    MLOpsHealth[date] = latestDate
+			)
+		displayFolder: Système & Santé
+		lineageTag: e765b7e1-4c35-4100-8703-2388577fb52e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Temp Prédite' = ROUND(AVERAGE(ForecastDaily[pred_max_temp_tomorrow]), 1)
+		displayFolder: Prévision
+		lineageTag: dbd8ee58-e25a-4721-80c3-f672d2882d2e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Temp Réelle' =
+			
+			ROUND(
+			    AVERAGEX(
+			        FILTER(ForecastDaily, ForecastDaily[Has Actual] = 1),
+			        ForecastDaily[actual_max_temp_tomorrow]
+			    ), 1)
+		displayFolder: Prévision
+		lineageTag: 9808a13a-ce29-4f7d-b669-6ad89da0cce1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Proba Pluie Moyenne %' =
+			
+			ROUND(AVERAGE(ForecastDaily[pred_rain_proba]) * 100, 1)
+		displayFolder: Prévision
+		lineageTag: 63375e8d-b00a-4da7-9874-057dcb5222a4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Taux Pluie Réelle %' =
+			
+			ROUND(
+			    DIVIDE(
+			        COUNTROWS(FILTER(ForecastDaily,
+			            ForecastDaily[actual_rain_tomorrow] = 1
+			            && ForecastDaily[Has Actual] = 1)),
+			        COUNTROWS(FILTER(ForecastDaily, ForecastDaily[Has Actual] = 1))
+			    ) * 100, 1)
+		displayFolder: Prévision
+		lineageTag: 17f1e35a-4ffc-440b-bf49-8dcc9a921df4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'N Prédictions Validées' =
+			
+			COUNTROWS(FILTER(ForecastDaily, ForecastDaily[Has Actual] = 1))
+		formatString: 0
+		displayFolder: Prévision
+		lineageTag: 12d6d082-dca9-45bc-94ea-2a96472f7d61
+
+	measure 'Rain Accuracy' =
+			
+			DIVIDE(
+			    COUNTROWS(FILTER(ForecastDaily,
+			        ForecastDaily[rain_prediction_correct] = 1
+			        && ForecastDaily[Has Actual] = 1)),
+			    COUNTROWS(FILTER(ForecastDaily, ForecastDaily[Has Actual] = 1))
+			)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: a2e88942-4681-436d-acf0-f14fab493cf0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Rain Accuracy %' = ROUND([Rain Accuracy] * 100, 1)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: 718cebc4-e9d2-4fea-951e-3eea2eda5d27
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Temp MAE' =
+			
+			AVERAGEX(
+			    FILTER(ForecastDaily, ForecastDaily[Has Actual] = 1),
+			    ForecastDaily[temp_abs_error]
+			)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: b7381603-9857-4386-ba0e-1df3c3e1808f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Temp MAE Arrondi' = ROUND([Temp MAE], 2)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: e301b62c-fac0-45aa-8bf4-f810edaa5ea3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Temp Bias' =
+			
+			AVERAGEX(
+			    FILTER(ForecastDaily, ForecastDaily[Has Actual] = 1),
+			    ForecastDaily[temp_error_signed]
+			)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: a5dea453-dff6-4563-8041-8257565f5800
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure TP =
+			
+			// TP — Vrais Positifs
+			COUNTROWS(FILTER(ForecastDaily, ForecastDaily[forecast_result] = "True positive"))
+		formatString: 0
+		displayFolder: Fiabilité des prévisions
+		lineageTag: ab574101-a103-4bd9-af91-f218944ddf4f
+
+	measure TN =
+			
+			// TN — Vrais Négatifs
+			COUNTROWS(FILTER(ForecastDaily, ForecastDaily[forecast_result] = "True negative"))
+		formatString: 0
+		displayFolder: Fiabilité des prévisions
+		lineageTag: 3546f543-3385-4584-9c95-db5c2de43b30
+
+	measure FP =
+			
+			// FP — Fausses Alarmes
+			COUNTROWS(FILTER(ForecastDaily, ForecastDaily[forecast_result] = "False positive"))
+		formatString: 0
+		displayFolder: Fiabilité des prévisions
+		lineageTag: df9bb9f2-5a2d-4e21-8303-ab91bf17d8d8
+
+	measure FN =
+			
+			// FN — Pluie Manquée
+			COUNTROWS(FILTER(ForecastDaily, ForecastDaily[forecast_result] = "False negative"))
+		formatString: 0
+		displayFolder: Fiabilité des prévisions
+		lineageTag: 831b5eb7-ef4f-4e11-8084-1dd19599f2c0
+
+	measure Precision = DIVIDE([TP], [TP] + [FP])
+		displayFolder: Fiabilité des prévisions
+		lineageTag: 377cf9b5-99e6-4117-99ca-642cb4c58f45
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Recall = DIVIDE([TP], [TP] + [FN])
+		displayFolder: Fiabilité des prévisions
+		lineageTag: b103f3c9-d1d3-4717-8ba8-7942a1ba92e3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'F1 Score' = DIVIDE(2 * [Precision] * [Recall], [Precision] + [Recall])
+		displayFolder: Fiabilité des prévisions
+		lineageTag: cf7b4ee9-d84f-4005-88c9-cc10df847ee0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Taux Fausse Alarme %' = ROUND(DIVIDE([FP], [FP] + [TN]) * 100, 1)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: 6a2d7cc6-cc3e-468d-aed0-2da56f8ac891
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Taux Pluie Manquée %' = ROUND(DIVIDE([FN], [FN] + [TP]) * 100, 1)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: da9d5d66-cb56-455b-a32d-6be9543d45c0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Direction Biais' =
+			
+			VAR b = [Temp Bias]
+			RETURN
+			IF(b > 0.5, "Surchauffe", IF(b < -0.5, "Sous-estime", "Neutre"))
+		displayFolder: Fiabilité des prévisions
+		lineageTag: 54347050-1be5-426c-8af1-cc430ec9641e
+
+	measure 'Accuracy vs Baseline' =
+			
+			// baseline = 77%
+			ROUND(([Rain Accuracy] - 0.77) * 100, 1)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: f1e43e8e-60ac-4cee-975e-a6ad8be851ae
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'MAE vs Baseline' =
+			
+			// baseline = 1.63°C
+			ROUND([Temp MAE] - 1.63, 2)
+		displayFolder: Fiabilité des prévisions
+		lineageTag: a20e507d-8908-45c7-a05a-3ff89edc07c4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Avg Accuracy Delta' = ```
+			
+			AVERAGEX(
+			    FILTER(Retraining, NOT(ISBLANK(Retraining[accuracy_delta]))),
+			    Retraining[accuracy_delta]
+			)
+			
+			```
+		displayFolder: MLops & Retrains
+		lineageTag: 87ad62d6-1480-45a7-8ea9-2eb7fb5ac3fd
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Avg MAE Delta' =
+			
+			AVERAGEX(
+			    FILTER(Retraining, NOT(ISBLANK(Retraining[mae_delta]))),
+			    Retraining[mae_delta]
+			)
+		displayFolder: MLops & Retrains
+		lineageTag: 4fa009aa-00ce-4ba2-8cd6-bafdec1f6d46
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Nb Retrains' = COUNTROWS(Retraining)
+		formatString: 0
+		displayFolder: MLops & Retrains
+		lineageTag: 02a54e41-ed26-4e7a-a57e-f75c5094f13c
+
+	measure 'Nb Retrains Dégradants' =
+			
+			COUNTROWS(FILTER(Retraining, Retraining[low_accuracy] = TRUE() || Retraining[heavy_drift] = TRUE()))
+		formatString: 0
+		displayFolder: MLops & Retrains
+		lineageTag: 071acdff-1ff6-4ac7-b86d-79dd277ff8e4
+
+	measure 'Pct Retrains Dégradants %' =
+			
+			ROUND(DIVIDE([Nb Retrains Dégradants], [Nb Retrains], 0) * 100)
+		displayFolder: MLops & Retrains
+		lineageTag: 2c034515-fdca-4850-a594-2b7b00c93fed
+
+	measure 'Weather Score' =
+			
+			VAR acc  = [Rain Accuracy]
+			VAR mae  = [Temp MAE]
+			VAR comf = AVERAGE(ForecastDaily[comfort_score])
+			RETURN
+			ROUND((acc * 40) + (comf * 0.4) + MAX(0, (5 - mae) * 4), 1)
+		displayFolder: Geographie
+		lineageTag: e6753995-cde3-48e3-a3b7-94a6123a0efa
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Performance Category' =
+			
+			VAR s = [Weather Score]
+			RETURN
+			IF(s >= 90, "Excellent",
+			IF(s >= 75, "Bon",
+			IF(s >= 60, "Moyen", "Faible")))
+		displayFolder: Geographie
+		lineageTag: ee6209f9-7ba1-4075-83fe-85f007e2c714
+
+	measure 'Ville Label' = SELECTEDVALUE(Location[city_state])
+		displayFolder: Geographie
+		lineageTag: 30367855-01cd-4753-8157-ea32d2950cfa
+
+	column Column
+		isHidden
+		formatString: 0
+		lineageTag: d3c2a3ac-931c-4449-b2a9-e1d94df2bd54
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Column]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Measures = calculated
+		mode: import
+		source = Row("Column", BLANK())
+
+	annotation PBI_Id = bb84ed2897c7498d8c6c8ebbffaea2a1
+

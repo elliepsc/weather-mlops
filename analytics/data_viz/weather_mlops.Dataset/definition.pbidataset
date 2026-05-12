@@ -1,5 +1,0 @@
-{
-  "_comment": "Placeholder — sera généré automatiquement par Power BI Desktop. Contient la définition du modèle de données (tables, relations, mesures DAX). Phase 2 : remplacer les sources Web.Contents par GoogleBigQuery.Database — voir template.pq.",
-  "version": "1.0",
-  "datasetDefinition": {}
-}

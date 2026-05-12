@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "0c3af06f4ddbfb1dc614",
+  "position": {
+    "x": 1008,
+    "y": 70,
+    "z": 5400,
+    "height": 110,
+    "width": 238,
+    "tabOrder": 5400
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Temp MAE"
+                }
+              },
+              "queryRef": "_Measures.Temp MAE",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

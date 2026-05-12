@@ -1,0 +1,74 @@
+relationship 371d1bd4-6b2c-4422-849b-6d6d946f1927
+	joinOnDateBehavior: datePartOnly
+	fromColumn: ForecastDaily.predicted_at
+	toColumn: LocalDateTable_d723af70-650e-4670-b858-12e15dfb30ba.Date
+
+relationship 1424a701-f2f5-49ee-b960-01a300831485
+	joinOnDateBehavior: datePartOnly
+	fromColumn: ExtremeEvents.year_month
+	toColumn: LocalDateTable_7dbb8f97-cede-4834-afd2-afdce788fff9.Date
+
+relationship c7b21540-7353-4fa4-a133-3a24b02e40f6
+	joinOnDateBehavior: datePartOnly
+	fromColumn: MLopsHealth.last_retrain_date
+	toColumn: LocalDateTable_4edffa49-469f-4030-ad08-c8c366419e49.Date
+
+relationship 457cb041-e726-4694-9df1-127133eb09fc
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Retraining.next_retrain_date
+	toColumn: LocalDateTable_ef1a9e9b-ca7d-4971-8717-78dca195e0ef.Date
+
+relationship 5a8470fb-36fd-d5a4-a68a-528c6dca16de
+	fromColumn: ExtremeEvents.city
+	toColumn: Location.city
+
+relationship 78c4204f-591b-2d82-7627-00bd1b94f8a8
+	fromColumn: RiskAlerts.city
+	toColumn: Location.city
+
+relationship 2f988bd8-a3ea-9309-b059-04226a3b5b1f
+	fromColumn: ForecastDaily.city
+	toColumn: Location.city
+
+relationship a1981c56-169d-4849-a686-b6b7a14b58f0
+	fromColumn: ExtremeEvents.weather_date
+	toColumn: Calendar.Date
+
+relationship 6c745467-00a5-359d-20d8-16ae268ff1c3
+	fromColumn: RiskAlerts.weather_date
+	toColumn: Calendar.Date
+
+relationship e9b4d0d3-5a3e-3f79-4bef-180331b3efff
+	fromColumn: HomepageKPIs.latest_date
+	toColumn: Calendar.Date
+
+relationship ea4abe72-e00b-83b8-f6f3-cd115fd688b3
+	fromColumn: AnomalyDrift.date
+	toColumn: Calendar.Date
+
+relationship 3fa14666-cf5a-df75-4d0a-ed03057ac1ac
+	fromColumn: Retraining.retrain_date
+	toColumn: Calendar.Date
+
+relationship 14e94c5d-1bf2-4f05-967d-0f89c64d002a
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Calendar.Date
+	toColumn: LocalDateTable_e1662789-9542-4927-893f-f5339cce2452.Date
+
+relationship eff7a249-4421-d49c-3f9e-ce96c8394d6a
+	fromColumn: MLopsHealth.date
+	toColumn: Calendar.Date
+
+relationship 53f4cd3f-4cb0-e69f-5815-569ed6885f24
+	fromColumn: FeatureDrift.MonthDate
+	toColumn: Calendar.Date
+
+relationship 53214523-0c24-47d1-8068-a623e0c4b76f
+	joinOnDateBehavior: datePartOnly
+	fromColumn: ForecastDaily.actual_date
+	toColumn: LocalDateTable_5b721efc-f42b-4f53-9722-b187d553e3a7.Date
+
+relationship 102e69b3-520b-c8f9-af7f-2ffde06d4d7b
+	fromColumn: ForecastDaily.prediction_date
+	toColumn: Calendar.Date
+

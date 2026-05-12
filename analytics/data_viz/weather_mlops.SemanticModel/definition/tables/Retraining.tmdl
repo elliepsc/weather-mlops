@@ -1,0 +1,201 @@
+table Retraining
+	lineageTag: 5d816711-64d3-481f-b54b-7ef00a20dc7a
+
+	column retrain_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 9fdf8b6a-a873-474a-bc54-3f07024e04e2
+		summarizeBy: none
+		sourceColumn: retrain_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column source
+		dataType: string
+		lineageTag: 5e0d309c-f9b4-4ea0-b33c-9e322dec0173
+		summarizeBy: none
+		sourceColumn: source
+
+		annotation SummarizationSetBy = Automatic
+
+	column trigger_action
+		dataType: string
+		lineageTag: f7f531c7-17ca-4139-a502-ddab4b977290
+		summarizeBy: none
+		sourceColumn: trigger_action
+
+		annotation SummarizationSetBy = Automatic
+
+	column trigger_reason
+		dataType: string
+		lineageTag: b58b1145-5e86-48f8-bc19-7162e38e7d4e
+		summarizeBy: none
+		sourceColumn: trigger_reason
+
+		annotation SummarizationSetBy = Automatic
+
+	column n_drifted_features
+		dataType: int64
+		formatString: 0
+		lineageTag: df72ea94-de54-44cc-87ad-072b0d8c5e0e
+		summarizeBy: sum
+		sourceColumn: n_drifted_features
+
+		annotation SummarizationSetBy = Automatic
+
+	column heavy_drift
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 688527b7-3c36-40cd-9470-e91cf64f7e56
+		summarizeBy: none
+		sourceColumn: heavy_drift
+
+		annotation SummarizationSetBy = Automatic
+
+	column low_accuracy
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 7c8dcb5f-7e34-4b18-9966-ba66ded3344a
+		summarizeBy: none
+		sourceColumn: low_accuracy
+
+		annotation SummarizationSetBy = Automatic
+
+	column preceded_by_gap
+		dataType: int64
+		formatString: 0
+		lineageTag: cc2d7e92-f991-44ad-b74f-fcf46be54578
+		summarizeBy: sum
+		sourceColumn: preceded_by_gap
+
+		annotation SummarizationSetBy = Automatic
+
+	column gap_days_in_7d_window
+		dataType: int64
+		formatString: 0
+		lineageTag: 2962dd60-7bc5-4293-97c9-5d2c5d1713c0
+		summarizeBy: sum
+		sourceColumn: gap_days_in_7d_window
+
+		annotation SummarizationSetBy = Automatic
+
+	column max_missing_cities_7d
+		dataType: int64
+		formatString: 0
+		lineageTag: 5b91bc35-2e2f-48fe-ba7d-d9c82ff1f021
+		summarizeBy: sum
+		sourceColumn: max_missing_cities_7d
+
+		annotation SummarizationSetBy = Automatic
+
+	column avg_completeness_7d_pct
+		dataType: double
+		lineageTag: 36a732b6-24fa-4ed0-9a9f-bce5260b6ad3
+		summarizeBy: sum
+		sourceColumn: avg_completeness_7d_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column rain_accuracy_at_retrain
+		dataType: double
+		lineageTag: f54b3d55-babb-4b7b-82c2-9b13733b3fb8
+		summarizeBy: sum
+		sourceColumn: rain_accuracy_at_retrain
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column temp_mae_at_retrain
+		dataType: double
+		lineageTag: 194dc65c-498d-4b03-84e5-a53988cf9811
+		summarizeBy: sum
+		sourceColumn: temp_mae_at_retrain
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column next_retrain_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 4f6f7cb6-125c-4c30-bc7d-a2d0e9af08c9
+		summarizeBy: none
+		sourceColumn: next_retrain_date
+
+		variation Variation
+			isDefault
+			relationship: 457cb041-e726-4694-9df1-127133eb09fc
+			defaultHierarchy: LocalDateTable_ef1a9e9b-ca7d-4971-8717-78dca195e0ef.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column next_rain_accuracy
+		dataType: double
+		lineageTag: 48e8103e-ab35-439f-8abe-29f4a6396e66
+		summarizeBy: sum
+		sourceColumn: next_rain_accuracy
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column next_temp_mae
+		dataType: double
+		lineageTag: fb3e7049-3ace-4728-a21e-1262868b6915
+		summarizeBy: sum
+		sourceColumn: next_temp_mae
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column accuracy_delta
+		dataType: double
+		lineageTag: 775b8034-eed7-408a-9c6c-753ad508c462
+		summarizeBy: sum
+		sourceColumn: accuracy_delta
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column mae_delta
+		dataType: double
+		lineageTag: 3bb049f6-e078-449d-bd44-2e0146cd0679
+		summarizeBy: sum
+		sourceColumn: mae_delta
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column accuracy_degraded_after_retrain
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 26cc8584-6b8c-413a-aab2-c18247d0f90d
+		summarizeBy: none
+		sourceColumn: accuracy_degraded_after_retrain
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Retraining = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_retraining_history.csv"),[Delimiter=",", Columns=19, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"retrain_date", type date}, {"source", type text}, {"trigger_action", type text}, {"trigger_reason", type text}, {"n_drifted_features", Int64.Type}, {"heavy_drift", type logical}, {"low_accuracy", type logical}, {"preceded_by_gap", Int64.Type}, {"gap_days_in_7d_window", Int64.Type}, {"max_missing_cities_7d", Int64.Type}, {"avg_completeness_7d_pct", type number}, {"rain_accuracy_at_retrain", type number}, {"temp_mae_at_retrain", type number}, {"next_retrain_date", type date}, {"next_rain_accuracy", type number}, {"next_temp_mae", type number}, {"accuracy_delta", type number}, {"mae_delta", type number}, {"accuracy_degraded_after_retrain", type logical}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

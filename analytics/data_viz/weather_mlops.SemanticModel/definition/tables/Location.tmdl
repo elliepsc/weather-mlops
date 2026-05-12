@@ -1,0 +1,62 @@
+table Location
+	lineageTag: 0dd7bd07-5364-43da-8000-7098f04e830d
+
+	column city
+		dataType: string
+		lineageTag: 59a4aa79-4fa1-476d-86fd-0e67d6cd4bf9
+		summarizeBy: none
+		sourceColumn: city
+
+		annotation SummarizationSetBy = Automatic
+
+	column state
+		dataType: string
+		lineageTag: 54b82757-f579-41a6-b815-e9a2f5004479
+		summarizeBy: none
+		sourceColumn: state
+
+		annotation SummarizationSetBy = Automatic
+
+	column latitude
+		dataType: double
+		lineageTag: 6e5b9ffc-b1de-4e01-a70c-e6c04bb2cc00
+		summarizeBy: sum
+		sourceColumn: latitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column longitude
+		dataType: double
+		lineageTag: 46e966d7-e971-4d57-9c07-5399767c2cf2
+		summarizeBy: sum
+		sourceColumn: longitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column city_state
+		dataType: string
+		lineageTag: c7130657-0b86-4843-a035-5777700a95c2
+		summarizeBy: none
+		sourceColumn: city_state
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Location = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\location_cities.csv"),[Delimiter=",", Columns=5, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"latitude", type number}, {"longitude", type number}}),
+				    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"lieu", "city"}, {"lieu_state", "city_state"}})
+				in
+				    #"Renamed Columns"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

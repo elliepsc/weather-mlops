@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "c9ffa007d16140583c03",
+  "position": {
+    "x": 512,
+    "y": 70,
+    "z": 3300,
+    "height": 110,
+    "width": 238,
+    "tabOrder": 3300
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Avg Temp Demain"
+                }
+              },
+              "queryRef": "_Measures.Avg Temp Demain",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -87,7 +87,7 @@ Thumbs.db
 # ── Autres ───────────────────────────────────────────────────────────────────
 config/simple_auth_manager_passwords.json
 /weather-mlops
-pbi.md
+notes/
 
 # ── Dbt ───────────────────────────────────────────────────────────────────
 analytics/target/

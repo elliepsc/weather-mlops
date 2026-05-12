@@ -4,5 +4,8 @@ providers:
   - name: weather
     folder: Weather
     type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
     options:
       path: /etc/grafana/dashboards

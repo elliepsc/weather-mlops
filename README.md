@@ -410,11 +410,4 @@ logs/pipeline.log
 
 Projet developpe dans le cadre de la formation Machine Learning Engineer de DataScientest.
 
-| Contributeur | LinkedIn | GitHub |
-|---|---|---|
-| Leila BELMIR | | |
-| Anas MBARKI | | |
-| Ellie PASCAUD | | |
-| Sergio VELASCO | | |
-
 Mentor : Sebastien SIME - [LinkedIn](https://www.linkedin.com/in/s-sime/) - [GitHub](https://github.com/ssime-git)

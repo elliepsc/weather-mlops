@@ -2,15 +2,12 @@ table AnomalyDrift
 	lineageTag: 5d15ff9e-c36d-403c-995f-2b245a3a3fc3
 
 	column date
-		dataType: dateTime
-		formatString: Long Date
+		dataType: string
 		lineageTag: e87040ff-2e5f-4d8c-8a0a-bf9fa42d8141
 		summarizeBy: none
 		sourceColumn: date
 
 		annotation SummarizationSetBy = Automatic
-
-		annotation UnderlyingDateTimeDataType = Date
 
 	column n_features_monitored
 		dataType: int64
@@ -186,9 +183,10 @@ table AnomalyDrift
 				let
 				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_climate_anomaly_vs_drift.csv"),[Delimiter=",", Columns=19, Encoding=65001, QuoteStyle=QuoteStyle.None]),
 				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
-				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"date", type date}, {"n_features_monitored", Int64.Type}, {"n_drifted_features", Int64.Type}, {"mean_ks_stat", type number}, {"max_ks_stat", type number}, {"any_drift", type logical}, {"n_cities_observed", Int64.Type}, {"n_anomalous_cities", Int64.Type}, {"avg_composite_anomaly", type number}, {"max_composite_anomaly", type number}, {"avg_anomalous_features_per_city", type number}, {"avg_abs_z_max_temp", type number}, {"avg_abs_z_rainfall", type number}, {"avg_abs_z_wind_gust", type number}, {"high_weather_anomaly", type logical}, {"monitoring_action", type text}, {"heavy_drift", type logical}, {"low_accuracy", type logical}, {"drift_explainability_label", type text}})
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"date", type date}, {"n_features_monitored", Int64.Type}, {"n_drifted_features", Int64.Type}, {"mean_ks_stat", type number}, {"max_ks_stat", type number}, {"any_drift", type logical}, {"n_cities_observed", Int64.Type}, {"n_anomalous_cities", Int64.Type}, {"avg_composite_anomaly", type number}, {"max_composite_anomaly", type number}, {"avg_anomalous_features_per_city", type number}, {"avg_abs_z_max_temp", type number}, {"avg_abs_z_rainfall", type number}, {"avg_abs_z_wind_gust", type number}, {"high_weather_anomaly", type logical}, {"monitoring_action", type text}, {"heavy_drift", type logical}, {"low_accuracy", type logical}, {"drift_explainability_label", type text}}),
+				    #"Changed Type with Locale" = Table.TransformColumnTypes(#"Changed Type", {{"date", type text}}, "en-US")
 				in
-				    #"Changed Type"
+				    #"Changed Type with Locale"
 
 	annotation PBI_NavigationStepName = Navigation
 

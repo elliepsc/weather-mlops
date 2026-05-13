@@ -4,10 +4,10 @@
   "position": {
     "x": 16,
     "y": 445,
-    "z": 4800,
+    "z": 15000,
     "height": 260,
     "width": 250,
-    "tabOrder": 4800
+    "tabOrder": 15000
   },
   "visual": {
     "visualType": "slicer",
@@ -71,37 +71,5 @@
         }
       ]
     }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "46c883c8ce7c8de787a1",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "ForecastDaily"
-              }
-            },
-            "Property": "city"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "00ce9c7061abcdb8e57a",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Location"
-              }
-            },
-            "Property": "city"
-          }
-        },
-        "type": "Categorical"
-      }
-    ]
   }
 }

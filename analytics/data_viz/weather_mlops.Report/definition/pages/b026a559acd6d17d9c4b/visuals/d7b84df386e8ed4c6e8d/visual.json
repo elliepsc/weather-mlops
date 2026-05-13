@@ -4,10 +4,10 @@
   "position": {
     "x": 9999,
     "y": 9999,
-    "z": 1,
+    "z": 5000,
     "height": 490,
     "width": 730,
-    "tabOrder": 1
+    "tabOrder": 5000
   },
   "visual": {
     "visualType": "map",

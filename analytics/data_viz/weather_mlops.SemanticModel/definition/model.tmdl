@@ -19,7 +19,6 @@ ref table RiskAlerts
 ref table ExtremeEvents
 ref table LocalDateTable_7dbb8f97-cede-4834-afd2-afdce788fff9
 ref table MLopsHealth
-ref table LocalDateTable_4edffa49-469f-4030-ad08-c8c366419e49
 ref table Retraining
 ref table LocalDateTable_ef1a9e9b-ca7d-4971-8717-78dca195e0ef
 ref table FeatureDrift

@@ -4,10 +4,10 @@
   "position": {
     "x": 774.83266592980488,
     "y": 59.374150645962061,
-    "z": 7100,
+    "z": 8000,
     "height": 299.83946076210839,
     "width": 504.68028049067755,
-    "tabOrder": 7100
+    "tabOrder": 8000
   },
   "visual": {
     "visualType": "pivotTable",
@@ -344,65 +344,5 @@
         }
       ]
     }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "5e3ab72027d02908d493",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Location"
-              }
-            },
-            "Property": "city_state"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "778d88ae7bf8278d733d",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Weather Score"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "426c8be4438696e09675",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Performance Category"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "5f46c445ea516a9c8b2b",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Nb Alertes Aujourd'hui"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

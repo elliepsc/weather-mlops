@@ -4,10 +4,10 @@
   "position": {
     "x": 16,
     "y": 445,
-    "z": 6700,
+    "z": 16000,
     "height": 260,
     "width": 790,
-    "tabOrder": 6700
+    "tabOrder": 16000
   },
   "visual": {
     "visualType": "tableEx",
@@ -114,5 +114,93 @@
         ]
       }
     }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "4f68b69aa264790fd6d6",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "MLopsHealth"
+              }
+            },
+            "Property": "date"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "91819e0a2a9d9bf8c5c8",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "MLopsHealth"
+              }
+            },
+            "Property": "completeness_pct"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "b2e4d27293f5f9ef705b",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "MLopsHealth"
+              }
+            },
+            "Property": "n_drifted_features"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "88eebd8db0a9a18957c3",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "MLopsHealth"
+              }
+            },
+            "Property": "rain_accuracy_30d"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "ccaa5a7e61224af11ff1",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "MLopsHealth"
+              }
+            },
+            "Property": "temp_mae_30d"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "5fe571ec46ab66abd867",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "MLopsHealth"
+              }
+            },
+            "Property": "monitoring_action"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
   }
 }

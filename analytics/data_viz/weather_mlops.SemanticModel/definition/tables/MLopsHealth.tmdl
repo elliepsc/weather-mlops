@@ -140,20 +140,12 @@ table MLopsHealth
 		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column last_retrain_date
-		dataType: dateTime
-		formatString: Long Date
+		dataType: string
 		lineageTag: 2e58e150-7446-45a3-8234-e6e0ea61a232
 		summarizeBy: none
 		sourceColumn: last_retrain_date
 
-		variation Variation
-			isDefault
-			relationship: c7b21540-7353-4fa4-a133-3a24b02e40f6
-			defaultHierarchy: LocalDateTable_4edffa49-469f-4030-ad08-c8c366419e49.'Date Hierarchy'
-
 		annotation SummarizationSetBy = Automatic
-
-		annotation UnderlyingDateTimeDataType = Date
 
 	column days_since_retrain
 		dataType: int64
@@ -164,15 +156,30 @@ table MLopsHealth
 
 		annotation SummarizationSetBy = Automatic
 
+	column date_en
+		dataType: string
+		lineageTag: da15687b-93e9-4219-8da6-2c5773eae9f6
+		summarizeBy: none
+		sourceColumn: date_en
+
+		annotation SummarizationSetBy = Automatic
+
 	partition MLopsHealth = m
 		mode: import
 		source =
 				let
 				    Source = Csv.Document(File.Contents("C:\Users\Ellie Pro\Documents\Projets Data\projets_github\weather-mlops\data\analytics\mart_mlops_health.csv"),[Delimiter=",", Columns=17, Encoding=1252, QuoteStyle=QuoteStyle.None]),
 				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
-				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"date", type date}, {"completeness_pct", type number}, {"missing_city_count", Int64.Type}, {"present_cities", Int64.Type}, {"expected_cities", Int64.Type}, {"has_gap", type logical}, {"monitoring_action", type text}, {"monitoring_reason", type text}, {"n_drifted_features", Int64.Type}, {"heavy_drift", type logical}, {"mild_drift", type logical}, {"low_accuracy", type logical}, {"high_mae", type logical}, {"rain_accuracy_30d", type number}, {"temp_mae_30d", type number}, {"last_retrain_date", type date}, {"days_since_retrain", Int64.Type}})
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"date", type date}, {"completeness_pct", type number}, {"missing_city_count", Int64.Type}, {"present_cities", Int64.Type}, {"expected_cities", Int64.Type}, {"has_gap", type logical}, {"monitoring_action", type text}, {"monitoring_reason", type text}, {"n_drifted_features", Int64.Type}, {"heavy_drift", type logical}, {"mild_drift", type logical}, {"low_accuracy", type logical}, {"high_mae", type logical}, {"rain_accuracy_30d", type number}, {"temp_mae_30d", type number}, {"last_retrain_date", type date}, {"days_since_retrain", Int64.Type}}),
+				    #"Changed Type with Locale" = Table.AddColumn(
+				    #"Changed Type",
+				    "date_en",
+				    each if [date] = null then null else Date.ToText([date], [Format="dddd d MMMM yyyy", Culture="en-US"]),
+				    type text
+				),
+				    #"Changed Type with Locale1" = Table.TransformColumnTypes(#"Changed Type with Locale", {{"last_retrain_date", type text}}, "en-US")
 				in
-				    #"Changed Type"
+				    #"Changed Type with Locale1"
 
 	annotation PBI_NavigationStepName = Navigation
 

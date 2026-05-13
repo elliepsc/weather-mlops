@@ -8,11 +8,6 @@ relationship 1424a701-f2f5-49ee-b960-01a300831485
 	fromColumn: ExtremeEvents.year_month
 	toColumn: LocalDateTable_7dbb8f97-cede-4834-afd2-afdce788fff9.Date
 
-relationship c7b21540-7353-4fa4-a133-3a24b02e40f6
-	joinOnDateBehavior: datePartOnly
-	fromColumn: MLopsHealth.last_retrain_date
-	toColumn: LocalDateTable_4edffa49-469f-4030-ad08-c8c366419e49.Date
-
 relationship 457cb041-e726-4694-9df1-127133eb09fc
 	joinOnDateBehavior: datePartOnly
 	fromColumn: Retraining.next_retrain_date

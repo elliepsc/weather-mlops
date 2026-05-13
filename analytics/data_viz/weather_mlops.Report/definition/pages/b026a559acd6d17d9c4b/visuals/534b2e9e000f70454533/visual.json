@@ -4,10 +4,10 @@
   "position": {
     "x": 760,
     "y": 575,
-    "z": 7400,
+    "z": 11000,
     "height": 110,
     "width": 504,
-    "tabOrder": 7400
+    "tabOrder": 11000
   },
   "visual": {
     "visualType": "slicer",
@@ -71,37 +71,5 @@
         }
       ]
     }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "bf14f8d5285264223468",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Location"
-              }
-            },
-            "Property": "city_state"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "0ade6f031350421bede4",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Location"
-              }
-            },
-            "Property": "city"
-          }
-        },
-        "type": "Categorical"
-      }
-    ]
   }
 }

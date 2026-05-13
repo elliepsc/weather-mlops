@@ -4,10 +4,10 @@
   "position": {
     "x": 630,
     "y": 195,
-    "z": 5600,
+    "z": 19000,
     "height": 235,
     "width": 634,
-    "tabOrder": 5600
+    "tabOrder": 19000
   },
   "visual": {
     "visualType": "pivotTable",
@@ -361,121 +361,5 @@
         }
       ]
     }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "4b7a9959ff089b2ec7a8",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "ForecastDaily"
-              }
-            },
-            "Property": "city"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "1d66f74f2db18a442674",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Rain Accuracy %"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "8f99458afcd8207b1c3c",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Precision"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "dfd6703d9184e94df9aa",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Recall"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "e5158b8a86acb68969f8",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "F1 Score"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "6186648a1206d8241a6b",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "TP"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "3efc5fd8932717819fbc",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "FP"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "515fcf886f46e796c252",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "FN"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

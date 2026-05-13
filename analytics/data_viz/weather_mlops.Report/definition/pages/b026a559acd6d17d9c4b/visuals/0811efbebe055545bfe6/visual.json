@@ -4,10 +4,10 @@
   "position": {
     "x": 760,
     "y": 385,
-    "z": 7200,
+    "z": 9000,
     "height": 175,
     "width": 244,
-    "tabOrder": 7200
+    "tabOrder": 9000
   },
   "visual": {
     "visualType": "card",
@@ -33,23 +33,5 @@
         }
       }
     }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "cc35c3bc93f97483b317",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Weather Score"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

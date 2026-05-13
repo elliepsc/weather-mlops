@@ -4,10 +4,10 @@
   "position": {
     "x": 35.820895522388057,
     "y": 440.59701492537312,
-    "z": 4101,
+    "z": 23000,
     "height": 274.62686567164178,
     "width": 217.31343283582089,
-    "tabOrder": 4101
+    "tabOrder": 23000
   },
   "visual": {
     "visualType": "slicer",
@@ -50,23 +50,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "9fe81733c6bd930d712a",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Location"
-              }
-            },
-            "Property": "city"
-          }
-        },
-        "type": "Categorical"
-      }
-    ]
   }
 }

@@ -4,10 +4,10 @@
   "position": {
     "x": 820,
     "y": 580,
-    "z": 6900,
+    "z": 18000,
     "height": 125,
     "width": 444,
-    "tabOrder": 6900
+    "tabOrder": 18000
   },
   "visual": {
     "visualType": "card",
@@ -33,23 +33,5 @@
         }
       }
     }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "66c2489fdccd12c70a1f",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Nb Retrains Dégradants"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

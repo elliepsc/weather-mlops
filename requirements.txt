@@ -26,6 +26,9 @@ prometheus-fastapi-instrumentator==7.1.0
 # HTTP client (Open-Meteo)
 requests==2.32.3
 
+# PostgreSQL (Neon sync)
+psycopg2-binary==2.9.10
+
 # Airflow (install separately — heavyweight, not included in pip install -r)
 # On WSL: cd ~ && pip install apache-airflow --no-cache-dir
 # On Linux/macOS: pip install apache-airflow==3.0.0

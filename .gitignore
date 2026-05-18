@@ -33,9 +33,9 @@ data/production_logs/
 data/raw.dvc
 
 # ── Demo data (DEMO_MODE) ─────────────────────────────────────────────────────
-# Le répertoire demo/ est ignoré sauf les deux bases générées par generate_demo_dataset.py.
-# Ces fichiers sont committés pour que Render les trouve au build sans recalcul.
-data/demo/
+# Tout le contenu de data/demo/ est ignoré sauf les deux bases générées.
+# Note: data/demo/ ignorerait le répertoire entier; data/demo/* permet les négations.
+data/demo/*
 !data/demo/*.db
 !data/demo/*.duckdb
 

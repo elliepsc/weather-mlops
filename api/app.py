@@ -242,10 +242,10 @@ def get_predictions(
             params.append(city)
         if start_date:
             query += " AND date >= ?"
-                params.append(start_date)
-            if end_date:
-                query += " AND date <= ?"
-                params.append(end_date)
+            params.append(start_date)
+        if end_date:
+            query += " AND date <= ?"
+            params.append(end_date)
         query += " ORDER BY date DESC, city"
         df = _query_df(query, params)
     except Exception as exc:

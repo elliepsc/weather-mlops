@@ -91,3 +91,9 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -q --tb=short
+
+# Notes pour debug
+## Black : black --check .  ou  black . pour auto-format (ou black dags/ api/ pipeline/ tests/)
+## Ruff : ruff check .  ou  ruff check . --fix pour auto-fix (ou ruff check dags/ api/ pipeline/ tests/ --fix)
+## Pytest : pytest tests/ -q --tb=short
+

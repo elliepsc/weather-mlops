@@ -120,7 +120,12 @@ def sync_to_postgres(days_raw: int = DAYS_RAW, days_predictions: int = DAYS_PRED
     import psycopg2
     from psycopg2.extras import execute_values
 
-    from pipeline.database import DB_PATH, RAW_WEATHER_COLUMNS, WEATHER_PREDICTION_COLUMN_DEFS, get_connection
+    from pipeline.database import (
+        DB_PATH,
+        RAW_WEATHER_COLUMNS,
+        WEATHER_PREDICTION_COLUMN_DEFS,
+        get_connection,
+    )
 
     pred_cols = [c for c, _ in WEATHER_PREDICTION_COLUMN_DEFS]
     cutoff_raw = (date.today() - timedelta(days=days_raw)).isoformat()

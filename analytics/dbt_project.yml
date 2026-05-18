@@ -28,33 +28,45 @@ models:
     marts:
       +materialized: table
       +schema: marts
-      weather:
-        +materialized: table
-        +schema: marts
-      forecast:
-        +materialized: table
-        +schema: marts
-      quality:
-        +materialized: table
-        +schema: marts
-      scorecard:
-        +materialized: table
-        +schema: marts
+      # --- Always on: Power BI dashboard tables ---
       bi:
         +materialized: table
         +schema: marts
+        +enabled: true
       location:
         +materialized: table
         +schema: marts
+        +enabled: true
+      # --- On-demand groups: disabled by default, activate via --vars ---
+      # dbt run --select marts.weather --vars '{"enable_weather_marts": true}'
+      weather:
+        +materialized: table
+        +schema: marts
+        +enabled: "{{ var('enable_weather_marts', false) }}"
+      forecast:
+        +materialized: table
+        +schema: marts
+        +enabled: "{{ var('enable_forecast_marts', false) }}"
+      quality:
+        +materialized: table
+        +schema: marts
+        +enabled: "{{ var('enable_quality_marts', false) }}"
+      scorecard:
+        +materialized: table
+        +schema: marts
+        +enabled: "{{ var('enable_scorecard_marts', false) }}"
       model:
         +materialized: table
         +schema: marts
+        +enabled: "{{ var('enable_model_marts', false) }}"
       drift:
         +materialized: table
         +schema: marts
+        +enabled: "{{ var('enable_drift_marts', false) }}"
       operations:
         +materialized: table
         +schema: marts
+        +enabled: "{{ var('enable_ops_marts', false) }}"
 
 vars:
   # Lookback windows
@@ -64,3 +76,12 @@ vars:
   # Data horizon: rows before this date are excluded from all staging models.
   # Change here to widen or narrow the analytics window without touching SQL.
   min_date: "2016-01-01"
+  # Mart group toggles — all off by default, activate via --vars at run time.
+  # See analytics/docs/mart_activation.md for usage patterns.
+  enable_weather_marts: false
+  enable_forecast_marts: false
+  enable_quality_marts: false
+  enable_scorecard_marts: false
+  enable_model_marts: false
+  enable_drift_marts: false
+  enable_ops_marts: false

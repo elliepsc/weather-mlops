@@ -95,6 +95,8 @@ analytics/dbt_packages/
 analytics/logs/
 analytics/*.duckdb
 analytics/profiles.yml
+analytics/*.backup
+analytics/docs/
 
 # ── analytics ───────────────────────────────────────────────────────────────
 **/.pbi/localSettings.json

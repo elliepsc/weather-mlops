@@ -56,6 +56,7 @@ def _query_df(sql: str, params=None) -> pd.DataFrame:
     with get_connection(APP_DB_PATH) as conn:
         return pd.read_sql(sql, conn, params=params or [])
 
+
 app = FastAPI(
     title="Weather Australia API",
     description="Historical weather data + ML predictions for 26 Australian cities.",

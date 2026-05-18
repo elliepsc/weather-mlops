@@ -14,6 +14,7 @@ import pandas as pd
 # Load .env when running as a standalone script or in local Airflow
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).parent.parent / ".env")
 except ImportError:
     pass
@@ -139,7 +140,9 @@ def sync_to_postgres(days_raw: int = DAYS_RAW, days_predictions: int = DAYS_PRED
         )
         pred_cols_sql = ", ".join(pred_cols)
         df_pred = pd.read_sql(
-            f"SELECT {pred_cols_sql} FROM weather_predictions WHERE date >= ?", conn, params=(cutoff_pred,)
+            f"SELECT {pred_cols_sql} FROM weather_predictions WHERE date >= ?",
+            conn,
+            params=(cutoff_pred,),
         )
 
     logger.info("Syncing %d raw rows, %d prediction rows...", len(df_raw), len(df_pred))

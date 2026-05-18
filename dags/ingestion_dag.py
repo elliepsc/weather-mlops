@@ -97,6 +97,12 @@ def step_export(**kwargs):
     _step_export()
 
 
+def step_sync_to_postgres(**kwargs):
+    from pipeline.sync_to_postgres import sync_to_postgres
+
+    sync_to_postgres()
+
+
 with DAG(
     dag_id="weather_daily_ingestion",
     description="Daily fetch from Open-Meteo API plus quality check and prediction refresh",
@@ -132,5 +138,10 @@ with DAG(
         python_callable=step_export,
         execution_timeout=timedelta(minutes=10),
     )
+    t_sync = PythonOperator(
+        task_id="sync_to_postgres",
+        python_callable=step_sync_to_postgres,
+        execution_timeout=timedelta(minutes=10),
+    )
 
-    t_init >> t_fetch >> t_check >> t_predict >> t_export
+    t_init >> t_fetch >> t_check >> t_predict >> t_export >> t_sync

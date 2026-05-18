@@ -7,6 +7,9 @@ ROOT = Path(__file__).parent.parent
 
 DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("1", "true", "yes")
 
+# Neon PostgreSQL — when set, the API reads from PostgreSQL instead of SQLite
+NEON_DATABASE_URL: str = os.getenv("NEON_DATABASE_URL", "")
+
 # SQLite pipeline database
 from pipeline.database import DB_PATH as _PROD_DB_PATH
 

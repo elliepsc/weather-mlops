@@ -1,6 +1,6 @@
-# Minimal requirements for Render deployment (DEMO_MODE=true).
+# Minimal requirements for Render deployment.
 # Heavy packages (xgboost, scikit-learn, mlflow, dbt, airflow) are excluded:
-# they are not needed when DEMO_MODE=true; mlflow endpoints return empty data.
+# they are not needed on Render; mlflow endpoints return cached data.
 
 fastapi==0.136.0
 uvicorn[standard]==0.45.0
@@ -12,3 +12,4 @@ requests==2.32.3
 pydantic==2.13.3
 pydantic-settings==2.14.0
 PyYAML==6.0.3
+psycopg2-binary==2.9.10

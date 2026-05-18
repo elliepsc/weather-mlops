@@ -37,9 +37,24 @@ from api.config import (
     APP_DB_PATH,
     DEMO_MODE,
     MLFLOW_JSON_PATH,
+    NEON_DATABASE_URL,
     OUTPUT_CSV,
 )
 from pipeline.database import get_connection
+
+
+def _query_df(sql: str, params=None) -> pd.DataFrame:
+    """Run a SELECT and return a DataFrame — uses PostgreSQL when NEON_DATABASE_URL is set."""
+    if NEON_DATABASE_URL:
+        import psycopg2
+
+        conn = psycopg2.connect(NEON_DATABASE_URL)
+        try:
+            return pd.read_sql(sql.replace("?", "%s"), conn, params=params or [])
+        finally:
+            conn.close()
+    with get_connection(APP_DB_PATH) as conn:
+        return pd.read_sql(sql, conn, params=params or [])
 
 app = FastAPI(
     title="Weather Australia API",
@@ -91,13 +106,13 @@ def health():
     except Exception:
         pass
 
-    # Last data update from SQLite
+    # Last data update
     last_data_update = None
     try:
-        with get_connection(APP_DB_PATH) as conn:
-            row = conn.execute("SELECT MAX(date) FROM weather_raw").fetchone()
-            if row and row[0]:
-                last_data_update = str(row[0])
+        row = _query_df("SELECT MAX(date) AS d FROM weather_raw")
+        val = row["d"].iloc[0] if not row.empty else None
+        if val is not None:
+            last_data_update = str(val)
     except Exception:
         pass
 
@@ -114,6 +129,9 @@ def health():
 
     return {
         "status": "ok",
+        "demo_mode": DEMO_MODE and not NEON_DATABASE_URL,
+        "db": "postgresql" if NEON_DATABASE_URL else "sqlite",
+        "db_exists": bool(NEON_DATABASE_URL) or APP_DB_PATH.exists(),
         "duckdb_connected": duckdb_connected,
         "last_data_update": last_data_update,
         "model_version": model_version,
@@ -146,20 +164,19 @@ def get_weather(
     Power BI: Data → Web → paste this URL → JSON → expand 'data'.
     """
     try:
-        with get_connection(APP_DB_PATH) as conn:
-            query = "SELECT * FROM v_weather_full WHERE 1=1"
-            params = []
-            if city:
-                query += " AND city = ?"
-                params.append(city)
-            if start_date:
-                query += " AND date >= ?"
-                params.append(start_date)
-            if end_date:
-                query += " AND date <= ?"
-                params.append(end_date)
-            query += f" ORDER BY date DESC, city LIMIT {int(limit)}"
-            df = pd.read_sql(query, conn, params=params)
+        query = "SELECT * FROM v_weather_full WHERE 1=1"
+        params = []
+        if city:
+            query += " AND city = ?"
+            params.append(city)
+        if start_date:
+            query += " AND date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND date <= ?"
+            params.append(end_date)
+        query += f" ORDER BY date DESC, city LIMIT {int(limit)}"
+        df = _query_df(query, params)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -176,22 +193,21 @@ def get_weather(
 def get_latest(city: Optional[str] = Query(None)):
     """Latest available date per city with all predictions — ideal for a Power BI dashboard."""
     try:
-        with get_connection(APP_DB_PATH) as conn:
-            base = """
-                SELECT w.*
-                FROM v_weather_full w
-                INNER JOIN (
-                    SELECT city, MAX(date) AS max_date
-                    FROM v_weather_full
-                    WHERE predicted_at IS NOT NULL
-                    GROUP BY city
-                ) m ON w.city = m.city AND w.date = m.max_date
-            """
-            params = []
-            if city:
-                base += " WHERE w.city = ?"
-                params.append(city)
-            df = pd.read_sql(base, conn, params=params)
+        base = """
+            SELECT w.*
+            FROM v_weather_full w
+            INNER JOIN (
+                SELECT city, MAX(date) AS max_date
+                FROM v_weather_full
+                WHERE predicted_at IS NOT NULL
+                GROUP BY city
+            ) m ON w.city = m.city AND w.date = m.max_date
+        """
+        params = []
+        if city:
+            base += " WHERE w.city = ?"
+            params.append(city)
+        df = _query_df(base, params)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -211,28 +227,27 @@ def get_predictions(
 ):
     """Predictions-only table (lighter payload for Power BI dashboards)."""
     try:
-        with get_connection(APP_DB_PATH) as conn:
-            query = """
-                SELECT date, city,
-                       rain_tomorrow, rain_tomorrow_proba,
-                       max_temp_tomorrow, weather_type_tomorrow,
-                       comfort_score,
-                       heatwave_risk, frost_risk, storm_probability,
-                       predicted_at
-                FROM weather_predictions WHERE 1=1
-            """
-            params = []
-            if city:
-                query += " AND city = ?"
-                params.append(city)
-            if start_date:
-                query += " AND date >= ?"
+        query = """
+            SELECT date, city,
+                   rain_tomorrow, rain_tomorrow_proba,
+                   max_temp_tomorrow, weather_type_tomorrow,
+                   comfort_score,
+                   heatwave_risk, frost_risk, storm_probability,
+                   predicted_at
+            FROM weather_predictions WHERE 1=1
+        """
+        params = []
+        if city:
+            query += " AND city = ?"
+            params.append(city)
+        if start_date:
+            query += " AND date >= ?"
                 params.append(start_date)
             if end_date:
                 query += " AND date <= ?"
                 params.append(end_date)
-            query += " ORDER BY date DESC, city"
-            df = pd.read_sql(query, conn, params=params)
+        query += " ORDER BY date DESC, city"
+        df = _query_df(query, params)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

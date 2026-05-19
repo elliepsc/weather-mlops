@@ -489,11 +489,13 @@ bash ~/start_airflow.sh
 
 | DAG | Schedule | Déclenchement | Tâches principales |
 |---|---|---|---|
-| `weather_daily_ingestion` | `0 6 * * *` | Automatique | init_db → fetch J-1 → check qualité → predict → export |
+| `weather_daily_ingestion` | `0 6 * * *` | Automatique | init_db → fetch J-1 → check qualité → predict → export → **sync_to_postgres** |
 | `weather_weekly_train` | `0 2 * * 1` | Automatique (lundi) | snapshot baseline → retrain → compare baseline → rollback si dégradé sinon predict → export |
 | `weather_daily_monitoring` | `0 9 * * *` | Automatique | qualité → couverture → drift KS → métriques → décision 4 voies |
 | `weather_backfill` | Manuel | Trigger UI avec config JSON | fetch historique → repair gaps → retrain → predict → export |
 | `weather_gap_monitor` | Planifié | Automatique | détection et réparation des trous dans `weather_raw` |
+
+> `sync_to_postgres` est la dernière tâche du DAG `weather_daily_ingestion`. Elle est silencieuse si `NEON_DATABASE_URL` n'est pas défini — aucun breaking change en local.
 
 ### 4.5 Activer les DAGs
 
@@ -789,7 +791,126 @@ docker compose up -d
 
 ---
 
-## PARTIE 11 — Checklist de vérification complète
+## PARTIE 11 — Déploiement cloud (Render + Neon + Streamlit Cloud)
+
+### 11.1 Architecture cloud
+
+```
+Local (Airflow quotidien)
+    SQLite (weather.db)
+          │
+          ▼ sync_to_postgres (06:xx UTC)
+    Neon PostgreSQL (Frankfurt)
+          │
+          ▼
+    Render API (weather-mlops-api.onrender.com)
+          │
+          ▼
+    Streamlit Cloud (app Streamlit publique)
+```
+
+### 11.2 Setup initial Neon (une seule fois)
+
+1. Créer un compte sur [neon.tech](https://neon.tech)
+2. Créer un projet **weather-mlops** — région **AWS Frankfurt** (eu-central-1)
+3. Copier la **Connection string** (onglet "Connection string", sans pooling) :
+   ```
+   postgresql://neondb_owner:xxxx@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+   ```
+4. Ajouter dans `.env` local :
+   ```env
+   NEON_DATABASE_URL=postgresql://neondb_owner:xxxx@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+   ```
+5. Populer Neon pour la première fois (crée les tables + view + upsert 180 jours) :
+   ```bash
+   python -c "
+   import logging; logging.basicConfig(level=logging.INFO)
+   from pipeline.sync_to_postgres import sync_to_postgres
+   sync_to_postgres()
+   "
+   ```
+   Résultat attendu :
+   ```
+   INFO:pipeline.sync_to_postgres:Syncing 4675 raw rows, 2335 prediction rows...
+   INFO:pipeline.sync_to_postgres:PostgreSQL sync complete.
+   ```
+
+### 11.3 Setup Render (une seule fois)
+
+1. Dans le dashboard Render → service **weather-mlops-api** → **Environment**
+2. Ajouter / vérifier ces variables :
+
+| Clé | Valeur |
+|---|---|
+| `DEMO_MODE` | `false` |
+| `NEON_DATABASE_URL` | `postgresql://neondb_owner:xxxx@ep-xxx...` |
+| `PYTHON_VERSION` | `3.11.0` |
+
+3. Redéployer manuellement ("Manual Deploy") ou attendre le push automatique
+
+**Vérification :** ouvrir `https://weather-mlops-api.onrender.com/health`
+Résultat attendu :
+```json
+{
+  "status": "ok",
+  "demo_mode": false,
+  "db": "postgresql",
+  "last_data_update": "2026-05-17"
+}
+```
+
+### 11.4 Setup Streamlit Cloud (une seule fois)
+
+1. Sur [streamlit.io/cloud](https://streamlit.io/cloud) → **New app** → dépôt `weather-mlops`
+2. Dans **Settings → Secrets** :
+   ```toml
+   API_URL = "https://weather-mlops-api.onrender.com"
+   ```
+3. Aucune autre variable nécessaire — Streamlit lit uniquement l'API Render.
+
+### 11.5 Cycle quotidien automatique
+
+Chaque jour à 6h UTC, le DAG `weather_daily_ingestion` exécute :
+
+```
+init_db → fetch_daily → check_daily_ingestion → run_predictions → export_csv → sync_to_postgres
+```
+
+La dernière tâche `sync_to_postgres` pousse automatiquement les 180 derniers jours vers Neon.
+Render lit Neon à chaque requête — pas de redéploiement nécessaire.
+
+### 11.6 Sync manuel forcé
+
+Pour resynchroniser immédiatement sans attendre le DAG :
+```bash
+python -c "
+import logging; logging.basicConfig(level=logging.INFO)
+from pipeline.sync_to_postgres import sync_to_postgres
+sync_to_postgres()
+"
+```
+
+Pour changer la fenêtre de rétention (ex. 365 jours raw, 180 jours prédictions) :
+```bash
+python -c "
+from pipeline.sync_to_postgres import sync_to_postgres
+sync_to_postgres(days_raw=365, days_predictions=180)
+"
+```
+
+### 11.7 Dépannage
+
+| Symptôme | Cause probable | Action |
+|---|---|---|
+| Render retourne `"db": "sqlite"` | `NEON_DATABASE_URL` absent ou vide dans Render env | Vérifier la variable dans Render → Environment |
+| Render retourne `"demo_mode": true` | `DEMO_MODE=true` toujours actif | Passer `DEMO_MODE=false` dans Render env |
+| `sync_to_postgres` silencieux en local | `NEON_DATABASE_URL` pas chargé | Vérifier que la variable est dans `.env` à la racine du projet |
+| Données figées malgré sync | Cache Streamlit (`ttl=3600`) | Attendre 1h ou vider le cache via "⋮ → Clear cache" dans l'app |
+| `psycopg2.OperationalError` | URL Neon incorrecte ou projet suspendu | Vérifier l'URL et l'état du projet sur neon.tech |
+
+---
+
+## PARTIE 12 — Checklist de vérification complète
 
 ```bash
 # 1. Base de données
@@ -850,7 +971,9 @@ SERVICES (démarrer manuellement ou via gestionnaire de processus)
           v
 CYCLE QUOTIDIEN (Airflow automatique)
     06:00 UTC — weather_daily_ingestion
-        fetch J-1 → check qualité (≥ 21/26 villes) → predict → export
+        fetch J-1 → check qualité (≥ 21/26 villes) → predict → export → sync_to_postgres
+              |
+              └──────────────────────────────────────► Neon PostgreSQL → Render API → Streamlit
     09:00 UTC — weather_daily_monitoring
         qualité → drift KS → métriques 30j → décision 4 voies
           |

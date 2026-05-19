@@ -1,66 +1,66 @@
 {
-  "exported_at": "2026-05-18T07:36:12Z",
-  "run_id": "c9595bbb06514311a2438916501114d0",
-  "run_name": "train_20260518_070106",
-  "start_time": "2026-05-18T07:01:07Z",
-  "duration_seconds": 2101,
+  "exported_at": "2026-05-18T20:42:37Z",
+  "run_id": "3167172e9f51414bbd19e7c535085091",
+  "run_name": "train_20260518_200542",
+  "start_time": "2026-05-18T20:05:43Z",
+  "duration_seconds": 2209,
   "status": "FINISHED",
-  "model_version": "20260518_070106",
+  "model_version": "20260518_200542",
   "metrics": {
-    "rain_accuracy": 0.7641,
+    "rain_accuracy": 0.767,
     "temp_mae": 1.598
   },
   "params": {
-    "n_rows": "174455",
+    "n_rows": "174481",
     "n_features": "46",
     "n_cities": "26",
     "date_range_start": "2008-01-01",
-    "date_range_end": "2026-05-15"
+    "date_range_end": "2026-05-16"
   },
   "tags": {},
   "baseline_metrics": {
-    "rain_accuracy": 0.7656,
-    "temp_mae": 1.611,
+    "rain_accuracy": 0.7641,
+    "temp_mae": 1.598,
     "temp_r2": 0.9068
   },
   "delta_vs_baseline": {
-    "rain_accuracy": -0.0015,
-    "temp_mae": -0.013
+    "rain_accuracy": 0.0029,
+    "temp_mae": 0.0
   },
   "model_metrics": {
     "rain_tomorrow": {
-      "accuracy": 0.7641,
-      "f1": 0.6292,
-      "auc_roc": 0.8473,
-      "pos_rate": 0.2616
+      "accuracy": 0.767,
+      "f1": 0.634,
+      "auc_roc": 0.8523,
+      "pos_rate": 0.2617
     },
     "max_temp_tomorrow": {
       "mae": 1.598,
-      "r2": 0.9068,
+      "r2": 0.9073,
       "rmse": 2.214
     },
     "weather_type_tomorrow": {
-      "accuracy": 0.7741,
-      "f1_macro": 0.842,
-      "f1_weighted": 0.7739,
+      "accuracy": 0.7723,
+      "f1_macro": 0.8407,
+      "f1_weighted": 0.7721,
       "n_classes": 3
     },
     "heatwave_risk": {
-      "accuracy": 0.9768,
-      "f1": 0.7627,
-      "auc_roc": 0.9966,
+      "accuracy": 0.9774,
+      "f1": 0.7667,
+      "auc_roc": 0.9965,
       "pos_rate": 0.0377
     },
     "frost_risk": {
-      "accuracy": 0.9425,
-      "f1": 0.4775,
-      "auc_roc": 0.9881,
+      "accuracy": 0.9441,
+      "f1": 0.4849,
+      "auc_roc": 0.9885,
       "pos_rate": 0.0272
     },
     "storm_probability": {
-      "accuracy": 0.873,
-      "f1": 0.1992,
-      "auc_roc": 0.8887,
+      "accuracy": 0.8687,
+      "f1": 0.1902,
+      "auc_roc": 0.8894,
       "pos_rate": 0.0221
     }
   }

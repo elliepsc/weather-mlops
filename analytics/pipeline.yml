@@ -1,0 +1,80 @@
+# analytics/pipeline.yml
+# Single source of truth for the dbt analytics pipeline.
+# DAG (dbt_dag.py), Makefile, and scripts all read this file.
+#
+# To add a model to the daily export:
+#   1. Add its path/tag to run_select (or it's already built via +path:models/marts/bi)
+#   2. Add its name to the export list
+#   No code change needed anywhere else.
+#
+# To switch pipeline:  ANALYTICS_PIPELINE=full_build make analytics-daily
+#
+# run_select  : passed to `dbt run --select`  (list; + = include upstream parents via ref() graph)
+# test_select : passed to `dbt test --select` (list; usually without + to stay focused on marts)
+# export      : explicit list of DuckDB mart tables to write as CSV in data/analytics/
+#               Each table must have been built by run_select before export can succeed.
+
+pipelines:
+  daily_bi:
+    run_select:
+      - "+path:models/marts/bi"
+    test_select:
+      - "path:models/marts/bi"
+    export:
+      - bi_dashboard_overview
+      - bi_data_quality_summary
+      - bi_powerbi_homepage_kpis
+      - bi_weather_alerts_summary_monthly
+      - bi_weather_current_snapshot
+      - bi_weather_extremes
+      - bi_weather_risk_alerts
+
+  full_build:
+    run_select:
+      - "path:models"
+    test_select:
+      - "path:models/marts"
+    export:
+      # BI dashboards
+      - bi_dashboard_overview
+      - bi_data_quality_summary
+      - bi_powerbi_homepage_kpis
+      - bi_weather_alerts_summary_monthly
+      - bi_weather_current_snapshot
+      - bi_weather_extremes
+      - bi_weather_risk_alerts
+      # Weather
+      - mart_weather_daily_clean
+      - mart_weather_monthly_city
+      - mart_weather_risk_alerts
+      - mart_weather_extremes
+      - mart_current_weather_snapshot
+      - mart_weather_seasonality
+      - mart_weather_state_monthly
+      - mart_weather_yearly_city
+      - mart_weather_comfort_segments
+      - mart_climate_normals_city_month
+      # Forecast
+      - mart_forecast_vs_actual_daily
+      - mart_forecast_accuracy_monthly
+      - mart_forecast_vs_actual_timeline
+      - mart_forecast_confusion_matrix
+      - mart_rain_probability_calibration
+      # Quality
+      - mart_data_quality_daily
+      # Model performance
+      - mart_model_performance_overview
+      - mart_model_performance_by_city
+      - mart_model_calibration
+      - mart_prediction_bias_report
+      - mart_seasonal_performance
+      - mart_extreme_events_performance
+      # Operations / MLOps
+      - mart_mlops_health
+      - mart_retraining_history
+      - mart_data_freshness_by_city
+      # Drift
+      - mart_feature_drift_summary
+      - mart_climate_anomaly_vs_drift
+      # Scorecard
+      - mart_city_weather_scorecard

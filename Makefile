@@ -5,7 +5,7 @@ PYTEST  := $(PYTHON) -m pytest
 
 .PHONY: help install install-dev test test-monitoring test-ingestion test-train \
         lint format format-github format-check ci docker-build docker-up docker-down \
-        analytics-install analytics-load analytics-run analytics-test \
+        analytics-install analytics-load analytics-daily analytics-run analytics-test \
         analytics-export analytics-docs analytics-all analytics-odbc
 
 help:
@@ -28,15 +28,18 @@ help:
 	@echo "  format-check        Check formatting (no writes, for CI)"
 	@echo "  ci                  lint + format-check + test"
 	@echo ""
-	@echo "Analytics (dbt + DuckDB)"
+	@echo "Analytics (dbt + DuckDB)  — pipeline config in analytics/pipeline.yml (default: daily_bi)"
 	@echo "  analytics-install   pip install dbt-core dbt-duckdb duckdb (pinned versions)"
 	@echo "  analytics-load      Sync SQLite + JSON monitoring files → DuckDB"
-	@echo "  analytics-run       Load sources + dbt deps + dbt run (full pipeline)"
-	@echo "  analytics-test      Run dbt schema/data tests"
-	@echo "  analytics-export    Export all mart tables as CSV → data/analytics/"
+	@echo "  analytics-daily     Load + dbt run + dbt test + CSV export  (= DAG, uses pipeline.yml)"
+	@echo "  analytics-run       Load + dbt deps + dbt run (all models, no selector)"
+	@echo "  analytics-test      dbt test  (select from pipeline.yml)"
+	@echo "  analytics-export    Export CSV  (export list from pipeline.yml)"
 	@echo "  analytics-docs      Generate + serve dbt docs at http://localhost:8080"
-	@echo "  analytics-all       analytics-run + analytics-export (end-to-end)"
+	@echo "  analytics-all       Full rebuild + test (all models) + export full_build pipeline"
 	@echo "  analytics-odbc      Print instructions to set up ODBC DSN for Power BI"
+	@echo ""
+	@echo "  Override pipeline:  ANALYTICS_PIPELINE=full_build make analytics-daily"
 	@echo ""
 	@echo "Docker"
 	@echo "  docker-build        Build API + Airflow images"
@@ -99,6 +102,10 @@ docker-down:
 	docker compose down
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
+# Pipeline config lives in analytics/pipeline.yml.
+# Switch with: ANALYTICS_PIPELINE=full_build make analytics-daily
+
+ANALYTICS_PIPELINE ?= daily_bi
 
 analytics-install:
 	pip install dbt-core==1.11.8 dbt-duckdb==1.10.1 duckdb==1.5.2
@@ -106,19 +113,26 @@ analytics-install:
 analytics-load:
 	python analytics/scripts/load_sources.py
 
+analytics-daily: analytics-load
+	python analytics/scripts/dbt_runner.py run $(ANALYTICS_PIPELINE)
+	python analytics/scripts/dbt_runner.py test $(ANALYTICS_PIPELINE)
+	python analytics/scripts/export_powerbi.py $(ANALYTICS_PIPELINE)
+
 analytics-run: analytics-load
 	cd analytics && dbt deps && dbt run --no-partial-parse
 
 analytics-test:
-	cd analytics && dbt test --no-partial-parse
+	python analytics/scripts/dbt_runner.py test $(ANALYTICS_PIPELINE)
 
 analytics-export:
-	python analytics/scripts/export_powerbi.py
+	python analytics/scripts/export_powerbi.py $(ANALYTICS_PIPELINE)
 
 analytics-docs:
 	cd analytics && dbt docs generate --no-partial-parse && dbt docs serve
 
-analytics-all: analytics-run analytics-export
+analytics-all: analytics-run
+	cd analytics && dbt test --no-partial-parse
+	python analytics/scripts/export_powerbi.py full_build
 
 analytics-odbc:
 	@echo "Run as Administrator in PowerShell:"

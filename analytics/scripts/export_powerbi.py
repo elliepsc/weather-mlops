@@ -1,119 +1,98 @@
 """
-Export all mart tables from DuckDB analytics.duckdb to data/analytics/*.csv.
+Export mart tables from DuckDB to data/analytics/*.csv.
 
-Run after dbt run:
-    python analytics/scripts/export_powerbi.py
+The list of models to export comes from analytics/pipeline.yml (the `export` key).
+Edit that file to add or remove CSV outputs — no code change needed here.
 
-Output files: one CSV per mart/BI model, ready to import in Power BI.
+Usage (from project root):
+    python analytics/scripts/export_powerbi.py                 # daily_bi (env default)
+    python analytics/scripts/export_powerbi.py daily_bi
+    python analytics/scripts/export_powerbi.py full_build
+    ANALYTICS_PIPELINE=full_build python analytics/scripts/export_powerbi.py
 
 Power BI connection after export:
-    Get Data -> Text/CSV -> select files in data/analytics/
+    Get Data → Text/CSV → select files in data/analytics/
 
-Power BI ODBC connection, live with no export needed:
+Power BI live connection (no export needed):
     1. Install DuckDB ODBC driver: https://duckdb.org/docs/api/odbc/overview
     2. Create DSN pointing to data/analytics.duckdb
-    3. Get Data -> ODBC -> select DSN -> Import mode
+    3. Get Data → ODBC → select DSN → Import mode
     4. Tables are under schema main_marts.*
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import sys
 from pathlib import Path
 
 import duckdb
+import yaml
 
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent.parent.parent
+ANALYTICS_DIR = ROOT / "analytics"
+PIPELINE_YML = ANALYTICS_DIR / "pipeline.yml"
 DUCKDB_PATH = ROOT / "data" / "analytics.duckdb"
 OUTPUT_DIR = ROOT / "data" / "analytics"
-
-MARTS = [
-    "bi_dashboard_overview",
-    "bi_data_quality_summary",
-    "bi_powerbi_homepage_kpis",
-    "bi_weather_alerts_summary_monthly",
-    "bi_weather_current_snapshot",
-    "bi_weather_extremes",
-    "bi_weather_risk_alerts",
-    "location_cities",
-    "mart_city_weather_scorecard",
-    "mart_climate_anomaly_vs_drift",
-    "mart_climate_normals_city_month",
-    "mart_current_weather_snapshot",
-    "mart_data_freshness_by_city",
-    "mart_data_quality_daily",
-    "mart_extreme_events_performance",
-    "mart_feature_drift_summary",
-    "mart_forecast_accuracy_monthly",
-    "mart_forecast_confusion_matrix",
-    "mart_forecast_vs_actual_daily",
-    "mart_forecast_vs_actual_timeline",
-    "mart_mlops_health",
-    "mart_model_calibration",
-    "mart_model_performance_by_city",
-    "mart_model_performance_overview",
-    "mart_prediction_bias_report",
-    "mart_rain_probability_calibration",
-    "mart_retraining_history",
-    "mart_seasonal_performance",
-    "mart_weather_comfort_segments",
-    "mart_weather_daily_clean",
-    "mart_weather_extremes",
-    "mart_weather_monthly_city",
-    "mart_weather_risk_alerts",
-    "mart_weather_seasonality",
-    "mart_weather_state_monthly",
-    "mart_weather_yearly_city",
-]
+_SCHEMA = "main_marts"
 
 
-def main() -> None:
+def _load_export_list(pipeline: str) -> list[str]:
+    config = yaml.safe_load(PIPELINE_YML.read_text())
+    pipelines = config.get("pipelines", {})
+    if pipeline not in pipelines:
+        available = ", ".join(pipelines.keys())
+        raise KeyError(f"Pipeline {pipeline!r} not in pipeline.yml. Available: {available}")
+    return pipelines[pipeline].get("export", [])
+
+
+def _export_model(duck: duckdb.DuckDBPyConnection, model: str, out: Path) -> None:
+    out_tmp = out.with_suffix(".csv.tmp")
+    try:
+        duck.execute(
+            f"COPY (SELECT * FROM {_SCHEMA}.{model}) "
+            f"TO '{out_tmp.as_posix()}' (HEADER, DELIMITER ',')"
+        )
+        row_count = duck.execute(f"SELECT COUNT(*) FROM {_SCHEMA}.{model}").fetchone()[0]
+        out_tmp.replace(out)
+        logger.info("exported %s: %d rows → %s", model, row_count, out.name)
+        print(f"  {model}: {row_count:,} rows -> {out.name}")
+    except Exception:
+        if out_tmp.exists():
+            out_tmp.unlink()
+        raise
+
+
+def main(pipeline: str | None = None) -> None:
+    if pipeline is None:
+        pipeline = os.getenv("ANALYTICS_PIPELINE", "daily_bi")
+
     if not DUCKDB_PATH.exists():
         raise FileNotFoundError(
-            f"DuckDB database not found: {DUCKDB_PATH}\n"
-            "Run first: python analytics/scripts/load_sources.py && cd analytics && dbt run"
+            f"DuckDB not found: {DUCKDB_PATH}\n"
+            "Run: make analytics-load && make analytics-run"
         )
 
+    models = _load_export_list(pipeline)
+    if not models:
+        logger.warning("No models in export list for pipeline %r — nothing to export.", pipeline)
+        return
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Exporting marts to {OUTPUT_DIR}")
+    print(f"Exporting {len(models)} model(s) [pipeline: {pipeline!r}] → {OUTPUT_DIR}")
 
     with duckdb.connect(str(DUCKDB_PATH), read_only=True) as duck:
-        for mart in MARTS:
-            out = OUTPUT_DIR / f"{mart}.csv"
-            out_tmp = OUTPUT_DIR / f"{mart}.csv.tmp"
-            try:
-                duck.execute(
-                    f"""
-                    COPY (SELECT * FROM main_marts.{mart})
-                    TO '{out_tmp.as_posix()}'
-                    (HEADER, DELIMITER ',')
-                    """
-                )
-                row_count = duck.execute(f"SELECT COUNT(*) FROM main_marts.{mart}").fetchone()[0]
-                out_tmp.replace(out)
-                logger.info(
-                    "exported %s: %d rows, %.1f KB -> %s",
-                    mart,
-                    row_count,
-                    out.stat().st_size / 1024,
-                    out.name,
-                )
-                print(f"  {mart}: {row_count:,} rows -> {out.name}")
-            except Exception:
-                if out_tmp.exists():
-                    out_tmp.unlink()
-                raise
+        for model in models:
+            _export_model(duck, model, OUTPUT_DIR / f"{model}.csv")
 
-    for mart in MARTS:
-        out = OUTPUT_DIR / f"{mart}.csv"
-        if not out.exists() or out.stat().st_size == 0:
-            raise RuntimeError(f"Export validation failed: {out} missing or empty")
-
-    print(f"\nDone. Import in Power BI: Get Data -> Text/CSV -> {OUTPUT_DIR}")
-    print("Or connect live via ODBC: see https://duckdb.org/docs/api/odbc/overview")
+    print(f"\nDone — {len(models)} CSV(s) in {OUTPUT_DIR}")
+    print("Power BI: Get Data → Text/CSV  |  live via ODBC: duckdb.org/docs/api/odbc")
 
 
 if __name__ == "__main__":
-    main()
+    pipeline_arg = (sys.argv[1].strip() if len(sys.argv) > 1 else "") or None
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    main(pipeline=pipeline_arg)

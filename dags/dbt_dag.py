@@ -4,17 +4,21 @@ Pipeline (normal schedule):
   1. check_mode          – branch: sensors si schedule, bypass si skip_sensors=True
   2. wait_for_ingestion  – ExternalTaskSensor on weather_daily_ingestion.export_csv
   2. wait_for_monitoring – ExternalTaskSensor on weather_daily_monitoring (full DAG)
-  3. validate_sources    – vérifie présence + fraîcheur des fichiers avant chargement
-  4. load_sources        – sync SQLite + JSON monitoring files → DuckDB
-  5. dbt_run             – dbt run (all models)
-  6. dbt_test            – dbt test (schema + data tests)
-  7. export_analytics_csv – export marts DuckDB → data/analytics/*.csv
+  3. sensors_join        – EmptyOperator : point de convergence sensors / bypass
+  4. validate_sources    – vérifie présence + fraîcheur des fichiers avant chargement
+  5. load_sources        – sync SQLite + JSON monitoring files → DuckDB
+  6. dbt_run             – dbt run --select <run_select from pipeline.yml>
+  7. dbt_test            – dbt test --select <test_select from pipeline.yml>
+  8. export_analytics_csv – export DuckDB mart tables → data/analytics/*.csv
 
 Both sensors run in parallel. load_sources starts only when ingestion AND monitoring
 have both completed for the same execution date. This ensures mart_mlops_health,
 mart_retraining_history, and related models are built from same-day monitoring data.
 
 Scheduled at 10:30 UTC (ingestion at 06:00, monitoring at 09:00).
+
+Pipeline config lives in analytics/pipeline.yml — edit that file to control
+which models are built, tested, and exported. No DAG code change needed.
 
 ── Dev / debug bypass ────────────────────────────────────────────────────────
 Trigger manual sans attendre les DAGs upstream :
@@ -29,14 +33,18 @@ Pour une passe locale complète préférer : make analytics-all
 
 import json
 import logging
+import os
 import subprocess
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).parent.parent
 ANALYTICS_DIR = ROOT / "analytics"
 MONITORING_DIR = ROOT / "data" / "monitoring"
+PIPELINE_YML = ANALYTICS_DIR / "pipeline.yml"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -45,6 +53,7 @@ from config.settings import settings
 from dags._airflow_compat import (
     DAG,
     BranchPythonOperator,
+    EmptyOperator,
     ExternalTaskSensor,
     PythonOperator,
     TriggerRule,
@@ -57,6 +66,7 @@ _DBT_FLAGS = [
     str(ANALYTICS_DIR),
     "--project-dir",
     str(ANALYTICS_DIR),
+    "--no-partial-parse",
 ]
 
 default_args = {
@@ -71,6 +81,20 @@ default_args = {
 }
 
 
+# ── Pipeline config ───────────────────────────────────────────────────────────
+
+
+def _pipeline_config() -> dict:
+    """Return the active pipeline's config block from analytics/pipeline.yml."""
+    pipeline = os.getenv("ANALYTICS_PIPELINE", "daily_bi")
+    config = yaml.safe_load(PIPELINE_YML.read_text())
+    pipelines = config.get("pipelines", {})
+    if pipeline not in pipelines:
+        available = ", ".join(pipelines.keys())
+        raise KeyError(f"Pipeline {pipeline!r} not in pipeline.yml. Available: {available}")
+    return pipelines[pipeline]
+
+
 # ── Gate ──────────────────────────────────────────────────────────────────────
 
 
@@ -80,9 +104,9 @@ def _check_mode(**kwargs):
     skip = dag_run and dag_run.conf and dag_run.conf.get("skip_sensors", False)
     if skip:
         logger.info(
-            "skip_sensors=True — bypass ExternalTaskSensors, passage direct à validate_sources"
+            "skip_sensors=True — bypass ExternalTaskSensors, passage direct à sensors_join"
         )
-        return "validate_sources"
+        return "sensors_join"
     return ["wait_for_ingestion", "wait_for_monitoring"]
 
 
@@ -93,7 +117,6 @@ def _validate_sources(**kwargs):
     """Vérifie que les fichiers sources sont présents et datés du bon jour avant dbt."""
     today = str(kwargs.get("ds") or date.today().isoformat())
 
-    # 1. Fichiers obligatoires
     required = [
         ROOT / "data" / "weather.db",
         MONITORING_DIR / "monitoring_decision.json",
@@ -105,7 +128,6 @@ def _validate_sources(**kwargs):
         if path.stat().st_size == 0:
             raise ValueError(f"Source vide avant dbt : {path}")
 
-    # 2. monitoring_decision.json doit être du bon jour
     decision_path = MONITORING_DIR / "monitoring_decision.json"
     decision = json.loads(decision_path.read_text())
     decision_date = decision.get("date")
@@ -134,11 +156,21 @@ def _load_sources(**kwargs):
 
 
 def _dbt_run(**kwargs):
+    cfg = _pipeline_config()
+    selects = cfg.get("run_select", [])
+    if isinstance(selects, str):
+        selects = [selects]
+
+    select_args: list[str] = []
+    for s in selects:
+        select_args += ["--select", s]
+
     result = subprocess.run(
-        ["dbt", "run"] + _DBT_FLAGS,
+        ["dbt", "run"] + select_args + _DBT_FLAGS,
         cwd=str(ANALYTICS_DIR),
         capture_output=True,
         text=True,
+        env={**os.environ, "ANALYTICS_DB_PATH": str(ROOT / "data" / "analytics.duckdb")},
     )
     logger.info(result.stdout)
     if result.returncode != 0:
@@ -147,11 +179,21 @@ def _dbt_run(**kwargs):
 
 
 def _dbt_test(**kwargs):
+    cfg = _pipeline_config()
+    selects = cfg.get("test_select", [])
+    if isinstance(selects, str):
+        selects = [selects]
+
+    select_args: list[str] = []
+    for s in selects:
+        select_args += ["--select", s]
+
     result = subprocess.run(
-        ["dbt", "test"] + _DBT_FLAGS,
+        ["dbt", "test"] + select_args + _DBT_FLAGS,
         cwd=str(ANALYTICS_DIR),
         capture_output=True,
         text=True,
+        env={**os.environ, "ANALYTICS_DB_PATH": str(ROOT / "data" / "analytics.duckdb")},
     )
     logger.info(result.stdout)
     if result.returncode != 0:
@@ -162,15 +204,13 @@ def _dbt_test(**kwargs):
 # ── Export ────────────────────────────────────────────────────────────────────
 
 
-def _export_analytics(**kwargs):
+def _export_analytics(**_):
     from analytics.scripts.export_powerbi import main as export_main
 
     export_main()
 
 
-def _export_gcs(**kwargs):
-    import os
-
+def _export_gcs(**_):
     if os.getenv("GCS_ENABLED", "false").lower() != "true":
         logger.info("GCS_ENABLED=false — skip")
         return
@@ -183,7 +223,7 @@ def _export_gcs(**kwargs):
 
 with DAG(
     dag_id="weather_dbt_analytics",
-    description="Daily dbt refresh: load DuckDB sources then run and test all models",
+    description="Daily dbt refresh: load DuckDB sources, run models, test, export CSV",
     schedule="30 10 * * *",
     start_date=datetime(2026, 4, 29),
     catchup=False,
@@ -219,13 +259,17 @@ with DAG(
         execution_timeout=timedelta(hours=2),
     )
 
-    # Validation des fichiers sources avant tout chargement.
-    # trigger_rule="none_failed_min_one_success" : s'active dès qu'une tâche
-    # upstream a réussi (sensors OU bypass direct depuis check_mode).
+    # Point de convergence : sensors (chemin normal) ou bypass (skip_sensors=True).
+    # none_failed_min_one_success : s'active dès qu'un chemin upstream a réussi,
+    # même si l'autre est en état skipped.
+    t_join = EmptyOperator(
+        task_id="sensors_join",
+        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+    )
+
     t_validate = PythonOperator(
         task_id="validate_sources",
         python_callable=_validate_sources,
-        trigger_rule="none_failed_min_one_success",
         retries=0,
         execution_timeout=timedelta(minutes=2),
     )
@@ -239,16 +283,15 @@ with DAG(
     t_run = PythonOperator(
         task_id="dbt_run",
         python_callable=_dbt_run,
-        execution_timeout=timedelta(minutes=20),
+        retries=0,
+        execution_timeout=timedelta(minutes=30),
     )
 
-    # retries=0 : un test dbt qui échoue deux fois sur les mêmes données
-    # ne donnera pas un résultat différent.
     t_test = PythonOperator(
         task_id="dbt_test",
         python_callable=_dbt_test,
         retries=0,
-        execution_timeout=timedelta(minutes=10),
+        execution_timeout=timedelta(minutes=15),
     )
 
     t_export = PythonOperator(
@@ -270,15 +313,15 @@ with DAG(
     # ── Dépendances ───────────────────────────────────────────────────────────
     #
     # Schedule normal :
-    #   check_mode → [wait_for_ingestion, wait_for_monitoring] → validate_sources
+    #   check_mode → [wait_for_ingestion, wait_for_monitoring] → sensors_join
     #
     # Bypass debug (skip_sensors=True) :
-    #   check_mode → validate_sources
+    #   check_mode → sensors_join  (sensors skipped)
     #
     # Suite commune :
-    #   validate_sources → load_sources → dbt_run → dbt_test
+    #   sensors_join → validate_sources → load_sources → dbt_run → dbt_test
     #   → export_analytics_csv → export_gcs_parquet (ALL_DONE, non-blocking)
 
-    t_gate >> [t_wait_ing, t_wait_mon] >> t_validate
-    t_gate >> t_validate
-    t_validate >> t_load >> t_run >> t_test >> t_export >> t_export_gcs
+    t_gate >> [t_wait_ing, t_wait_mon] >> t_join
+    t_gate >> t_join
+    t_join >> t_validate >> t_load >> t_run >> t_test >> t_export >> t_export_gcs

@@ -129,6 +129,12 @@ def check_new_rows(**context):
     return stored > 0
 
 
+def step_sync_to_postgres(**kwargs):
+    from pipeline.sync_to_postgres import sync_to_postgres
+
+    sync_to_postgres()
+
+
 with DAG(
     dag_id="weather_backfill",
     description="Manual backfill: validate -> fetch -> trigger weekly train -> monitoring",
@@ -175,6 +181,11 @@ with DAG(
         # snapshot(15m) + retrain(2h) + compare(10m) + predict(30m) + export(15m)
         execution_timeout=timedelta(hours=4),
     )
+    t_sync = PythonOperator(
+        task_id="sync_to_postgres",
+        python_callable=step_sync_to_postgres,
+        execution_timeout=timedelta(minutes=10),
+    )
     t_monitoring = TriggerDagRunOperator(
         task_id="trigger_daily_monitoring",
         trigger_dag_id="weather_daily_monitoring",
@@ -182,4 +193,4 @@ with DAG(
         reset_dag_run=True,
     )
 
-    t_validate >> t_fetch >> t_skip_check >> t_trigger_train >> t_monitoring
+    t_validate >> t_fetch >> t_skip_check >> t_trigger_train >> t_sync >> t_monitoring

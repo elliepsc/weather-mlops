@@ -103,9 +103,7 @@ def _check_mode(**kwargs):
     dag_run = kwargs.get("dag_run")
     skip = dag_run and dag_run.conf and dag_run.conf.get("skip_sensors", False)
     if skip:
-        logger.info(
-            "skip_sensors=True — bypass ExternalTaskSensors, passage direct à sensors_join"
-        )
+        logger.info("skip_sensors=True — bypass ExternalTaskSensors, passage direct à sensors_join")
         return "sensors_join"
     return ["wait_for_ingestion", "wait_for_monitoring"]
 

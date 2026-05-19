@@ -72,8 +72,7 @@ def main(pipeline: str | None = None) -> None:
 
     if not DUCKDB_PATH.exists():
         raise FileNotFoundError(
-            f"DuckDB not found: {DUCKDB_PATH}\n"
-            "Run: make analytics-load && make analytics-run"
+            f"DuckDB not found: {DUCKDB_PATH}\n" "Run: make analytics-load && make analytics-run"
         )
 
     models = _load_export_list(pipeline)
